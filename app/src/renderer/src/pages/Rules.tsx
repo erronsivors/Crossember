@@ -11,9 +11,14 @@ export const TRIGGERS: { id: TriggerType; label: string; ico: string; service?: 
   { id: 'donation', label: 'Донат', ico: '₽' }, { id: 'sub', label: 'Подписка', ico: '★' }, { id: 'gift', label: 'Подарки', ico: '🎁' },
   { id: 'follow', label: 'Фоллоу', ico: '♥' }, { id: 'raid', label: 'Рейд', ico: '↗' }, { id: 'bits', label: 'Биты', ico: '◆' },
   { id: 'reward', label: 'Баллы', ico: '✦' }, { id: 'message', label: 'Сообщение в чате', ico: '💬' },
+  { id: 'first_message', label: 'Первое сообщение за эфир', ico: '👋' }, { id: 'new_viewer', label: 'Новый зритель', ico: '✚' },
+  { id: 'song_request', label: 'Заказ трека', ico: '♫' }, { id: 'giveaway_win', label: 'Победа в розыгрыше', ico: '❖' },
   { id: 'stream_start', label: 'Эфир начался', ico: '▶', service: true }, { id: 'stream_end', label: 'Эфир закончился', ico: '■', service: true },
   { id: 'timer', label: 'Каждые N минут', ico: '⏱', service: true }, { id: 'hotkey', label: 'Горячая клавиша', ico: '⌨', service: true },
-  { id: 'goal_stage', label: 'Сбор: этап достигнут', ico: '◔', service: true }, { id: 'goal_done', label: 'Сбор: цель достигнута', ico: '●', service: true }
+  { id: 'goal_stage', label: 'Сбор: этап достигнут', ico: '◔', service: true }, { id: 'goal_done', label: 'Сбор: цель достигнута', ico: '●', service: true },
+  { id: 'bet_start', label: 'Ставки начались', ico: '⚖', service: true }, { id: 'bet_end', label: 'Итог ставок', ico: '⚑', service: true },
+  { id: 'vote_end', label: 'Итог голосования', ico: '☰', service: true },
+  { id: 'subathon_add', label: 'Сабатон: добавлено время', ico: '⏳', service: true }, { id: 'subathon_end', label: 'Сабатон: время вышло', ico: '⌛', service: true }
 ]
 const isService = (t: TriggerType): boolean => !!TRIGGERS.find((x) => x.id === t)?.service
 const PLATFORMS: { id: Platform; label: string }[] = [
@@ -303,6 +308,15 @@ function RuleEditor({ rule, snap, onClose }: { rule: Rule; snap: HubSnapshot; on
         )}
         {(r.types.includes('goal_stage') || r.types.includes('goal_done')) && (
           <p className="small muted" style={{ margin: '0 0 10px' }}>Срабатывает один раз на этап или цель из раздела «Сбор средств». В тексте: {'{user}'} — название этапа или цели, {'{amount}'} — собрано всего, {'{message}'} — «Собрано X из Y».</p>
+        )}
+        {(r.types.includes('bet_start') || r.types.includes('bet_end') || r.types.includes('vote_end')) && (
+          <p className="small muted" style={{ margin: '0 0 10px' }}>Из разделов «Ставки» и «Голосование». В тексте: {'{user}'} — вопрос, {'{message}'} — исходы или итог, {'{amount}'} — банк или голоса победителя.</p>
+        )}
+        {(r.types.includes('subathon_add') || r.types.includes('subathon_end')) && (
+          <p className="small muted" style={{ margin: '0 0 10px' }}>Из раздела «Сабатон». В тексте: {'{user}'} — кто добавил время, {'{message}'} — за что, {'{amount}'} — сколько секунд.</p>
+        )}
+        {(r.types.includes('first_message') || r.types.includes('new_viewer')) && (
+          <p className="small muted" style={{ margin: '0 0 10px' }}>«Первое сообщение» — первое за текущий эфир (эфир должен идти). «Новый зритель» — пишет в чат впервые с тех пор, как Crossember начал считать очки.</p>
         )}
         {(r.types.includes('stream_start') || r.types.includes('stream_end')) && (
           <p className="small muted" style={{ margin: '0 0 10px' }}>Начало и конец эфира Crossember узнаёт от OBS — он должен быть подключён (раздел «Подключения»).</p>

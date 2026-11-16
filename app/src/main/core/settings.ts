@@ -1,6 +1,7 @@
 import type { Store } from './db'
 import { DOCK_PRESETS, sanitizeBlocks, type DockBlock } from './dock'
 import { lookDefaults, sanitizeLook, textDefaults, type ChatLook } from './chatstyle'
+import { EXT_DEFAULTS, EXT_OVERLAY_DEFAULTS, sanitizeExt, sanitizeExtOverlays, type ExtOverlays, type ExtSettings } from './extsettings'
 
 /**
  * Все пользовательские настройки Crossember. Ничего не зашито под конкретного стримера:
@@ -91,7 +92,7 @@ export interface TtsSettings {
 
 export type StatsPeriod = 'stream' | 'today' | 'week' | 'month' | 'all'
 
-export interface AppSettings {
+export interface AppSettings extends ExtSettings {
   setupMode: SetupMode | null
   defaultTheme: Theme
   twitch: {
@@ -124,7 +125,7 @@ export interface AppSettings {
   }
   /** Док для OBS: какие блоки показывать (ссылка без своего набора берёт этот). */
   dock: { blocks: DockBlock[] }
-  overlays: {
+  overlays: ExtOverlays & {
     alert: { theme: Theme }
     chat: ChatOverlaySettings
     chatH: ChatOverlaySettings
@@ -208,6 +209,8 @@ export interface VoteSettings {
   pointsReward: string
   /** Сколько баллов = 1 голос (не меньше одного голоса за награду). */
   pointsPerVote: number
+  /** Свои очки Crossember: столько очков = 1 голос («!голос 2 500»); 0 — выкл. */
+  ownPointsPerVote: number
   /** Команда голоса за долгое: «!голос 2». */
   voteCmd: string
   /** Команда предложить вариант: «!вариант Игра». Пусто — выкл. */
@@ -312,7 +315,8 @@ export const DEFAULTS: AppSettings = {
     wheel: { theme: 'general', hideAfterSec: 10 },
     goal: { theme: 'general', fontSize: 24, showStages: true, showLast: true, showTop: false, topCount: 3, showTimer: true, celebrate: true },
     giveaway: { theme: 'general', fontSize: 26, revealSec: 6, hideAfterSec: 30 },
-    vote: { theme: 'general', fontSize: 24, count: 6, show: 'both', showHint: true }
+    vote: { theme: 'general', fontSize: 24, count: 6, show: 'both', showHint: true },
+    ...EXT_OVERLAY_DEFAULTS
   },
   float: { ...chatDefaults(false), fontSize: 18, maxMessages: 12, hideAfterSec: 45, showStatus: true, enabled: false, bgOpacity: 55, bounds: null, look: lookDefaults({ gap: 6, radius: 10, text: textDefaults({ shadow: 6 }) }) },
   auction: { pointsReward: '', pointsPerRub: 100, autoLotMin: 300, extend: true, extendBelowSec: 60, extendAddSec: 30, defaultMin: 10 },
@@ -322,10 +326,11 @@ export const DEFAULTS: AppSettings = {
     startText: 'Розыгрыш: {приз}! Пишите {слово} в чат, чтобы участвовать.', winText: 'Победитель розыгрыша «{приз}»: {победители}! Напишите в чат 🎉'
   },
   vote: {
-    chat: true, rubPerVote: 100, pointsReward: '', pointsPerVote: 1000, voteCmd: '!голос', suggestCmd: '!вариант', suggestReward: '', suggestDonMin: 0,
+    chat: true, rubPerVote: 100, pointsReward: '', pointsPerVote: 1000, ownPointsPerVote: 0, voteCmd: '!голос', suggestCmd: '!вариант', suggestReward: '', suggestDonMin: 0,
     showCmd: '!голосование', showCooldownSec: 120, autoShowMin: 20, showSec: 30, hotkey: '', defaultSec: 90, announce: true,
     startText: 'Голосование: {вопрос} {варианты} — пишите номер в чат!', winText: 'Итог голосования «{вопрос}»: {победитель} ({голоса})'
   },
+  ...EXT_DEFAULTS,
   analytics: { chat: true, online: true, coreMin: 3, ignore: 'nightbot, streamelements, streamlabs, moobot, fossabot, wizebot, botrix, kicklet, kickbot' }
 }
 
@@ -429,6 +434,7 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
   const clientId = typeof tw.customClientId === 'string' ? tw.customClientId.trim() : base.twitch.customClientId
   const host = typeof lan.host === 'string' ? lan.host.trim() : base.lan.host
   return {
+    ...sanitizeExt(i, base),
     setupMode: i.setupMode === 'one' || i.setupMode === 'two' ? i.setupMode : i.setupMode === null ? null : base.setupMode,
     defaultTheme: theme(i.defaultTheme, base.defaultTheme),
     twitch: {
@@ -522,7 +528,8 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
           theme: theme(o.theme, b.theme), fontSize: int(o.fontSize, b.fontSize, 12, 72), count: int(o.count, b.count, 1, 20),
           show: o.show === 'votes' || o.show === 'pct' || o.show === 'both' ? o.show : b.show, showHint: bool(o.showHint, b.showHint)
         }
-      })()
+      })(),
+      ...sanitizeExtOverlays(ov, base.overlays ?? {})
     },
     float: float(i.float, base.float ?? DEFAULTS.float),
     giveaway: (() => {
@@ -552,6 +559,7 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
         rubPerVote: int(o.rubPerVote, b.rubPerVote, 0, 10_000_000),
         pointsReward: text(o.pointsReward, b.pointsReward, 45).trim(),
         pointsPerVote: int(o.pointsPerVote, b.pointsPerVote, 1, 10_000_000),
+        ownPointsPerVote: int(o.ownPointsPerVote, b.ownPointsPerVote ?? 0, 0, 10_000_000),
         voteCmd: cmd(o.voteCmd, b.voteCmd) || DEFAULTS.vote.voteCmd,
         suggestCmd: cmd(o.suggestCmd, b.suggestCmd),
         suggestReward: text(o.suggestReward, b.suggestReward, 45).trim(),

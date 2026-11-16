@@ -2,7 +2,7 @@ import { shell } from 'electron'
 import type { Hub } from '../hub'
 import type { Settings } from '../settings'
 import type { Secrets } from '../secrets'
-import type { Badge, HubEvent, TwitchState } from '../types'
+import type { Badge, HubEvent, TwitchAccount, TwitchState, ViewerRole } from '../types'
 import type { TwitchPollEvent } from '../vote'
 import { SHARED_CLIENT_ID, TwitchAuth, type DeviceStart, type Role } from './auth'
 import { EmoteCache } from './emotes'
@@ -31,6 +31,11 @@ const SUBS: { type: string; version: string; cond: (b: string) => Json }[] = [
   { type: 'channel.poll.begin', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
   { type: 'channel.poll.progress', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
   { type: 'channel.poll.end', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
+  { type: 'channel.prediction.begin', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
+  { type: 'channel.prediction.progress', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
+  { type: 'channel.prediction.lock', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
+  { type: 'channel.prediction.end', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
+  { type: 'channel.channel_points_custom_reward_redemption.update', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
   { type: 'stream.online', version: '1', cond: (b) => ({ broadcaster_user_id: b }) },
   { type: 'stream.offline', version: '1', cond: (b) => ({ broadcaster_user_id: b }) }
 ]
@@ -53,6 +58,10 @@ export class TwitchConnector implements ChatConnector {
   onChange: () => void = () => undefined
   /** Голосование Twitch: начато, идёт, закончено (подключается к модулю голосования). */
   onPoll: (e: TwitchPollEvent) => void = () => undefined
+  /** Прогноз Twitch: начат, идёт, закрыт, итог (подключается к модулю ставок). */
+  onPrediction: (e: TwitchPredictionEvent) => void = () => undefined
+  /** Активацию награды выполнили или вернули на Twitch (статус fulfilled / canceled). */
+  onRedemptionUpdate: (id: string, status: string) => void = () => undefined
 
   constructor(private hub: Hub, private settings: Settings, secrets: Secrets, img: ImageCache) {
     this.emotes = new EmoteCache(img)
@@ -346,7 +355,8 @@ export class TwitchConnector implements ChatConnector {
           text: s(message.text),
           parts: this.emotes.parts(message.fragments),
           badges: this.badgesOf(e.badges),
-          color: s(e.color)
+          color: s(e.color),
+          role: roleOf(e.badges)
         })
         break
       }
@@ -393,6 +403,7 @@ export class TwitchConnector implements ChatConnector {
         this.hub.push({
           ...base, type: 'reward', user: s(e.user_name), userId: s(e.user_id),
           amount: Number((e.reward as Json)?.cost) || 0, currency: 'points', reward: s((e.reward as Json)?.title),
+          redemption: { id: s(e.id), rewardId: s((e.reward as Json)?.id) },
           text: [s((e.reward as Json)?.title), s(e.user_input)].filter(Boolean).join(' — ')
         })
         break
@@ -407,6 +418,25 @@ export class TwitchConnector implements ChatConnector {
         })
         break
       }
+      case 'channel.prediction.begin':
+      case 'channel.prediction.progress':
+      case 'channel.prediction.lock':
+      case 'channel.prediction.end': {
+        const outcomes = (Array.isArray(e.outcomes) ? (e.outcomes as Json[]) : []).map((o) => ({
+          id: s(o.id), title: s(o.title), points: Number(o.channel_points) || 0, users: Number(o.users) || 0,
+          top: (Array.isArray(o.top_predictors) ? (o.top_predictors as Json[]) : []).slice(0, 5).map((t) => ({ name: s(t.user_name), points: Number(t.channel_points_used) || 0, won: Number(t.channel_points_won) || 0 }))
+        }))
+        const locks = Date.parse(s(e.locks_at))
+        this.onPrediction({
+          phase: type.slice('channel.prediction.'.length) as TwitchPredictionEvent['phase'],
+          id: s(e.id), title: s(e.title), outcomes, locksAt: Number.isFinite(locks) ? locks : null,
+          status: s(e.status), winner: s(e.winning_outcome_id)
+        })
+        break
+      }
+      case 'channel.channel_points_custom_reward_redemption.update':
+        this.onRedemptionUpdate(s(e.id), s(e.status))
+        break
       case 'stream.online':
         this.live = true
         void this.pollViewers()
@@ -530,6 +560,210 @@ export class TwitchConnector implements ChatConnector {
     return gameName
   }
 
+  // ---------- общий вызов API для панели, наград и прогнозов ----------
+
+  /** Есть ли у входа стримера право scope. */
+  access(scope: string): 'ok' | 'login' | 'relogin' {
+    if (!this.auth.account('broadcaster')) return 'login'
+    return this.auth.hasScope('broadcaster', scope) ? 'ok' : 'relogin'
+  }
+
+  private me(): TwitchAccount {
+    const me = this.auth.account('broadcaster')
+    if (!me) throw new Error('Twitch не подключён — войдите в «Подключениях»')
+    return me
+  }
+
+  /** Запрос к Helix с понятной ошибкой. scope — какое право нужно (для подсказки «войдите заново»). */
+  private async api(method: string, path: string, body?: unknown, scope?: string): Promise<Json> {
+    if (scope && this.access(scope) === 'relogin') throw new Error('Нужно новое разрешение — войдите в Twitch заново (Подключения → Twitch)')
+    const res = await this.helix(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+    if (res.status === 204) return {}
+    const j = (await res.json().catch(() => ({}))) as Json
+    if (!res.ok) {
+      const msg = s(j.message).slice(0, 160)
+      if (res.status === 401) throw new Error('Twitch не дал прав — войдите заново (Подключения → Twitch)')
+      if (res.status === 403) throw new Error(`Twitch запретил действие${msg ? `: ${msg}` : ''}`)
+      if (res.status === 429) throw new Error('Twitch просит подождать — слишком часто')
+      throw new Error(`Twitch: ${res.status}${msg ? ` — ${msg}` : ''}`)
+    }
+    return j
+  }
+
+  /** Канал по нику (логину). */
+  async userByLogin(login: string): Promise<{ id: string; login: string; name: string } | null> {
+    const l = login.trim().replace(/^@/, '').replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').replace(/[/?#].*$/, '').toLowerCase()
+    if (!/^[a-z0-9_]{1,25}$/.test(l)) throw new Error('Ник Twitch: латиница, цифры и _')
+    const j = await this.api('GET', `/users?login=${encodeURIComponent(l)}`)
+    const u = (Array.isArray(j.data) ? (j.data as Json[]) : [])[0]
+    return u ? { id: s(u.id), login: s(u.login), name: s(u.display_name) || s(u.login) } : null
+  }
+
+  private async needUser(login: string): Promise<{ id: string; login: string; name: string }> {
+    const u = await this.userByLogin(login)
+    if (!u) throw new Error(`Канал «${login}» на Twitch не найден`)
+    return u
+  }
+
+  /** Все зрители в чате (для очков молчащим). null — нет права. */
+  async chatters(): Promise<{ id: string; name: string }[] | null> {
+    const me = this.auth.account('broadcaster')
+    if (!me || this.access('moderator:read:chatters') !== 'ok') return null
+    const out: { id: string; name: string }[] = []
+    let cursor = ''
+    for (let page = 0; page < 10; page++) {
+      const j = await this.api('GET', `/chat/chatters?broadcaster_id=${me.id}&moderator_id=${me.id}&first=1000${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`)
+      for (const u of Array.isArray(j.data) ? (j.data as Json[]) : []) out.push({ id: s(u.user_id), name: s(u.user_name) || s(u.user_login) })
+      cursor = s((j.pagination as Json | undefined)?.cursor)
+      if (!cursor) break
+    }
+    return out
+  }
+
+  // ---------- панель канала ----------
+
+  async startRaid(login: string): Promise<string> {
+    const me = this.me()
+    const to = await this.needUser(login)
+    if (to.id === me.id) throw new Error('Нельзя рейдить свой канал')
+    await this.api('POST', `/raids?from_broadcaster_id=${me.id}&to_broadcaster_id=${to.id}`, undefined, 'channel:manage:raids')
+    return to.name
+  }
+
+  async cancelRaid(): Promise<void> {
+    const me = this.me()
+    await this.api('DELETE', `/raids?broadcaster_id=${me.id}`, undefined, 'channel:manage:raids')
+  }
+
+  async shoutout(login: string): Promise<string> {
+    const me = this.me()
+    const to = await this.needUser(login)
+    await this.api('POST', `/chat/shoutouts?from_broadcaster_id=${me.id}&to_broadcaster_id=${to.id}&moderator_id=${me.id}`, undefined, 'moderator:manage:shoutouts')
+    return to.name
+  }
+
+  async banLogin(login: string, seconds: number, reason = ''): Promise<string> {
+    const u = await this.needUser(login)
+    await this.banUser(u.id, seconds, reason || 'Crossember')
+    return u.name
+  }
+
+  async unbanLogin(login: string): Promise<string> {
+    const me = this.me()
+    const u = await this.needUser(login)
+    await this.api('DELETE', `/moderation/bans?broadcaster_id=${me.id}&moderator_id=${me.id}&user_id=${u.id}`)
+    return u.name
+  }
+
+  async chatSettings(): Promise<TwitchChatSettings> {
+    const me = this.me()
+    const j = await this.api('GET', `/chat/settings?broadcaster_id=${me.id}&moderator_id=${me.id}`)
+    const d = (Array.isArray(j.data) ? (j.data as Json[]) : [])[0] ?? {}
+    return {
+      slow: d.slow_mode === true, slowSec: Number(d.slow_mode_wait_time) || 0,
+      followers: d.follower_mode === true, followersMin: Number(d.follower_mode_duration) || 0,
+      subs: d.subscriber_mode === true, emotes: d.emote_mode === true, unique: d.unique_chat_mode === true
+    }
+  }
+
+  async setChatSettings(p: Partial<TwitchChatSettings>): Promise<TwitchChatSettings> {
+    const me = this.me()
+    const body: Json = {}
+    if (p.slow !== undefined) body.slow_mode = p.slow
+    if (p.slow && p.slowSec !== undefined) body.slow_mode_wait_time = Math.min(120, Math.max(3, Math.round(p.slowSec)))
+    if (p.followers !== undefined) body.follower_mode = p.followers
+    if (p.followers && p.followersMin !== undefined) body.follower_mode_duration = Math.min(129_600, Math.max(0, Math.round(p.followersMin)))
+    if (p.subs !== undefined) body.subscriber_mode = p.subs
+    if (p.emotes !== undefined) body.emote_mode = p.emotes
+    if (p.unique !== undefined) body.unique_chat_mode = p.unique
+    await this.api('PATCH', `/chat/settings?broadcaster_id=${me.id}&moderator_id=${me.id}`, body, 'moderator:manage:chat_settings')
+    return this.chatSettings()
+  }
+
+  async commercial(sec: number): Promise<number> {
+    const me = this.me()
+    const length = [30, 60, 90, 120, 150, 180].includes(sec) ? sec : 30
+    const j = await this.api('POST', '/channels/commercial', { broadcaster_id: me.id, length }, 'channel:edit:commercial')
+    const d = (Array.isArray(j.data) ? (j.data as Json[]) : [])[0] ?? {}
+    return Number(d.length) || length
+  }
+
+  async marker(description: string): Promise<void> {
+    const me = this.me()
+    await this.api('POST', '/streams/markers', { user_id: me.id, description: description.slice(0, 140) }, 'channel:manage:broadcast')
+  }
+
+  async clip(): Promise<{ id: string; url: string; editUrl: string }> {
+    const me = this.me()
+    const j = await this.api('POST', `/clips?broadcaster_id=${me.id}`, undefined, 'clips:edit')
+    const d = (Array.isArray(j.data) ? (j.data as Json[]) : [])[0] ?? {}
+    const id = s(d.id)
+    return { id, url: id ? `https://clips.twitch.tv/${encodeURIComponent(id)}` : '', editUrl: s(d.edit_url) }
+  }
+
+  async announce(text: string, color: 'primary' | 'blue' | 'green' | 'orange' | 'purple' = 'primary'): Promise<void> {
+    const me = this.me()
+    const message = text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 500)
+    if (!message) return
+    await this.api('POST', `/chat/announcements?broadcaster_id=${me.id}&moderator_id=${me.id}`, { message, color }, 'moderator:manage:announcements')
+  }
+
+  // ---------- награды за баллы ----------
+
+  async listRewards(onlyOwn: boolean): Promise<TwitchReward[]> {
+    const me = this.me()
+    const j = await this.api('GET', `/channel_points/custom_rewards?broadcaster_id=${me.id}${onlyOwn ? '&only_manageable_rewards=true' : ''}`)
+    return (Array.isArray(j.data) ? (j.data as Json[]) : []).map(rewardOf)
+  }
+
+  async createReward(r: TwitchRewardInput): Promise<TwitchReward> {
+    const me = this.me()
+    const j = await this.api('POST', `/channel_points/custom_rewards?broadcaster_id=${me.id}`, rewardBody(r), 'channel:manage:redemptions')
+    return rewardOf((Array.isArray(j.data) ? (j.data as Json[]) : [])[0] ?? {})
+  }
+
+  async updateReward(id: string, r: Partial<TwitchRewardInput>): Promise<TwitchReward> {
+    const me = this.me()
+    const j = await this.api('PATCH', `/channel_points/custom_rewards?broadcaster_id=${me.id}&id=${encodeURIComponent(id)}`, rewardBody(r), 'channel:manage:redemptions')
+    return rewardOf((Array.isArray(j.data) ? (j.data as Json[]) : [])[0] ?? {})
+  }
+
+  async deleteReward(id: string): Promise<void> {
+    const me = this.me()
+    await this.api('DELETE', `/channel_points/custom_rewards?broadcaster_id=${me.id}&id=${encodeURIComponent(id)}`, undefined, 'channel:manage:redemptions')
+  }
+
+  /** Отметить активации выполненными или вернуть баллы. Работает только для наград, созданных этим приложением. */
+  async setRedemptions(rewardId: string, ids: string[], status: 'FULFILLED' | 'CANCELED'): Promise<void> {
+    const me = this.me()
+    const list = ids.filter((x) => /^[\w-]{1,100}$/.test(x)).slice(0, 50)
+    if (!list.length) return
+    const q = list.map((x) => `id=${encodeURIComponent(x)}`).join('&')
+    await this.api('PATCH', `/channel_points/custom_rewards/redemptions?broadcaster_id=${me.id}&reward_id=${encodeURIComponent(rewardId)}&${q}`, { status }, 'channel:manage:redemptions')
+  }
+
+  // ---------- прогнозы ----------
+
+  async createPrediction(title: string, outcomes: string[], sec: number): Promise<{ id: string; outcomes: { id: string; title: string }[]; locksAt: number | null }> {
+    const me = this.me()
+    const body = { broadcaster_id: me.id, title: title.slice(0, 45), outcomes: outcomes.slice(0, 10).map((t) => ({ title: t.slice(0, 25) })), prediction_window: Math.min(1800, Math.max(30, Math.round(sec))) }
+    const j = await this.api('POST', '/predictions', body, 'channel:manage:predictions')
+    const d = (Array.isArray(j.data) ? (j.data as Json[]) : [])[0] ?? {}
+    const created = Date.parse(s(d.created_at))
+    return {
+      id: s(d.id),
+      outcomes: (Array.isArray(d.outcomes) ? (d.outcomes as Json[]) : []).map((o) => ({ id: s(o.id), title: s(o.title) })),
+      locksAt: Number.isFinite(created) ? created + (Number(d.prediction_window) || sec) * 1000 : null
+    }
+  }
+
+  async endPrediction(id: string, status: 'LOCKED' | 'RESOLVED' | 'CANCELED', winningOutcomeId?: string): Promise<void> {
+    const me = this.me()
+    const body: Json = { broadcaster_id: me.id, id, status }
+    if (status === 'RESOLVED') body.winning_outcome_id = winningOutcomeId
+    await this.api('PATCH', '/predictions', body, 'channel:manage:predictions')
+  }
+
   async deleteById(messageId: string): Promise<void> {
     const me = this.auth.account('broadcaster')
     if (!me || !/^[\w-]{1,100}$/.test(messageId)) return
@@ -548,8 +782,98 @@ export class TwitchConnector implements ChatConnector {
   }
 }
 
+/** Роль в чате по значкам Twitch (старшая). */
+function roleOf(list: unknown): ViewerRole | undefined {
+  const sets = new Set((Array.isArray(list) ? (list as Json[]) : []).map((b) => s(b.set_id)))
+  if (sets.has('broadcaster')) return 'broadcaster'
+  if (sets.has('moderator') || sets.has('lead_moderator')) return 'mod'
+  if (sets.has('vip')) return 'vip'
+  if (sets.has('subscriber') || sets.has('founder')) return 'sub'
+  return undefined
+}
+
 function tier(t: unknown): string {
   return t === '2000' ? '2' : t === '3000' ? '3' : '1'
 }
 
 export type { HubEvent }
+
+export interface TwitchChatSettings {
+  slow: boolean
+  slowSec: number
+  followers: boolean
+  followersMin: number
+  subs: boolean
+  emotes: boolean
+  unique: boolean
+}
+
+export interface TwitchReward {
+  id: string
+  title: string
+  cost: number
+  prompt: string
+  inputRequired: boolean
+  enabled: boolean
+  paused: boolean
+  color: string
+  cooldownSec: number
+  maxPerStream: number
+  maxPerUser: number
+  skipQueue: boolean
+}
+
+export interface TwitchRewardInput {
+  title: string
+  cost: number
+  prompt: string
+  inputRequired: boolean
+  enabled: boolean
+  paused: boolean
+  color: string
+  cooldownSec: number
+  maxPerStream: number
+  maxPerUser: number
+  skipQueue: boolean
+}
+
+function rewardOf(r: Json): TwitchReward {
+  const gc = (r.global_cooldown_setting ?? {}) as Json
+  const ms = (r.max_per_stream_setting ?? {}) as Json
+  const mu = (r.max_per_user_per_stream_setting ?? {}) as Json
+  return {
+    id: s(r.id), title: s(r.title), cost: Number(r.cost) || 0, prompt: s(r.prompt), inputRequired: r.is_user_input_required === true,
+    enabled: r.is_enabled !== false, paused: r.is_paused === true, color: /^#[0-9a-f]{6}$/i.test(s(r.background_color)) ? s(r.background_color) : '#9147ff',
+    cooldownSec: gc.is_enabled ? Number(gc.global_cooldown_seconds) || 0 : 0,
+    maxPerStream: ms.is_enabled ? Number(ms.max_per_stream) || 0 : 0,
+    maxPerUser: mu.is_enabled ? Number(mu.max_per_user_per_stream) || 0 : 0,
+    skipQueue: r.should_redemptions_skip_request_queue === true
+  }
+}
+
+function rewardBody(r: Partial<TwitchRewardInput>): Json {
+  const b: Json = {}
+  if (r.title !== undefined) b.title = r.title.slice(0, 45)
+  if (r.cost !== undefined) b.cost = Math.max(1, Math.round(r.cost))
+  if (r.prompt !== undefined) b.prompt = r.prompt.slice(0, 200)
+  if (r.inputRequired !== undefined) b.is_user_input_required = r.inputRequired
+  if (r.enabled !== undefined) b.is_enabled = r.enabled
+  if (r.paused !== undefined) b.is_paused = r.paused
+  if (r.color !== undefined && /^#[0-9a-f]{6}$/i.test(r.color)) b.background_color = r.color
+  if (r.cooldownSec !== undefined) { b.is_global_cooldown_enabled = r.cooldownSec > 0; if (r.cooldownSec > 0) b.global_cooldown_seconds = Math.min(604_800, Math.round(r.cooldownSec)) }
+  if (r.maxPerStream !== undefined) { b.is_max_per_stream_enabled = r.maxPerStream > 0; if (r.maxPerStream > 0) b.max_per_stream = Math.round(r.maxPerStream) }
+  if (r.maxPerUser !== undefined) { b.is_max_per_user_per_stream_enabled = r.maxPerUser > 0; if (r.maxPerUser > 0) b.max_per_user_per_stream = Math.round(r.maxPerUser) }
+  if (r.skipQueue !== undefined) b.should_redemptions_skip_request_queue = r.skipQueue
+  return b
+}
+
+export interface TwitchPredictionEvent {
+  phase: 'begin' | 'progress' | 'lock' | 'end'
+  id: string
+  title: string
+  outcomes: { id: string; title: string; points: number; users: number; top: { name: string; points: number; won: number }[] }[]
+  locksAt: number | null
+  /** Для end: resolved или canceled. */
+  status: string
+  winner: string
+}

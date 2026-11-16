@@ -24,6 +24,15 @@ import { Wheel } from './core/wheel'
 import { Fundraiser, type GoalReached } from './core/goal'
 import { Giveaway, type GiveawayWinner } from './core/giveaway'
 import { Vote, type PollView } from './core/vote'
+import { Points } from './core/points'
+import { Bot, parseAmount } from './core/bot'
+import { Bets, type BetView } from './core/bets'
+import { Rewards } from './core/rewards'
+import { Spotify } from './core/spotify'
+import { Smtc } from './core/smtc'
+import { Music } from './core/music'
+import { Subathon } from './core/subathon'
+import { Memealerts } from './core/memealerts'
 import { Analytics, CHAT_PLATFORMS, isAnalyticsPeriod, type ChatPlatform } from './core/analytics'
 import { Profiles, type ProfilePart } from './core/profile'
 import { KickAuth } from './core/kickauth'
@@ -106,6 +115,14 @@ let wheel: Wheel
 let goal: Fundraiser
 let giveaway: Giveaway
 let vote: Vote
+let points: Points
+let bot: Bot
+let bets: Bets
+let rewards: Rewards
+let spotify: Spotify
+let music: Music
+let subathon: Subathon
+let memealerts: Memealerts
 let analytics: Analytics
 let profiles: Profiles
 let kickAuth: KickAuth
@@ -115,6 +132,9 @@ let dp: DonatePayConnector
 let dx: DonateXConnector
 let boosty: BoostyConnector
 let donations: DonationConnector[] = []
+
+/** Права Twitch, которые нужны новым разделам (панель канала, награды, прогнозы, список зрителей). */
+const PANEL_SCOPES = ['channel:manage:raids', 'moderator:manage:shoutouts', 'moderator:manage:chat_settings', 'moderator:manage:announcements', 'channel:edit:commercial', 'clips:edit', 'channel:manage:broadcast', 'channel:manage:redemptions', 'channel:manage:predictions', 'moderator:read:chatters', 'moderator:manage:banned_users']
 
 /** Свои аккаунты (каналы на площадках и бот Twitch) — не зрители. */
 function ownAccounts(): string[] {
@@ -150,6 +170,14 @@ function snapshot(): HubSnapshot {
     goal: goal.state(),
     giveaway: giveaway.state(),
     vote: vote.state(),
+    points: points.state(),
+    bot: bot.state(),
+    bets: bets.state(),
+    rewards: rewards.state(),
+    music: music.state(),
+    subathon: subathon.state(),
+    memealerts: memealerts.state(),
+    twitchScopes: Object.fromEntries(PANEL_SCOPES.map((sc) => [sc, twitch.access(sc)])),
     feedback: { email: FEEDBACK_EMAIL, crash: logger?.crash() ?? null },
     alertOverlays: server ? server.openCount('alert') : 0,
     float: { open: floatChat?.isOpen ?? false, editing: floatChat?.isEditing ?? false, hotkey: FLOAT_HOTKEY.replace('CommandOrControl', 'Ctrl') }
@@ -352,6 +380,115 @@ app.whenReady().then(async () => {
   // Родное голосование Twitch Twitch объявляет сам — пишем только о своём.
   vote.on('started', (p: PollView) => { if (p.source === 'own') voteSay(settings.get().vote.startText, p) })
   vote.on('finished', (p: PollView) => voteSay(settings.get().vote.winText, p))
+  // ---------- Очки зрителей, бот, ставки, награды, музыка, сабатон, Memealerts ----------
+  const liveNow = (): boolean => obs.state.streaming || chats.states().some((p) => p.live)
+  const autoAs = (): 'broadcaster' | 'bot' => settings.get().twitch.autoSendAs
+  /** Ответ бота на той площадке, откуда пришла команда. */
+  const replyTo = (p: Platform, text: string): void => {
+    if (!text || !chats.get(p)?.chatState().canSend) return
+    chats.send(text.slice(0, 450), [p], autoAs()).catch((e: Error) => hub.log('hub', 'warn', `Бот: не удалось ответить — ${e.message}`))
+  }
+  /** Сообщение во все чаты, где можно писать. */
+  const sendAll = (text: string): void => {
+    const targets = chats.states().filter((x) => x.canSend).map((x) => x.id)
+    if (!text || !targets.length) return
+    chats.send(text.slice(0, 450), targets, autoAs()).catch((e: Error) => hub.log('hub', 'warn', `Не удалось написать в чат — ${e.message}`))
+  }
+  points = new Points(store, settings, hub, liveNow, ownAccounts)
+  points.on('change', pushUpdate)
+  points.lurkers = () => twitch.chatters()
+  vote.spendPoints = (e, raw, step, reason) => {
+    const v = points.ensure(e.platform, e.userId, e.user)
+    const n = parseAmount(raw, v.balance)
+    const amount = n ? Math.floor(n / step) * step : 0
+    return amount > 0 && points.spend(v.key, amount, reason) ? amount : 0
+  }
+  bets = new Bets(store, settings, hub, points)
+  bets.on('change', pushUpdate)
+  bets.setTwitch({
+    access: () => twitch.access('channel:manage:predictions'),
+    create: (title, outcomes, sec) => twitch.createPrediction(title, outcomes, sec),
+    end: (id, st, w) => twitch.endPrediction(id, st, w)
+  })
+  twitch.onPrediction = (e) => bets.twitchEvent(e)
+  const betSay = (tpl: string, b: BetView): void => {
+    const cfg = settings.get().bets
+    if (!cfg.announce || !tpl.trim() || b.source !== 'own') return
+    const win = b.outcomes.find((o) => o.id === b.winner)
+    const text = tpl.replace(/\{(вопрос|исходы|команда|банк|исход|победители)\}/g, (_, k: string) => ({
+      вопрос: b.title, исходы: b.outcomes.map((o) => `${o.num}) ${o.name}`).join(' '), команда: cfg.cmd, банк: `${b.total.toLocaleString('ru-RU')} ${settings.get().points.name}`,
+      исход: win?.name ?? '', победители: b.payouts.slice(0, 5).map((x) => `${x.name} +${x.won.toLocaleString('ru-RU')}`).join(', ') || 'никто не угадал'
+    } as Record<string, string>)[k] ?? '')
+    sendAll(text.replace(/\s+/g, ' ').trim())
+  }
+  bets.on('started', (b: BetView) => betSay(settings.get().bets.startText, b))
+  bets.on('locked', (b: BetView) => betSay(settings.get().bets.lockText, b))
+  bets.on('resolved', (b: BetView) => betSay(settings.get().bets.winText, b))
+  bets.on('reject', (e: HubEvent, err: string) => replyTo(e.platform, `@${e.user}, ${err}`))
+  spotify = new Spotify(hub, secrets, () => settings.get().music.spotifyClientId)
+  spotify.onChange = pushUpdate
+  music = new Music(settings, hub, points, spotify, new Smtc())
+  music.reply = replyTo
+  music.on('change', pushUpdate)
+  subathon = new Subathon(store, settings, hub)
+  subathon.on('change', pushUpdate)
+  memealerts = new Memealerts(hub, secrets)
+  memealerts.onChange = pushUpdate
+  rewards = new Rewards(store, settings, hub)
+  rewards.on('change', pushUpdate)
+  rewards.setApi({
+    access: () => twitch.access('channel:manage:redemptions'),
+    list: (own) => twitch.listRewards(own),
+    create: (r) => twitch.createReward(r),
+    update: (id, r) => twitch.updateReward(id, r),
+    remove: (id) => twitch.deleteReward(id),
+    setStatus: (rid, ids, st) => twitch.setRedemptions(rid, ids, st)
+  })
+  twitch.onRedemptionUpdate = (id, st) => rewards.onTwitchUpdate(id, st)
+  rewards.run = async (action, meta, e, input) => {
+    switch (action) {
+      case 'track': return (await music.request({ user: e.user, platform: e.platform }, input, 'reward')).error
+      case 'points': {
+        if (!settings.get().points.enabled) return 'Очки зрителей выключены'
+        const v = points.ensure(e.platform, e.userId, e.user)
+        points.add(v.key, meta.amount, `награда «${e.reward ?? ''}»`)
+        return ''
+      }
+      case 'subathon': return subathon.add(meta.amount, e.user, e.platform, `награда «${e.reward ?? ''}»`) > 0 ? '' : 'Сабатон не запущен'
+      case 'memecoins': {
+        try { await memealerts.giveByName(e.user, meta.amount); return '' } catch (x) { return (x as Error).message }
+      }
+      default: return ''
+    }
+  }
+  rewards.on('failed', (r: { user: string; own: boolean }, err: string) =>
+    replyTo('twitch', `@${r.user}, не получилось: ${err}${r.own && settings.get().rewards.refundOnFail ? ' — баллы вернул' : ''}`))
+  bot = new Bot(settings, hub, points)
+  bot.on('change', pushUpdate)
+  const twitchInfo = async (title: string | null, game: string | null): Promise<string> => {
+    try {
+      const cur = await twitch.channelInfo()
+      const g = await twitch.setChannelInfo(title ?? cur.title, game ?? cur.game)
+      return title !== null ? `Название: ${title}` : `Категория: ${g || game}`
+    } catch (e) {
+      return (e as Error).message
+    }
+  }
+  bot.deps = {
+    reply: replyTo,
+    sendAll,
+    isLive: liveNow,
+    uptimeMs: () => (obs.state.streaming && obs.state.streamStartedAt ? Date.now() - obs.state.streamStartedAt : null),
+    botName: () => twitch.state().bot?.name ?? null,
+    skipAlert: () => alerts.skip(),
+    pauseAlerts: (v) => alerts.setPaused(v),
+    skipTrack: () => music.skip(),
+    betLock: () => { void bets.lock(); return 'Ставки закрыты' },
+    betWin: (n) => { void bets.resolve(n).then((t) => sendAll(t)); return '' },
+    betCancel: () => { void bets.cancel(); return 'Ставки отменены, очки возвращены' },
+    setTitle: (t) => twitchInfo(t.slice(0, 140), null),
+    setGame: (g) => twitchInfo(null, g.slice(0, 100))
+  }
   rules = new RuleEngine(hub, store, settings, templates, {
     play: (plan, e, force) => alerts.play(plan, e, force),
     obs: runObs,
@@ -364,6 +501,18 @@ app.whenReady().then(async () => {
     const rub = (n: number): string => `${Math.round(n).toLocaleString('ru-RU')} ₽`
     rules.fireGoal(r.kind === 'goal' ? 'goal_done' : 'goal_stage', r.name, r.collected, `Собрано ${rub(r.collected)} из ${rub(r.target)}`)
   })
+  points.on('first', (_v: unknown, e: HubEvent) => rules.fireViewer('first_message', e))
+  points.on('new', (_v: unknown, e: HubEvent) => rules.fireViewer('new_viewer', e))
+  music.on('request', (r: { user: string; platform: Platform; title: string }) =>
+    rules.fireViewer('song_request', { id: '', ts: Date.now(), platform: r.platform, type: 'message', user: r.user, text: r.title }))
+  giveaway.on('drawn', (list: GiveawayWinner[]) => {
+    for (const w of list) rules.fireViewer('giveaway_win', { id: '', ts: Date.now(), platform: w.platform, type: 'message', user: w.user, text: giveaway.state().prize })
+  })
+  bets.on('started', (b: BetView) => rules.fireInfo('bet_start', b.title, b.outcomes.map((o) => `${o.num}) ${o.name}`).join(' ')))
+  bets.on('resolved', (b: BetView) => rules.fireInfo('bet_end', b.title, `Итог: ${b.outcomes.find((o) => o.id === b.winner)?.name ?? ''}`, b.total))
+  vote.on('finished', (p: PollView) => { if (p.result) rules.fireInfo('vote_end', p.title || 'Голосование', `Победил: ${p.result.name}`, p.result.votes) })
+  subathon.on('added', (a: { user: string; sec: number; reason: string }) => { if (a.sec > 0) rules.fireInfo('subathon_add', a.user, a.reason, a.sec) })
+  subathon.on('ended', () => rules.fireInfo('subathon_end', 'Сабатон', 'Время вышло'))
   profiles = new Profiles(app.getPath('userData'), store, settings, rules, templates, counters)
   syncHotkeys()
   stats = new Stats(store, () => (obs.state.streaming ? obs.state.streamStartedAt : null))
@@ -422,9 +571,27 @@ app.whenReady().then(async () => {
       'vote.timer': (op, sec) => vote.timer(str(op, 10), sec),
       'vote.show': () => vote.toggleShow(),
       'wheel.spin': () => { wheel.spin() },
+      'rewards.done': (id) => rewards.fulfill(str(id, 100)),
+      'rewards.refund': (id) => rewards.refund(str(id, 100)),
+      'bets.lock': () => bets.lock(),
+      'bets.resolve': (n) => bets.resolve(Number(n)),
+      'bets.cancel': () => bets.cancel(),
+      'music.toggle': () => music.control('toggle'),
+      'music.next': () => music.control('next'),
+      'subathon.pause': (v) => subathon.pause(v === true),
+      'subathon.add': (sec) => { subathon.add(Number(sec)) },
       counter: (id, op) => counters.apply(str(id, 100), op === 'sub' ? 'sub' : 'add', 1)
+    },
+    sendMod: (text) => chats.send(text, chats.states().filter((p) => p.canSend).map((p) => p.id), twitch.state().bot ? 'bot' : 'broadcaster'),
+    moderate: async (id, op) => {
+      const m = hub.findMessage(id)
+      if (!m) return
+      if (m.test) { hub.deleteMessage(m.id); return }
+      const c = chats.get(m.platform)
+      if (op === 'delete') await c?.deleteMessage?.(m)
+      else await c?.ban?.(m, op === 'timeout' ? 600 : 0)
     }
-  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, own: ownAccounts })
+  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, own: ownAccounts })
   obs.onChange = pushUpdate
   server.onClients = pushUpdate
   floatChat = new FloatChat(settings, hub, () => server.overlayUrl('float'))
@@ -445,6 +612,8 @@ app.whenReady().then(async () => {
     if (s.boosty.poll !== prev.boosty.poll) void boosty.restart()
     if (s.twitch.customClientId !== prev.twitch.customClientId || s.twitch.thirdPartyEmotes !== prev.twitch.thirdPartyEmotes) void twitch.restart()
     if (s.vote.hotkey !== prev.vote.hotkey) syncHotkeys()
+    if (s.mod.web !== prev.mod.web || s.mod.enabled !== prev.mod.enabled) void server.applyLan().then(pushUpdate)
+    if (s.music.spotifyClientId !== prev.music.spotifyClientId && prev.music.spotifyClientId) spotify.logout()
     prev = s
     pushUpdate()
   }
@@ -455,7 +624,7 @@ app.whenReady().then(async () => {
   handle('hub:obsConfigure', (url, password) => obs.configure(str(url, 200).trim(), password === undefined ? undefined : str(password, 200)))
   handle('hub:obsReconnect', () => obs.reconnect())
   handle('hub:rotateKey', (which) => {
-    server.rotate(which === 'remote' ? 'remote' : which === 'dock' ? 'dock' : 'overlay')
+    server.rotate(which === 'remote' ? 'remote' : which === 'dock' ? 'dock' : which === 'mod' ? 'mod' : 'overlay')
     pushUpdate()
   })
   handle('hub:copy', (text) => clipboard.writeText(str(text, 2000)))
@@ -481,7 +650,7 @@ app.whenReady().then(async () => {
   })
   handle('hub:openExternal', (url) => {
     const u = str(url, 300)
-    if (/^https:\/\/(dev\.twitch\.tv|www\.twitch\.tv|obsproject\.com|github\.com|console\.cloud\.google\.com|www\.donationalerts\.com|donatepay\.ru|donatex\.gg|boosty\.to)\//.test(u)) void shell.openExternal(u)
+    if (/^https:\/\/(dev\.twitch\.tv|www\.twitch\.tv|dashboard\.twitch\.tv|clips\.twitch\.tv|developer\.spotify\.com|memealerts\.com|obsproject\.com|github\.com|console\.cloud\.google\.com|www\.donationalerts\.com|donatepay\.ru|donatex\.gg|boosty\.to)\//.test(u)) void shell.openExternal(u)
   })
   handle('hub:testEvent', (kind) => {
     const x = SAMPLES[String(kind)]
@@ -599,6 +768,73 @@ app.whenReady().then(async () => {
   handle('hub:voteReject', (k, id) => vote.reject(vkind(k), str(id, 100)))
   handle('hub:voteShow', (v) => (v === false ? vote.hide() : vote.show()))
   handle('hub:voteClearArchive', () => vote.clearArchive())
+  // ---------- Очки зрителей ----------
+  handle('hub:pointsSearch', (q) => points.search(typeof q === 'string' ? str(q, 64) : '', 100))
+  handle('hub:pointsAdjust', (name, platform, n) => points.adjustByName(name, platform, n))
+  handle('hub:pointsSet', (key, n) => points.setBalance(str(key, 120), n))
+  handle('hub:pointsRemove', (key) => points.remove(str(key, 120)))
+  handle('hub:pointsReset', () => points.resetAll())
+  handle('hub:pointsClearLog', () => points.clearLog())
+  // ---------- Бот ----------
+  handle('hub:botTest', (text) => bot.test(str(text, 500)))
+  handle('hub:botClearLog', () => bot.clearLog())
+  // ---------- Ставки ----------
+  handle('hub:betStart', (v) => bets.start(v))
+  handle('hub:betLock', () => bets.lock())
+  handle('hub:betResolve', (n) => bets.resolve(Number(n)))
+  handle('hub:betCancel', () => bets.cancel())
+  handle('hub:betExtend', (sec) => bets.extend(sec))
+  handle('hub:betClose', () => bets.close())
+  handle('hub:betManual', (name, platform, num, amount) => bets.manual(name, platform, num, amount))
+  handle('hub:betClearArchive', () => bets.clearArchive())
+  // ---------- Награды за баллы ----------
+  handle('hub:rewardsRefresh', () => rewards.refresh())
+  handle('hub:rewardCreate', (r, meta) => rewards.create(r, meta))
+  handle('hub:rewardUpdate', (id, r) => rewards.update(str(id, 100), r))
+  handle('hub:rewardRemove', (id) => rewards.remove(str(id, 100)))
+  handle('hub:rewardMeta', (id, meta) => rewards.setMeta(str(id, 100), meta))
+  handle('hub:rewardsPause', (v) => rewards.pauseAll(v === true))
+  handle('hub:redeemDone', (id) => rewards.fulfill(str(id, 100)))
+  handle('hub:redeemRefund', (id) => rewards.refund(str(id, 100)))
+  handle('hub:redeemDoneAll', () => rewards.fulfillAll())
+  handle('hub:redeemClearDone', () => rewards.clearDone())
+  // ---------- Музыка ----------
+  handle('hub:spotifyLogin', () => spotify.login())
+  handle('hub:spotifyCancel', () => spotify.cancelLogin())
+  handle('hub:spotifyLogout', () => spotify.logout())
+  handle('hub:musicControl', (op) => music.control(op === 'next' ? 'next' : op === 'prev' ? 'prev' : 'toggle'))
+  handle('hub:musicVolume', (n) => music.volume(Number(n)))
+  handle('hub:musicSearch', (q) => music.search(str(q, 200)))
+  handle('hub:musicRequest', async (q) => {
+    const r = await music.request({ user: twitch.state().broadcaster?.name ?? 'Стример', platform: 'hub' }, str(q, 300), 'manual')
+    if (r.error) throw new Error(r.error)
+  })
+  handle('hub:musicClearRequests', () => music.clearRequests())
+  // ---------- Сабатон ----------
+  handle('hub:subStart', (min) => subathon.start(min))
+  handle('hub:subPause', (v) => subathon.pause(v === true))
+  handle('hub:subStop', () => subathon.stop())
+  handle('hub:subAdd', (sec) => subathon.add(Number(sec)))
+  handle('hub:subHappy', (v) => subathon.setHappy(v === true))
+  // ---------- Панель канала Twitch ----------
+  handle('hub:twRaid', (login) => twitch.startRaid(str(login, 100)))
+  handle('hub:twRaidCancel', () => twitch.cancelRaid())
+  handle('hub:twShoutout', (login) => twitch.shoutout(str(login, 100)))
+  handle('hub:twBan', (login, sec, reason) => twitch.banLogin(str(login, 100), typeof sec === 'number' ? sec : 0, typeof reason === 'string' ? str(reason, 300) : ''))
+  handle('hub:twUnban', (login) => twitch.unbanLogin(str(login, 100)))
+  handle('hub:twChatSettings', () => twitch.chatSettings())
+  handle('hub:twSetChatSettings', (p) => twitch.setChatSettings((p && typeof p === 'object' ? p : {}) as Record<string, never>))
+  handle('hub:twCommercial', (sec) => twitch.commercial(Number(sec)))
+  handle('hub:twMarker', (d) => twitch.marker(typeof d === 'string' ? str(d, 140) : ''))
+  handle('hub:twClip', () => twitch.clip())
+  handle('hub:twAnnounce', (text, color) => twitch.announce(str(text, 500), (['blue', 'green', 'orange', 'purple'].includes(color as string) ? color : 'primary') as 'primary'))
+  // ---------- Memealerts ----------
+  handle('hub:memeLogin', () => memealerts.login())
+  handle('hub:memeCancel', () => memealerts.cancelLogin())
+  handle('hub:memeLogout', () => memealerts.logout())
+  handle('hub:memeToken', (t) => memealerts.setToken(str(t, 4000)))
+  handle('hub:memeSupporters', (q) => memealerts.supporters(typeof q === 'string' ? str(q, 60) : ''))
+  handle('hub:memeGive', (name, n) => memealerts.giveByName(str(name, 64), Number(n)))
   // ---------- Колесо ----------
   handle('hub:wheelSetItems', (list) => wheel.setItems(list))
   handle('hub:wheelLoadLots', () => wheel.loadLots(auction.state().lots))
@@ -743,6 +979,8 @@ app.whenReady().then(async () => {
   for (const d of donations) void d.start().catch(() => undefined)
   floatChat.apply()
   pushUpdate()
+  // Список наград — когда Twitch успеет подключиться.
+  setTimeout(() => { if (twitch.state().broadcaster) void rewards.refresh().catch(() => undefined) }, 8000)
 })
 
 app.on('window-all-closed', () => app.quit())
@@ -793,6 +1031,13 @@ app.on('before-quit', () => {
   goal?.stop()
   giveaway?.stop()
   vote?.stop()
+  points?.stop()
+  bot?.stop()
+  bets?.stop()
+  rewards?.stop()
+  music?.stop()
+  subathon?.dispose()
+  memealerts?.stop()
   analytics?.stop()
   kickAuth?.cancelLogin()
   floatChat?.close()

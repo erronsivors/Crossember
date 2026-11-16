@@ -16,6 +16,11 @@ import type { ProfilePart, ProfileSummary } from '../main/core/profile'
 import type { ObsCatalog } from '../main/core/obs'
 import type { TtsVoice } from '../main/core/tts'
 import type { AnalyticsPeriod, AnalyticsReport, StreamSamples, ViewerRef } from '../main/core/analytics'
+import type { Viewer } from '../main/core/points'
+import type { RewardMeta } from '../main/core/rewards'
+import type { TwitchChatSettings, TwitchRewardInput } from '../main/core/twitch'
+import type { SpotifyTrack } from '../main/core/spotify'
+import type { MemeSupporter } from '../main/core/memealerts'
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] }
 type Role = 'broadcaster' | 'bot'
@@ -27,7 +32,7 @@ const api = {
   setSettings: (patch: DeepPartial<AppSettings>) => call<AppSettings>('hub:settings', patch),
   obsConfigure: (url: string, password?: string) => call('hub:obsConfigure', url, password),
   obsReconnect: () => call('hub:obsReconnect'),
-  rotateKey: (which: 'overlay' | 'remote' | 'dock') => call('hub:rotateKey', which),
+  rotateKey: (which: 'overlay' | 'remote' | 'dock' | 'mod') => call('hub:rotateKey', which),
   logError: (text: string) => call('hub:logError', text),
   crashDismiss: () => call('hub:crashDismiss'),
   feedbackCollect: () => call<LogBundle>('hub:feedbackCollect'),
@@ -169,6 +174,70 @@ const api = {
   chatPin: (id: string | null) => call('hub:chatPin', id),
   chatDelete: (id: string) => call('hub:chatDelete', id),
   chatBan: (id: string, seconds: number) => call('hub:chatBan', id, seconds),
+  // Очки зрителей
+  pointsSearch: (q: string) => call<Viewer[]>('hub:pointsSearch', q),
+  pointsAdjust: (name: string, platform: string, n: number) => call<number>('hub:pointsAdjust', name, platform, n),
+  pointsSet: (key: string, n: number) => call('hub:pointsSet', key, n),
+  pointsRemove: (key: string) => call('hub:pointsRemove', key),
+  pointsReset: () => call('hub:pointsReset'),
+  pointsClearLog: () => call('hub:pointsClearLog'),
+  // Бот
+  botTest: (text: string) => call<string>('hub:botTest', text),
+  botClearLog: () => call('hub:botClearLog'),
+  // Ставки
+  betStart: (v: { source: 'own' | 'twitch'; title: string; outcomes: string[]; sec: number }) => call('hub:betStart', v),
+  betLock: () => call<string>('hub:betLock'),
+  betResolve: (num: number) => call<string>('hub:betResolve', num),
+  betCancel: () => call<string>('hub:betCancel'),
+  betExtend: (sec: number) => call('hub:betExtend', sec),
+  betClose: () => call('hub:betClose'),
+  betManual: (name: string, platform: string, num: number, amount: string) => call('hub:betManual', name, platform, num, amount),
+  betClearArchive: () => call('hub:betClearArchive'),
+  // Награды за баллы
+  rewardsRefresh: () => call('hub:rewardsRefresh'),
+  rewardCreate: (r: Partial<TwitchRewardInput>, meta: Partial<RewardMeta>) => call('hub:rewardCreate', r, meta),
+  rewardUpdate: (id: string, r: Partial<TwitchRewardInput>) => call('hub:rewardUpdate', id, r),
+  rewardRemove: (id: string) => call('hub:rewardRemove', id),
+  rewardMeta: (id: string, meta: Partial<RewardMeta>) => call('hub:rewardMeta', id, meta),
+  rewardsPause: (v: boolean) => call('hub:rewardsPause', v),
+  redeemDone: (id: string) => call('hub:redeemDone', id),
+  redeemRefund: (id: string) => call('hub:redeemRefund', id),
+  redeemDoneAll: () => call('hub:redeemDoneAll'),
+  redeemClearDone: () => call('hub:redeemClearDone'),
+  // Музыка
+  spotifyLogin: () => call('hub:spotifyLogin'),
+  spotifyCancel: () => call('hub:spotifyCancel'),
+  spotifyLogout: () => call('hub:spotifyLogout'),
+  musicControl: (op: 'toggle' | 'next' | 'prev') => call('hub:musicControl', op),
+  musicVolume: (n: number) => call('hub:musicVolume', n),
+  musicSearch: (q: string) => call<SpotifyTrack[]>('hub:musicSearch', q),
+  musicRequest: (q: string) => call('hub:musicRequest', q),
+  musicClearRequests: () => call('hub:musicClearRequests'),
+  // Сабатон
+  subStart: (min: number) => call('hub:subStart', min),
+  subPause: (v: boolean) => call('hub:subPause', v),
+  subStop: () => call('hub:subStop'),
+  subAdd: (sec: number) => call<number>('hub:subAdd', sec),
+  subHappy: (v: boolean) => call('hub:subHappy', v),
+  // Панель канала Twitch
+  twRaid: (login: string) => call<string>('hub:twRaid', login),
+  twRaidCancel: () => call('hub:twRaidCancel'),
+  twShoutout: (login: string) => call<string>('hub:twShoutout', login),
+  twBan: (login: string, sec: number, reason: string) => call<string>('hub:twBan', login, sec, reason),
+  twUnban: (login: string) => call<string>('hub:twUnban', login),
+  twChatSettings: () => call<TwitchChatSettings>('hub:twChatSettings'),
+  twSetChatSettings: (p: Partial<TwitchChatSettings>) => call<TwitchChatSettings>('hub:twSetChatSettings', p),
+  twCommercial: (sec: number) => call<number>('hub:twCommercial', sec),
+  twMarker: (d: string) => call('hub:twMarker', d),
+  twClip: () => call<{ id: string; url: string; editUrl: string }>('hub:twClip'),
+  twAnnounce: (text: string, color: string) => call('hub:twAnnounce', text, color),
+  // Memealerts
+  memeLogin: () => call('hub:memeLogin'),
+  memeCancel: () => call('hub:memeCancel'),
+  memeLogout: () => call('hub:memeLogout'),
+  memeToken: (t: string) => call('hub:memeToken', t),
+  memeSupporters: (q: string) => call<MemeSupporter[]>('hub:memeSupporters', q),
+  memeGive: (name: string, n: number) => call<string>('hub:memeGive', name, n),
   onUpdate: (cb: (s: HubSnapshot) => void): (() => void) => {
     const fn = (_e: IpcRendererEvent, s: HubSnapshot): void => cb(s)
     ipcRenderer.on('hub:update', fn)

@@ -14,6 +14,12 @@ import { Wheel } from './pages/Wheel'
 import { Goal } from './pages/Goal'
 import { Giveaway } from './pages/Giveaway'
 import { Vote } from './pages/Vote'
+import { Bot } from './pages/Bot'
+import { Bets } from './pages/Bets'
+import { Subathon } from './pages/Subathon'
+import { Rewards } from './pages/Rewards'
+import { Music } from './pages/Music'
+import { Channel } from './pages/Channel'
 import { Analytics } from './pages/Analytics'
 import { ChatStyle } from './pages/ChatStyle'
 import { ALERT_TABS, INTERACTIVE, InteractiveHub, SubTabs } from './pages/Interactive'
@@ -22,15 +28,18 @@ import { Wizard } from './pages/Wizard'
 import { ModeContext } from './components'
 import { useNow, fmtDuration } from './ui'
 
-export type Page = 'home' | 'chat' | 'events' | 'alerts' | 'rules' | 'interactive' | 'auction' | 'wheel' | 'goal' | 'giveaway' | 'vote' | 'analytics' | 'overlays' | 'chatstyle' | 'connections' | 'settings' | 'feedback'
+export type Page = 'home' | 'chat' | 'events' | 'alerts' | 'rules' | 'interactive' | 'auction' | 'wheel' | 'goal' | 'giveaway' | 'vote' | 'bets' | 'subathon' | 'rewards' | 'bot' | 'music' | 'channel' | 'analytics' | 'overlays' | 'chatstyle' | 'connections' | 'settings' | 'feedback'
 
 /** Пункт меню и страницы, при которых он подсвечен (вложенные разделы). */
 const NAV: { id: Page; label: string; ico: string; also?: Page[] }[] = [
   { id: 'home', label: 'Главная', ico: '⌂' },
   { id: 'chat', label: 'Мультичат', ico: '💬' },
+  { id: 'channel', label: 'Панель Twitch', ico: '▤' },
   { id: 'events', label: 'События', ico: '⚡' },
   { id: 'alerts', label: 'Алерты и правила', ico: '✦', also: ['rules'] },
-  { id: 'interactive', label: 'Интерактив', ico: '◈', also: ['auction', 'vote', 'wheel', 'goal', 'giveaway'] },
+  { id: 'interactive', label: 'Интерактив', ico: '◈', also: ['auction', 'vote', 'bets', 'rewards', 'subathon', 'wheel', 'goal', 'giveaway'] },
+  { id: 'bot', label: 'Бот и очки', ico: '⌘' },
+  { id: 'music', label: 'Музыка', ico: '♫' },
   { id: 'analytics', label: 'Аналитика', ico: '◫' }
 ]
 /** Настраивается один раз — ниже, под подписью. */
@@ -64,7 +73,7 @@ export function App() {
   const live = obs.streaming || snap.platforms.some((p) => p.live)
   const counted = snap.platforms.filter((p) => p.viewers !== null)
   const totalViewers = counted.length ? counted.reduce((a, p) => a + (p.viewers ?? 0), 0) : null
-  const pendingBets = snap.auction.bets.filter((b) => b.status === 'pending').length
+  const pendingBets = snap.auction.bets.filter((b) => b.status === 'pending').length + snap.rewards.queue.length
 
   return (
     <ModeContext.Provider value={snap.settings.setupMode}>
@@ -81,7 +90,7 @@ export function App() {
             <button key={n.id} className={`nav ${page === n.id || n.also?.includes(page) ? 'on' : ''}`} onClick={() => go(n.id)}>
               <span className="ico">{n.ico}</span>
               {n.label}
-              {n.id === 'interactive' && pendingBets > 0 && <span className="nav-cnt" title="Ставки аукциона ждут решения">{pendingBets}</span>}
+              {n.id === 'interactive' && pendingBets > 0 && <span className="nav-cnt" title="Ставки аукциона и награды за баллы ждут решения">{pendingBets}</span>}
             </button>
           ))}
           <div className="side-sep">Настройка</div>
@@ -150,6 +159,12 @@ export function App() {
           {page === 'goal' && <Goal snap={snap} />}
           {page === 'giveaway' && <Giveaway snap={snap} />}
           {page === 'vote' && <Vote snap={snap} />}
+          {page === 'bets' && <Bets snap={snap} />}
+          {page === 'subathon' && <Subathon snap={snap} />}
+          {page === 'rewards' && <Rewards snap={snap} />}
+          {page === 'bot' && <Bot snap={snap} />}
+          {page === 'music' && <Music snap={snap} />}
+          {page === 'channel' && <Channel snap={snap} />}
           {page === 'analytics' && <Analytics snap={snap} />}
           {page === 'feedback' && <Feedback snap={snap} />}
         </main>

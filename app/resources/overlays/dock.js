@@ -4,11 +4,11 @@
 const $ = (id) => document.getElementById(id);
 const el = CB.el;
 const LABEL = { donation: 'донат', follow: 'фоллоу', sub: 'подписка', gift: 'подарочные подписки', raid: 'рейд', bits: 'биты', reward: 'награда' };
-const ALL = ['chat', 'events', 'alerts', 'auction', 'vote', 'goal', 'giveaway', 'wheel', 'counters'];
+const ALL = ['chat', 'events', 'alerts', 'rewards', 'auction', 'vote', 'bets', 'goal', 'giveaway', 'wheel', 'subathon', 'music', 'counters'];
 const GROUPS = [
   { id: 'chat', name: 'Чат', blocks: ['chat'] },
-  { id: 'alerts', name: 'Алерты', blocks: ['alerts', 'events'] },
-  { id: 'live', name: 'Эфир', blocks: ['auction', 'vote', 'goal', 'giveaway', 'wheel', 'counters'] }
+  { id: 'alerts', name: 'Алерты', blocks: ['alerts', 'rewards', 'events'] },
+  { id: 'live', name: 'Эфир', blocks: ['auction', 'vote', 'bets', 'goal', 'giveaway', 'wheel', 'subathon', 'music', 'counters'] }
 ];
 const fixed = new URLSearchParams(location.search).get('b');
 
@@ -77,6 +77,7 @@ function applyBlocks(list, ctl) {
   let next = ALL.filter((b) => want.includes(b));
   // На втором устройстве без разрешения — только чат и события.
   if (role === 'remote' && !control) next = next.filter((b) => b === 'chat' || b === 'events');
+  if (role === 'mod') next = ALL.filter((b) => Array.isArray(list) && list.includes(b));
   if (role === 'remote' && !next.length) next = ['chat', 'events'];
   if (next.join() === blocks.join()) return;
   blocks = next;
@@ -140,12 +141,12 @@ function buildChat() {
   if (!g || !has('chat')) return;
   chatBox = el('div');
   chatBox.id = 'chat';
-  const hint = el('div', 'chint', 'Клик по сообщению — в оверлей «Закреп», ещё клик — снять');
+  const hint = el('div', 'chint', role === 'mod' ? 'У сообщения: 🗑 удалить, ⏱ таймаут 10 минут, ⛔ бан' : 'Клик по сообщению — в оверлей «Закреп», ещё клик — снять');
   const f = el('form');
   const t = el('input');
   t.id = 't';
   t.maxLength = 500;
-  t.placeholder = 'Написать во все чаты…';
+  t.placeholder = role === 'mod' ? 'Написать в чат от имени бота…' : 'Написать во все чаты…';
   t.autocomplete = 'off';
   const send = el('button', 'b pri', 'Отправить');
   f.append(t, send);
@@ -167,7 +168,17 @@ function addMsg(m, keep = true) {
   const stick = atBottom();
   const r = CB.line(m, lineOpts);
   if (m.id === pinnedId) r.classList.add('pinned');
-  r.addEventListener('click', () => CB.send({ kind: 'pin', id: m.id }));
+  if (role === 'mod') {
+    // Модератор: кнопки модерации вместо закрепа. Бан — с подтверждением.
+    const tools = el('span', 'mtools');
+    tools.append(btn('🗑', () => CB.send({ kind: 'mod', op: 'delete', id: m.id }), 'sm ic'), btn('⏱', () => CB.send({ kind: 'mod', op: 'timeout', id: m.id }), 'sm ic'));
+    const ban = btn('⛔', () => {
+      if (ban.classList.contains('ask')) CB.send({ kind: 'mod', op: 'ban', id: m.id });
+      else { ban.classList.add('ask'); ban.textContent = 'Бан?'; setTimeout(() => { ban.classList.remove('ask'); ban.textContent = '⛔'; }, 3000); }
+    }, 'sm ic');
+    tools.append(ban);
+    r.prepend(tools);
+  } else r.addEventListener('click', () => CB.send({ kind: 'pin', id: m.id }));
   chatBox.append(r);
   while (chatBox.children.length > 200) chatBox.firstElementChild.remove();
   if (stick) chatBox.scrollTop = chatBox.scrollHeight;
@@ -201,7 +212,7 @@ function renderAlerts() {
       s.append(cur);
       s.append(row(
         btn(a.paused ? 'Продолжить' : 'Пауза', () => act('alerts.pause', !a.paused), a.paused ? 'on' : ''),
-        askBtn('stopAll', 'Очистить очередь', () => act('alerts.stopAll')),
+        role === 'mod' ? null : askBtn('stopAll', 'Очистить очередь', () => act('alerts.stopAll')),
         el('span', 'grow'),
         el('span', 'muted small', a.queued ? 'в очереди: ' + a.queued : 'очередь пуста')
       ));
@@ -216,12 +227,13 @@ function renderAlerts() {
         }
         s.append(l);
       }
-      s.append(row(el('span', 'muted small', 'Проверка:'),
+      if (role !== 'mod') s.append(row(el('span', 'muted small', 'Проверка:'),
         btn('Донат', () => act('test', 'donation'), 'sm'), btn('Подписка', () => act('test', 'sub'), 'sm'), btn('Фоллоу', () => act('test', 'follow'), 'sm')));
-      s.lastChild.style.marginTop = '10px';
+      if (role !== 'mod') s.lastChild.style.marginTop = '10px';
     }
     g.append(s);
   }
+  if (has('rewards') && a) g.append(rewardsSec(dock.rewards || []));
   if (has('events')) {
     const s = sec('Последние события');
     if (!events.length) s.append(el('div', 'muted small', 'Пока ничего'));
@@ -253,9 +265,12 @@ function renderLive() {
   if (!dock) { g.append(el('div', 'empty', 'Загрузка…')); return; }
   if (has('auction')) g.append(auctionSec(dock.auction));
   if (has('vote') && dock.vote) g.append(voteSec(dock.vote));
+  if (has('bets')) g.append(betsSec(dock.bets));
   if (has('goal')) g.append(goalSec(dock.goal));
   if (has('giveaway')) g.append(giveawaySec(dock.giveaway));
   if (has('wheel')) g.append(wheelSec(dock.wheel));
+  if (has('subathon') && role !== 'mod') g.append(subathonSec(dock.subathon));
+  if (has('music')) g.append(musicSec(dock.music));
   if (has('counters')) g.append(countersSec(dock.counters));
   g.scrollTop = top;
   if (focused !== null) { const i = $('goalAdd'); if (i) { i.value = focused; i.focus(); } }
@@ -381,7 +396,7 @@ function votePoll(p, kind, showUntil) {
   if (kind === 'quick' && p.open && p.source === 'own') r.append(btn('+30 с', () => act('vote.timer', 'add', 30), 'sm'));
   if (kind === 'long') r.append(btn(showUntil && showUntil > now() ? 'Спрятать' : 'Показать', () => act('vote.show'), 'sm'));
   if (p.open) r.append(btn('Завершить', () => act('vote.finish', kind), 'pri'));
-  else r.append(askBtn('vc:' + kind, 'Убрать', () => act('vote.close', kind), 'sm'));
+  else if (role !== 'mod') r.append(askBtn('vc:' + kind, 'Убрать', () => act('vote.close', kind), 'sm'));
   if (p.pending) r.append(el('span', 'muted small', 'предложений: ' + p.pending));
   it.append(r);
   return it;
@@ -406,6 +421,73 @@ function wheelSec(w) {
   return s;
 }
 
+function rewardsSec(list) {
+  const s = sec('Награды за баллы', list.length ? 'ждут: ' + list.length : '');
+  if (!list.length) { s.append(el('div', 'muted small', 'Очередь пуста')); return s; }
+  const l = el('div', 'list');
+  for (const r of list) {
+    const it = el('div', 'li');
+    it.style.flexWrap = 'wrap';
+    it.append(el('b', 'ell', r.user), el('span', 'grow ell muted small', r.title + (r.input ? ' — ' + r.input : '')));
+    it.append(btn('✓', () => act('rewards.done', r.id), 'sm ic'));
+    if (r.own) it.append(askBtn('rf:' + r.id, '↩', () => act('rewards.refund', r.id), 'sm ic'));
+    l.append(it);
+  }
+  s.append(l);
+  return s;
+}
+
+function betsSec(b) {
+  const s = sec('Ставки', b ? el('span', 'tag' + (b.status === 'open' ? ' ok' : ''), { open: 'приём', locked: 'закрыто', resolved: 'итог', canceled: 'отменено' }[b.status] || '') : '');
+  if (!b) { s.append(el('div', 'muted small', 'Ставок нет — запустите в Crossember → Интерактив → Ставки')); return s; }
+  s.append(el('div', 'ell', b.title));
+  const l = el('div', 'list');
+  for (const o of b.outcomes) {
+    const it = el('div', 'li');
+    it.append(el('span', 'muted small', '#' + o.num), el('span', 'grow ell', o.name), el('span', 'v', Math.round(o.pool).toLocaleString('ru-RU')));
+    if (b.status === 'open' || b.status === 'locked') it.append(askBtn('bw:' + o.num, 'Победил', () => act('bets.resolve', o.num), 'sm'));
+    l.append(it);
+  }
+  s.append(l);
+  if (b.status === 'open' || b.status === 'locked') {
+    s.append(row(
+      b.status === 'open' ? btn('Закрыть приём', () => act('bets.lock'), 'pri') : null,
+      askBtn('bc', 'Отменить', () => act('bets.cancel'), 'sm'),
+      el('span', 'grow'),
+      el('span', 'muted small', 'банк: ' + Math.round(b.total).toLocaleString('ru-RU'))
+    ));
+  } else if (b.winner) s.append(row(el('span', 'muted small', 'Победил:'), el('b', 'ell', b.winner)));
+  return s;
+}
+
+function subathonSec(x) {
+  const left = x.endsAt ? x.endsAt - now() : x.pausedLeft || 0;
+  const s = sec('Сабатон', x.happy ? el('span', 'tag ok', 'счастливый час') : '');
+  if (!x.started) { s.append(el('div', 'muted small', 'Сабатон не запущен — запустите в Crossember → Интерактив → Сабатон')); return s; }
+  const t = el('span', 'big', clock(left));
+  t.dataset.timer = 'subathon';
+  s.append(row(t, el('span', 'grow'),
+    btn(x.running ? 'Пауза' : 'Продолжить', () => act('subathon.pause', x.running), x.running ? '' : 'on'),
+    btn('+5 мин', () => act('subathon.add', 300), 'sm'),
+    btn('−5 мин', () => act('subathon.add', -300), 'sm')));
+  return s;
+}
+
+function musicSec(m) {
+  const s = sec('Музыка', m ? el('span', 'muted small', m.source) : '');
+  if (!m) { s.append(el('div', 'muted small', 'Сейчас ничего не играет')); return s; }
+  const it = el('div', 'li');
+  it.append(el('span', 'grow ell', (m.artist ? m.artist + ' — ' : '') + m.title));
+  s.append(it);
+  s.append(row(
+    btn(m.playing ? 'Пауза' : 'Играть', () => act('music.toggle'), m.playing ? '' : 'on'),
+    btn('Дальше', () => act('music.next'), 'sm'),
+    el('span', 'grow'),
+    el('span', 'muted small', [m.requester ? 'заказал ' + m.requester : '', m.queued ? 'заказов: ' + m.queued : ''].filter(Boolean).join(' · '))
+  ));
+  return s;
+}
+
 function countersSec(list) {
   const s = sec('Счётчики');
   if (!list.length) { s.append(el('div', 'muted small', 'Счётчиков нет — добавьте в Crossember → Правила')); return s; }
@@ -427,6 +509,7 @@ setInterval(() => {
     let ms = null;
     if (id === 'auction') { ms = auctionLeft(dock.auction); if (ms != null) n.textContent = clock(ms); continue; }
     if (id === 'goal' && dock.goal && dock.goal.endsAt) n.textContent = 'осталось ' + clock(dock.goal.endsAt - now());
+    if (id === 'subathon' && dock.subathon) { const x = dock.subathon; n.textContent = clock(x.endsAt ? x.endsAt - now() : x.pausedLeft || 0); continue; }
     if (id === 'vote' && dock.vote && dock.vote.quick && dock.vote.quick.endsAt) { n.textContent = clock(dock.vote.quick.endsAt - now()); continue; }
     if (id === 'giveaway' && dock.giveaway.endsAt) n.textContent = 'приём · ' + clock(dock.giveaway.endsAt - now());
     if (id.startsWith('w:')) {
@@ -440,7 +523,8 @@ setInterval(() => {
 CB.on('open', () => { $('dot').className = 'dot on'; $('st').textContent = 'на связи'; });
 CB.on('closed', (c) => { $('dot').className = 'dot off'; $('st').textContent = c.code === 4003 ? 'ссылка устарела' : 'нет связи…'; });
 CB.on('hello', (d) => {
-  role = d.role === 'remote' ? 'remote' : 'dock';
+  role = d.role === 'remote' ? 'remote' : d.role === 'mod' ? 'mod' : 'dock';
+  if (role === 'mod') document.title = 'Crossember · Пульт модератора';
   pinnedId = d.pinned ? d.pinned.id : null;
   chatLog = d.chat.slice().reverse();
   events = d.events.slice();
@@ -448,6 +532,7 @@ CB.on('hello', (d) => {
   blocks = [];
   applyBlocks(d.dockBlocks, d.lanControl);
   if (role === 'remote' && !control) $('now').textContent = '· чат для второго устройства';
+  if (role === 'mod') $('now').textContent = '· пульт модератора';
 });
 CB.on('config', (d) => { if (d.dockBlocks) applyBlocks(d.dockBlocks, d.lanControl); });
 CB.on('dock', (d) => {

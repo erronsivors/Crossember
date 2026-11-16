@@ -527,7 +527,7 @@ export class YoutubeConnector implements ChatConnector {
         membership_gifting_details: { gift_memberships_count: gift.giftMembershipsCount },
         user_banned_details: { banned_user_details: { channel_id: obj(ban.bannedUserDetails).channelId } }
       },
-      author_details: { channel_id: a.channelId, display_name: a.displayName, is_chat_owner: a.isChatOwner, is_chat_moderator: a.isChatModerator }
+      author_details: { channel_id: a.channelId, display_name: a.displayName, is_chat_owner: a.isChatOwner, is_chat_moderator: a.isChatModerator, is_chat_sponsor: a.isChatSponsor }
     }
   }
 
@@ -542,7 +542,7 @@ export class YoutubeConnector implements ChatConnector {
       case 'TEXT_MESSAGE_EVENT': {
         const text = s(obj(sn.text_message_details).message_text) || s(sn.display_message)
         if (!text) return
-        this.hub.push({ ...base, type: 'message', id: `yt-${s(it.id)}`, text, parts: [{ t: 'text', v: text }], color: a.is_chat_owner ? '#ffd600' : a.is_chat_moderator ? '#5e84f1' : undefined })
+        this.hub.push({ ...base, type: 'message', id: `yt-${s(it.id)}`, text, parts: [{ t: 'text', v: text }], color: a.is_chat_owner ? '#ffd600' : a.is_chat_moderator ? '#5e84f1' : undefined, role: a.is_chat_owner ? 'broadcaster' : a.is_chat_moderator ? 'mod' : a.is_chat_sponsor ? 'sub' : undefined })
         return
       }
       case 'SUPER_CHAT_EVENT': {

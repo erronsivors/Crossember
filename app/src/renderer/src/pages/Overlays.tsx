@@ -7,7 +7,7 @@ import { DOCK_BLOCKS, DOCK_PRESETS, type DockBlock } from '../../../main/core/do
 import { KeyRotate } from './Settings'
 
 type Key = keyof AppSettings['overlays']
-const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote' }
+const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote', bets: 'bets', music: 'music', subathon: 'subathon' }
 const DESC: Record<string, string> = {
   alert: 'Донаты, подписки, рейды, фолловы — по очереди, по центру экрана.',
   chat: 'Колонка чата: новые сообщения снизу.',
@@ -20,7 +20,10 @@ const DESC: Record<string, string> = {
   wheel: 'Появляется, когда крутите колесо, показывает итог и само прячется. Источник можно держать включённым всегда.',
   goal: 'Цель с полоской прогресса и этапами, последний донат, топ сбора и срок. Этап или цель достигнуты — короткий праздник.',
   giveaway: 'Во время приёма — слово для участия, число участников и таймер. При выборе ники прокручиваются до победителя.',
-  vote: 'Вопрос, варианты с номерами и полосками, таймер и итог. Быстрое висит до конца, долгое появляется иногда. Ники зрителей не показываются.'
+  vote: 'Вопрос, варианты с номерами и полосками, таймер и итог. Быстрое висит до конца, долгое появляется иногда. Ники зрителей не показываются.',
+  bets: 'Вопрос, исходы с банком, долей и коэффициентом, таймер приёма и итог. После итога держится 25 секунд и прячется.',
+  music: 'Обложка, название, исполнитель и кто заказал трек. Spotify или любой плеер Windows (Яндекс Музыка, браузер).',
+  subathon: 'Большой таймер сабатона, пометки «пауза» и «счастливый час», всплывающие «+5:00» от подписок и донатов.'
 }
 
 export function Overlays({ snap, go }: { snap: HubSnapshot; go?: (p: Page) => void }) {
@@ -52,12 +55,14 @@ export function Overlays({ snap, go }: { snap: HubSnapshot; go?: (p: Page) => vo
 }
 
 const BLOCK_NAMES: Record<DockBlock, string> = {
-  chat: 'Чат', events: 'События', alerts: 'Алерты', auction: 'Аукцион', vote: 'Голосование', goal: 'Сбор средств', giveaway: 'Розыгрыш', wheel: 'Колесо', counters: 'Счётчики'
+  chat: 'Чат', events: 'События', alerts: 'Алерты', auction: 'Аукцион', vote: 'Голосование', goal: 'Сбор средств', giveaway: 'Розыгрыш', wheel: 'Колесо', counters: 'Счётчики',
+  bets: 'Ставки', music: 'Музыка', rewards: 'Награды за баллы', subathon: 'Сабатон'
 }
 const BLOCK_DESC: Record<DockBlock, string> = {
   chat: 'читать, писать, закреплять', events: 'донаты, подписки, рейды', alerts: 'очередь, пауза, пропуск, тест',
   auction: 'таймер, приём, итог', vote: 'итог, время, показать долгое', goal: 'пауза, срок, добавить сумму', giveaway: 'приём, выбор, перевыбор',
-  wheel: 'кнопка «Крутить»', counters: 'плюс и минус'
+  wheel: 'кнопка «Крутить»', counters: 'плюс и минус',
+  bets: 'закрыть, итог, отмена', music: 'что играет, пауза, дальше', rewards: 'выполнено, вернуть баллы', subathon: 'пауза, +5 минут'
 }
 const PRESET_NAMES: { id: keyof typeof DOCK_PRESETS; name: string }[] = [
   { id: 'operator', name: 'Панель оператора' },
@@ -143,6 +148,26 @@ function OverlayCard({ o, snap, go }: { o: OverlayInfo; snap: HubSnapshot; go?: 
           <NumberField label="Прокрутка" value={(cfg as AppSettings['overlays']['giveaway']).revealSec} min={2} max={20} suffix="сек" onChange={(v) => set({ revealSec: v })} />
           <NumberField label="Скрыть итог через" value={(cfg as AppSettings['overlays']['giveaway']).hideAfterSec} min={0} max={600} suffix="сек (0 — нет)" onChange={(v) => set({ hideAfterSec: v })} />
         </div>
+      )}
+      {key === 'bets' && (
+        <>
+          <NumberField label="Размер шрифта" value={(cfg as AppSettings['overlays']['bets']).fontSize} min={12} max={72} suffix="px" onChange={(v) => set({ fontSize: v })} />
+          <Toggle on={(cfg as AppSettings['overlays']['bets']).showTop} onChange={(v) => set({ showTop: v })} label="Показывать крупнейшие ставки по исходам" />
+        </>
+      )}
+      {key === 'music' && (
+        <>
+          <NumberField label="Размер шрифта" value={(cfg as AppSettings['overlays']['music']).fontSize} min={12} max={72} suffix="px" onChange={(v) => set({ fontSize: v })} />
+          <Toggle on={(cfg as AppSettings['overlays']['music']).showRequester} onChange={(v) => set({ showRequester: v })} label="Кто заказал трек" />
+          <Toggle on={(cfg as AppSettings['overlays']['music']).showProgress} onChange={(v) => set({ showProgress: v })} label="Полоса времени" />
+          <Toggle on={(cfg as AppSettings['overlays']['music']).hideWhenPaused} onChange={(v) => set({ hideWhenPaused: v })} label="Прятать на паузе" />
+        </>
+      )}
+      {key === 'subathon' && (
+        <>
+          <NumberField label="Размер таймера" value={(cfg as AppSettings['overlays']['subathon']).fontSize} min={16} max={200} suffix="px" onChange={(v) => set({ fontSize: v })} />
+          <Toggle on={(cfg as AppSettings['overlays']['subathon']).showAdds} onChange={(v) => set({ showAdds: v })} label="Всплывающие «+время»" />
+        </>
       )}
       {key === 'goal' && <GoalOverlaySettings c={cfg as AppSettings['overlays']['goal']} set={set} />}
       {key === 'wheel' && <NumberField label="Скрыть после итога через" value={(cfg as AppSettings['overlays']['wheel']).hideAfterSec} min={0} max={600} suffix="сек (0 — не скрывать)" onChange={(v) => set({ hideAfterSec: v })} />}

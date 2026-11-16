@@ -360,7 +360,9 @@ function SettingsCard({ cfg, v }: { cfg: VoteSettings; v: VoteState }) {
         <TextSetting label="Команда голоса за долгое" value={cfg.voteCmd} max={30} onSave={(x) => set({ voteCmd: x })} />
         <TextSetting label="Награда за баллы — голоса" value={cfg.pointsReward} max={45} placeholder="Название награды Twitch" onSave={(x) => set({ pointsReward: x })} />
         <NumberField label="Голос за каждые, баллов" value={cfg.pointsPerVote} min={1} max={10_000_000} suffix="баллов" onChange={(x) => set({ pointsPerVote: x })} />
+        <NumberField label="Голос за свои очки, каждые (0 — нет)" value={cfg.ownPointsPerVote} min={0} max={10_000_000} suffix="очков" onChange={(x) => set({ ownPointsPerVote: x })} />
       </div>
+      {cfg.ownPointsPerVote > 0 && <p className="small muted" style={{ margin: '0 0 10px' }}>Свои очки: «{cfg.voteCmd} 2 500» — 500 очков на вариант №2, это {Math.floor(500 / cfg.ownPointsPerVote)} голос(а). Работает на всех площадках, сверх бесплатного голоса. Только баллы Twitch или только свои очки — выключите остальные способы.</p>}
       <div className="vote-sep">Предложения зрителей</div>
       <div className="grid g2" style={{ gap: 10 }}>
         <TextSetting label="Команда (пусто — выкл.)" value={cfg.suggestCmd} max={30} onSave={(x) => set({ suggestCmd: x })} />

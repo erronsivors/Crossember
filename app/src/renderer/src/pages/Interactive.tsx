@@ -4,7 +4,10 @@ import type { Page } from '../App'
 /** Инструменты раздела «Интерактив»: игры со зрителями. Новые добавляются сюда — плиткой и вкладкой. */
 export const INTERACTIVE: { id: Page; label: string; ico: string; desc: string }[] = [
   { id: 'auction', label: 'Аукцион', ico: '◈', desc: 'Зрители донатят за лоты, побеждает лидер или колесо.' },
-  { id: 'vote', label: 'Голосование', ico: '☰', desc: 'Быстрое на эфир и долгое между эфирами: чат, донаты, баллы или Twitch.' },
+  { id: 'vote', label: 'Голосование', ico: '☰', desc: 'Быстрое на эфир и долгое между эфирами: чат, донаты, баллы, свои очки или Twitch.' },
+  { id: 'bets', label: 'Ставки', ico: '⚖', desc: 'Зрители угадывают исход на свои очки или в прогнозе Twitch, с оверлеем.' },
+  { id: 'rewards', label: 'Награды за баллы', ico: '✦', desc: 'Очередь «кто что выбрал», возврат баллов, действия наград, мемкоины.' },
+  { id: 'subathon', label: 'Сабатон', ico: '⏳', desc: 'Таймер эфира, который продлевают подписки, донаты и биты.' },
   { id: 'wheel', label: 'Колесо', ico: '◎', desc: 'Случайный выбор из своего списка или лотов аукциона.' },
   { id: 'goal', label: 'Сбор средств', ico: '◔', desc: 'Цель с этапами, донаты засчитываются сами.' },
   { id: 'giveaway', label: 'Розыгрыш', ico: '❖', desc: 'Участие словом в чате, билеты за донат, честный выбор.' }
@@ -85,6 +88,26 @@ export function toolStatus(id: Page, snap: HubSnapshot, now: number): ToolStatus
       if (gw.reveal) return { text: '● Выбираем победителя', live: true }
       if (win.length) return { text: `Победитель: ${win.map((w) => w.user).join(', ')}`, live: false, extra: gw.prize || undefined }
       return { text: 'Не запущен', live: false }
+    }
+    case 'bets': {
+      const b = snap.bets.bet
+      if (!b) return { text: 'Не запущены', live: false }
+      const extra = `Банк: ${b.total.toLocaleString('ru-RU')} · ${plural(b.bettors, 'участник', 'участника', 'участников')}`
+      if (b.status === 'open') return { text: b.locksAt ? `● Приём · ${clock(b.locksAt - now)}` : '● Приём ставок', live: true, extra }
+      if (b.status === 'locked') return { text: 'Ждём итог', live: true, extra }
+      if (b.status === 'resolved') return { text: `Итог: ${b.outcomes.find((o) => o.id === b.winner)?.name ?? ''}`, live: false, extra }
+      return { text: 'Отменены', live: false }
+    }
+    case 'rewards': {
+      const q = snap.rewards.queue.length
+      return { text: q ? `Ждут: ${q}` : 'Очередь пуста', live: false, badge: q, extra: snap.rewards.rewards.filter((r) => r.own).length ? `Наград Crossember: ${snap.rewards.rewards.filter((r) => r.own).length}` : undefined }
+    }
+    case 'subathon': {
+      const x = snap.subathon
+      if (x.startedAt === null) return { text: 'Не запущен', live: false }
+      const left = x.endsAt ? x.endsAt - now : x.pausedLeft ?? 0
+      if (x.ended) return { text: 'Окончен', live: false }
+      return { text: x.running ? `● ${clock(left)}` : `Пауза · ${clock(left)}`, live: x.running, extra: x.happy ? 'Счастливый час' : undefined }
     }
     default:
       return { text: '', live: false }

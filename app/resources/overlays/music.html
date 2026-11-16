@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Crossember · Сейчас играет</title>
+<link rel="stylesheet" href="/a/overlay.css">
+<style>
+  #stage { position: absolute; left: 12px; right: 12px; top: 12px; display: flex; gap: .8em; align-items: center; padding: .6em .9em .6em .6em;
+    transition: opacity .45s ease, transform .55s cubic-bezier(.2, .9, .3, 1); }
+  #stage.empty { display: none; }
+  #stage.hide { opacity: 0; transform: translateX(-.8em); }
+  .art { flex: none; width: 3.4em; height: 3.4em; border-radius: 10px; object-fit: cover; background: rgba(255, 255, 255, .08); display: grid; place-items: center; font-size: 1em; color: var(--muted); }
+  .info { flex: 1; min-width: 0; }
+  .kick { font: 800 .5em 'Manrope', sans-serif; letter-spacing: .18em; text-transform: uppercase; color: var(--kicker); display: flex; gap: .8em; }
+  .kick .who { color: var(--muted); letter-spacing: .04em; text-transform: none; font-weight: 600; }
+  .t { font: 800 1em var(--title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
+  .a { font-size: .75em; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: .2em; margin-top: .4em; border-radius: 1em; background: rgba(255, 255, 255, .1); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--grad); width: 0; }
+  .paused .t, .paused .art { opacity: .55; }
+  .swap { animation: swap .6s cubic-bezier(.2, 1.2, .4, 1); }
+  @keyframes swap { 0% { opacity: 0; transform: translateY(.4em); } 100% { opacity: 1; transform: none; } }
+</style></head>
+<body class="t-general"><div id="stage" class="card empty"></div>
+<script src="/a/overlay.js"></script><script src="/a/music.js"></script>
+</body></html>

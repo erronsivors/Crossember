@@ -17,8 +17,17 @@ import type { VoteState } from './vote'
 import type { WheelState } from './wheel'
 import type { GoalState } from './goal'
 import type { GiveawayState } from './giveaway'
+import type { PointsState } from './points'
+import type { BotState } from './bot'
+import type { BetsState } from './bets'
+import type { RewardsState } from './rewards'
+import type { MusicState } from './music'
+import type { SubathonState } from './subathon'
+import type { MemealertsState } from './memealerts'
 
 export type Platform = 'twitch' | 'youtube' | 'vk' | 'kick' | 'goodgame' | 'donationalerts' | 'donatepay' | 'donatex' | 'boosty' | 'obs' | 'hub'
+
+export type ViewerRole = 'broadcaster' | 'mod' | 'vip' | 'sub'
 
 export type HubEventType = 'message' | 'donation' | 'follow' | 'sub' | 'gift' | 'raid' | 'bits' | 'reward' | 'system'
 
@@ -52,6 +61,10 @@ export interface HubEvent {
   manual?: boolean
   /** Награда за баллы канала: её название (текст события — «название — ввод зрителя»). */
   reward?: string
+  /** Кто пишет в чате: стример, модератор, VIP, подписчик (если площадка сообщает). */
+  role?: ViewerRole
+  /** Награда за баллы Twitch: id активации и награды (для «выполнено» и возврата баллов). */
+  redemption?: { id: string; rewardId: string }
   /** Значения счётчиков на момент срабатывания правила (для подстановки {ключ}); в базу не пишется. */
   vars?: Record<string, string>
 }
@@ -99,6 +112,8 @@ export interface ServerInfo {
   /** Ключ оверлеев: редактор алертов берёт по нему картинки, видео и озвучку для предпросмотра. */
   overlayKey: string
   lan: { running: boolean; url: string | null; error: string | null; addresses: string[] }
+  /** Пульт модератора (домашняя сеть, свой ключ); null — сеть или пульт выключены. */
+  modUrl: string | null
 }
 
 export interface TwitchAccount {
@@ -155,6 +170,15 @@ export interface HubSnapshot {
   goal: GoalState
   giveaway: GiveawayState
   vote: VoteState
+  points: PointsState
+  bot: BotState
+  bets: BetsState
+  rewards: RewardsState
+  music: MusicState
+  subathon: SubathonState
+  memealerts: MemealertsState
+  /** Права Twitch для новых разделов: есть (ok), нужен вход (login) или повторный вход (relogin). */
+  twitchScopes: Record<string, 'ok' | 'login' | 'relogin'>
   /** Обратная связь: адрес автора и последняя серьёзная ошибка (для плашки «Сообщить об ошибке»). */
   feedback: { email: string; crash: CrashInfo | null }
   /** Сколько копий оверлея «Алерты» сейчас открыто (0 — алерты и озвучку некому показать). */

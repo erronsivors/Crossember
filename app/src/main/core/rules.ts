@@ -16,12 +16,15 @@ import {
  * Правила проверяются сверху вниз; «стоп» — следующие правила для этого события не проверяются.
  */
 
-export const TRIGGER_TYPES = ['donation', 'sub', 'gift', 'follow', 'raid', 'bits', 'reward', 'message', 'stream_start', 'stream_end', 'timer', 'hotkey', 'goal_stage', 'goal_done'] as const
+export const TRIGGER_TYPES = ['donation', 'sub', 'gift', 'follow', 'raid', 'bits', 'reward', 'message', 'first_message', 'new_viewer', 'song_request', 'giveaway_win', 'stream_start', 'stream_end', 'timer', 'hotkey', 'goal_stage', 'goal_done', 'bet_start', 'bet_end', 'vote_end', 'subathon_add', 'subathon_end'] as const
+/** Поводы о зрителе, которые порождает сам Crossember (первое сообщение, новый зритель, заказ трека, победа в розыгрыше): площадка и условия к ним применяются. */
+export const VIEWER_TRIGGERS = ['first_message', 'new_viewer', 'song_request', 'giveaway_win'] as const
+export type ViewerTrigger = (typeof VIEWER_TRIGGERS)[number]
 export type TriggerType = (typeof TRIGGER_TYPES)[number]
 /** Служебные поводы: не события зрителей, а эфир, таймер, горячая клавиша и сбор средств. Условия и площадки к ним не применяются. */
-export const SERVICE_TRIGGERS = ['stream_start', 'stream_end', 'timer', 'hotkey', 'goal_stage', 'goal_done'] as const
+export const SERVICE_TRIGGERS = ['stream_start', 'stream_end', 'timer', 'hotkey', 'goal_stage', 'goal_done', 'bet_start', 'bet_end', 'vote_end', 'subathon_add', 'subathon_end'] as const
 export type ServiceTrigger = (typeof SERVICE_TRIGGERS)[number]
-const SERVICE_USER: Record<ServiceTrigger, string> = { stream_start: 'Эфир начался', stream_end: 'Эфир закончился', timer: 'Таймер', hotkey: 'Горячая клавиша', goal_stage: 'Сбор: этап', goal_done: 'Сбор: цель' }
+const SERVICE_USER: Record<ServiceTrigger, string> = { stream_start: 'Эфир начался', stream_end: 'Эфир закончился', timer: 'Таймер', hotkey: 'Горячая клавиша', goal_stage: 'Сбор: этап', goal_done: 'Сбор: цель', bet_start: 'Ставки', bet_end: 'Итог ставок', vote_end: 'Итог голосования', subathon_add: 'Сабатон', subathon_end: 'Сабатон окончен' }
 /** Горячая клавиша: Ctrl/Alt/Shift + буква, цифра, F1–F24 или цифра доп. клавиатуры; без модификатора — только F-клавиши. */
 export const HOTKEY_RE = /^(?:(?:Ctrl|Alt|Shift)\+){1,3}(?:[A-Z0-9]|F(?:[1-9]|1\d|2[0-4])|num[0-9])$|^F(?:[1-9]|1\d|2[0-4])$/
 const PLATFORMS: Platform[] = ['twitch', 'youtube', 'vk', 'kick', 'goodgame', 'donationalerts', 'donatepay', 'donatex', 'boosty', 'hub']
@@ -310,6 +313,20 @@ export class RuleEngine extends EventEmitter {
   fireGoal(kind: 'goal_stage' | 'goal_done', name: string, collected: number, message: string): void {
     const e: HubEvent = { ...this.serviceEvent(kind), user: name || SERVICE_USER[kind], amount: collected, currency: 'RUB', amountRub: collected, text: message }
     this.process(e, (r) => r.types.includes(kind), kind)
+  }
+
+  /**
+   * Ставки, голосование, сабатон. В тексте: {user} — вопрос или кто добавил время, {message} — итог или причина, {amount} — банк, голоса или секунды.
+   */
+  fireInfo(kind: 'bet_start' | 'bet_end' | 'vote_end' | 'subathon_add' | 'subathon_end', user: string, message: string, amount?: number): void {
+    const e: HubEvent = { ...this.serviceEvent(kind), user: user.slice(0, 64) || SERVICE_USER[kind], text: message.slice(0, 300), amount }
+    this.process(e, (r) => r.types.includes(kind), kind)
+  }
+
+  /** Повод о зрителе (первое сообщение за эфир, новый зритель, заказ трека, победа в розыгрыше): с площадкой и условиями. */
+  fireViewer(kind: ViewerTrigger, e: HubEvent): void {
+    const ev: HubEvent = { ...e, id: randomUUID(), ts: Date.now() }
+    this.process(ev, (r) => matches(r, { ...ev, type: kind as unknown as HubEventType }), kind)
   }
 
   /** Таймер или горячая клавиша конкретного правила. */

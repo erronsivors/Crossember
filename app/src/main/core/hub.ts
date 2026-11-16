@@ -110,6 +110,8 @@ export class Hub extends EventEmitter {
       badges: e.badges?.slice(0, 8).map((b) => ({ title: clean(b.title, 64), url: b.url })),
       currency: e.currency === undefined ? undefined : clean(e.currency, 8).toUpperCase(),
       reward: e.reward === undefined ? undefined : clean(e.reward, 100),
+      role: e.role === 'broadcaster' || e.role === 'mod' || e.role === 'vip' || e.role === 'sub' ? e.role : undefined,
+      redemption: e.redemption && /^[\w-]{1,100}$/.test(e.redemption.id) && /^[\w-]{1,100}$/.test(e.redemption.rewardId) ? { id: e.redemption.id, rewardId: e.redemption.rewardId } : undefined,
       amount: num(e.amount),
       amountRub: num(e.amountRub) ?? (e.currency?.toUpperCase() === 'RUB' && e.type === 'donation' ? num(e.amount) : undefined)
     }

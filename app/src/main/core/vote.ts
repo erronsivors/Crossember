@@ -295,6 +295,9 @@ export class Vote extends EventEmitter {
     this.syncTick()
   }
 
+  /** Списать свои очки за голоса: сумма из текста («500», «все»), кратно цене голоса. Возвращает списанное (0 — не хватило). */
+  spendPoints: ((e: HubEvent, raw: string, step: number, reason: string) => number) | null = null
+
   setTwitch(t: TwitchPolls): void {
     this.twitch = t
   }
@@ -459,8 +462,24 @@ export class Vote extends EventEmitter {
         if (target && sug) this.suggestion(target, { user: e.user, platform: e.platform, via: 'chat', text: sug, weight: 0, raw: '' })
         return
       }
-      if (!cfg.chat) return
       const vc = cmd(cfg.voteCmd)
+      // Голос своими очками: «!голос 2 500» — 500 очков = несколько голосов (сверх бесплатного голоса из чата).
+      if (vc && cfg.ownPointsPerVote > 0 && this.spendPoints) {
+        const m = /^(.+?)\s+(\d+(?:[.,]\d+)?\s*[кk]?|все|всё|all)$/i.exec(vc)
+        const target = m ? (this.own(l) ? l : this.own(q) ? q : null) : null
+        const opt = target && m ? this.findOption(target, m[1], true) : null
+        if (target && opt && m) {
+          const spent = this.spendPoints(e, m[2], cfg.ownPointsPerVote, `голос «${opt.name}»`)
+          const weight = Math.floor(spent / cfg.ownPointsPerVote)
+          if (weight > 0) {
+            opt.paid += weight
+            this.log(target, { user: e.user, platform: e.platform, num: opt.num, weight, via: 'points' })
+            this.changed()
+          }
+          return
+        }
+      }
+      if (!cfg.chat) return
       let target: Poll | null = null
       let opt: VoteOption | null = null
       if (vc !== null) {

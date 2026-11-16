@@ -20,7 +20,12 @@ import type { Wheel } from './wheel'
 import type { Fundraiser } from './goal'
 import type { Giveaway } from './giveaway'
 import type { Vote } from './vote'
-import { dockView, parseAction, runAction, type DockActionTable } from './dock'
+import type { Bets } from './bets'
+import type { Music } from './music'
+import type { Subathon } from './subathon'
+import type { Rewards } from './rewards'
+import type { Points } from './points'
+import { MOD_ACTIONS, MOD_BLOCKS, dockView, parseAction, runAction, type DockActionTable } from './dock'
 import { chatCss, eventView, sampleChat } from './chatstyle'
 
 /** Оверлеи для OBS. id = имя файла в resources/overlays, key = ключ настроек. */
@@ -37,6 +42,9 @@ const OVERLAYS = [
   { id: 'goal', key: 'goal', name: 'Сбор средств', size: '800 × 260' },
   { id: 'giveaway', key: 'giveaway', name: 'Розыгрыш', size: '800 × 300' },
   { id: 'vote', key: 'vote', name: 'Голосование', size: '700 × 500' },
+  { id: 'bets', key: 'bets', name: 'Ставки', size: '700 × 500' },
+  { id: 'music', key: 'music', name: 'Сейчас играет', size: '700 × 160' },
+  { id: 'subathon', key: 'subathon', name: 'Сабатон', size: '800 × 260' },
   // Окно «чат поверх игры» — открывается самим Crossember, в списке для OBS не показывается.
   { id: 'float', key: 'float', name: 'Чат поверх игры', size: '', hidden: true }
 ] as { id: string; key: string; name: string; size: string; hidden?: boolean }[]
@@ -59,6 +67,9 @@ const ASSETS: Record<string, string> = {
   'goal.js': 'text/javascript; charset=utf-8',
   'giveaway.js': 'text/javascript; charset=utf-8',
   'vote.js': 'text/javascript; charset=utf-8',
+  'bets.js': 'text/javascript; charset=utf-8',
+  'music.js': 'text/javascript; charset=utf-8',
+  'subathon.js': 'text/javascript; charset=utf-8',
   'sounds.js': 'text/javascript; charset=utf-8'
 }
 
@@ -120,6 +131,11 @@ export interface OverlayExtras {
   goal: Fundraiser
   giveaway: Giveaway
   vote: Vote
+  bets: Bets
+  music: Music
+  subathon: Subathon
+  rewards: Rewards
+  points: Points
   /** Свои аккаунты (каналы, бот) — для выделения обращений к стримеру в чате. */
   own?: () => string[]
 }
@@ -129,10 +145,14 @@ export interface RemoteActions {
   pin: (id: string | null) => void
   /** Кнопки дока: имя → действие. Только этот список, аргументы проверяются ещё и в модулях. */
   dock: DockActionTable
+  /** Пульт модератора: написать от имени бота (или стримера, если бота нет). */
+  sendMod: (text: string) => Promise<void>
+  /** Пульт модератора: удалить сообщение, таймаут на 10 минут или бан. */
+  moderate: (id: string, op: 'delete' | 'timeout' | 'ban') => Promise<void>
 }
 
-/** local — оверлеи (только чтение), dock — док для OBS на этом ПК, lan — пульт второго устройства. */
-type Kind = 'local' | 'lan' | 'dock'
+/** local — оверлеи (только чтение), dock — док для OBS на этом ПК, lan — пульт второго устройства, mod — пульт модератора. */
+type Kind = 'local' | 'lan' | 'dock' | 'mod'
 
 /**
  * Сервер Crossember.
@@ -140,6 +160,7 @@ type Kind = 'local' | 'lan' | 'dock'
  * - dock: док для OBS — тот же сервер 127.0.0.1, но свой ключ (ключ оверлеев кнопки не открывает).
  * - lan: тот же док для второго ПК, слушает выбранный адрес домашней сети, отдельный ключ пульта;
  *   кнопки там работают, только если включены в настройках, иначе — только чат.
+ * - mod: пульт модератора на том же адресе домашней сети, свой ключ; только чат с модерацией и кнопки из MOD_ACTIONS.
  * Везде: ключ в каждом запросе (сравнение за постоянное время), проверка Host (DNS-rebinding) и Origin у WebSocket.
  */
 export class OverlayServer {
@@ -155,6 +176,7 @@ export class OverlayServer {
   private overlayKey: string
   private remoteKey: string
   private dockKey: string
+  private modKey: string
   private dockTimer: NodeJS.Timeout | null = null
   private lanError: string | null = null
   private lanUrl: string | null = null
@@ -176,6 +198,7 @@ export class OverlayServer {
     this.overlayKey = store.get('server.overlayKey', '') || this.rotate('overlay')
     this.remoteKey = store.get('server.remoteKey', '') || this.rotate('remote')
     this.dockKey = store.get('server.dockKey', '') || this.rotate('dock')
+    this.modKey = store.get('server.modKey', '') || this.rotate('mod')
     hub.on('event', (e: HubEvent) => this.broadcast({ kind: 'event', event: e, view: eventView(e) }))
     hub.on('delete', (d: unknown) => this.broadcast({ kind: 'delete', ...(d as object) }))
     hub.on('pinned', (m: HubEvent | null) => this.broadcast({ kind: 'pinned', event: m }))
@@ -188,8 +211,12 @@ export class OverlayServer {
     extras.goal.on('change', () => this.broadcast({ kind: 'goal', goal: extras.goal.overlay() }, 'local'))
     extras.giveaway.on('change', () => this.broadcast({ kind: 'giveaway', giveaway: extras.giveaway.overlay() }, 'local'))
     extras.vote.on('change', () => this.broadcast({ kind: 'vote', vote: extras.vote.overlay() }, 'local'))
+    extras.bets.on('change', () => this.broadcast({ kind: 'bets', bets: extras.bets.overlay() }, 'local'))
+    extras.music.on('change', () => this.broadcast({ kind: 'music', music: extras.music.overlay() }, 'local'))
+    extras.subathon.on('change', () => this.broadcast({ kind: 'subathon', subathon: extras.subathon.state() }, 'local'))
+    extras.subathon.on('added', (a: unknown) => this.broadcast({ kind: 'subathon-add', add: a }, 'local'))
     // Док: любое изменение — одно обновление состояния (не чаще раза в 100 мс).
-    for (const src of [extras.alerts, extras.auction, extras.goal, extras.giveaway, extras.wheel, extras.counters, extras.vote]) src.on('change', () => this.scheduleDock())
+    for (const src of [extras.alerts, extras.auction, extras.goal, extras.giveaway, extras.wheel, extras.counters, extras.vote, extras.bets, extras.music, extras.subathon, extras.rewards]) src.on('change', () => this.scheduleDock())
     hub.on('event', (e: HubEvent) => {
       if (e.type !== 'message' && e.type !== 'system' && !e.test) this.pushStats()
     })
@@ -205,13 +232,14 @@ export class OverlayServer {
     this.broadcast({ kind: 'stats', stats: this.statsData() }, 'local')
   }
 
-  rotate(which: 'overlay' | 'remote' | 'dock'): string {
+  rotate(which: 'overlay' | 'remote' | 'dock' | 'mod'): string {
     const k = newKey()
     if (which === 'overlay') this.overlayKey = k
     else if (which === 'dock') this.dockKey = k
+    else if (which === 'mod') this.modKey = k
     else this.remoteKey = k
     this.store.set(`server.${which}Key`, k)
-    const kindOf: Kind = which === 'overlay' ? 'local' : which === 'dock' ? 'dock' : 'lan'
+    const kindOf: Kind = which === 'overlay' ? 'local' : which === 'dock' ? 'dock' : which === 'mod' ? 'mod' : 'lan'
     for (const [s, kind] of this.sockets) if (kind === kindOf) s.close(4001, 'key rotated')
     if (which === 'remote' && this.lanUrl) this.lanUrl = this.lanUrl.replace(/k=.*$/, `k=${k}`)
     return k
@@ -267,7 +295,7 @@ export class OverlayServer {
     let data: string | null = null
     const control = this.settings.get().lan.control
     for (const [s, kind] of this.sockets) {
-      if (s.readyState !== s.OPEN || (kind !== 'dock' && !(kind === 'lan' && control))) continue
+      if (s.readyState !== s.OPEN || (kind !== 'dock' && kind !== 'mod' && !(kind === 'lan' && control))) continue
       data ??= JSON.stringify({ kind: 'dock', dock: this.dockData() })
       s.send(data)
     }
@@ -281,7 +309,8 @@ export class OverlayServer {
       overlayKey: this.overlayKey,
       overlays: OVERLAYS.filter((o) => !o.hidden).map((o) => ({ id: o.id, name: o.name, size: o.size, url: `${baseUrl}/o/${o.id}?k=${this.overlayKey}` })),
       dockUrl: `${baseUrl}/dock?k=${this.dockKey}`,
-      lan: { running: !!this.lan, url: this.lanUrl, error: this.lanError, addresses: lanAddresses() }
+      lan: { running: !!this.lan, url: this.lanUrl, error: this.lanError, addresses: lanAddresses() },
+      modUrl: this.lan && this.lanUrl ? this.lanUrl.replace(/\/remote\?k=.*$/, `/mod?k=${this.modKey}`) : null
     }
   }
 
@@ -314,18 +343,19 @@ export class OverlayServer {
   private hello(kind: Kind, ov = ''): string {
     const s = this.settings.get()
     const isDock = kind !== 'local'
+    const isMod = kind === 'mod'
     return JSON.stringify({
       kind: 'hello',
       build: this.overlayBuild,
-      role: kind === 'lan' ? 'remote' : kind === 'dock' ? 'dock' : 'overlay',
+      role: kind === 'lan' ? 'remote' : kind === 'dock' ? 'dock' : isMod ? 'mod' : 'overlay',
       overlays: { ...s.overlays, float: s.float },
       chat: this.hub.recentChat().slice(0, 50),
       events: isDock ? this.hub.recent().slice(0, 30) : CHAT_OVERLAYS.has(ov) ? this.hub.recent().slice(0, 30).map((e) => ({ ...e, view: eventView(e) })) : [],
       ...(CHAT_OVERLAYS.has(ov) ? { chatStyle: this.chatStyle() } : {}),
       pinned: this.hub.pinned,
-      ...(isDock ? { dockBlocks: s.dock.blocks, lanControl: s.lan.control } : {}),
-      ...(kind === 'dock' || (kind === 'lan' && s.lan.control) ? { dock: this.dockData() } : {}),
-      ...(kind === 'local' ? { stats: this.statsData(), counters: this.extras.counters.list(), auction: this.extras.auction.overlay(), wheel: this.extras.wheel.overlay(), goal: this.extras.goal.overlay(), giveaway: this.extras.giveaway.overlay(), vote: this.extras.vote.overlay() } : {}),
+      ...(isDock ? (isMod ? { dockBlocks: MOD_BLOCKS, lanControl: true } : { dockBlocks: s.dock.blocks, lanControl: s.lan.control }) : {}),
+      ...(kind === 'dock' || isMod || (kind === 'lan' && s.lan.control) ? { dock: this.dockData() } : {}),
+      ...(kind === 'local' ? { stats: this.statsData(), counters: this.extras.counters.list(), auction: this.extras.auction.overlay(), wheel: this.extras.wheel.overlay(), goal: this.extras.goal.overlay(), giveaway: this.extras.giveaway.overlay(), vote: this.extras.vote.overlay(), bets: this.extras.bets.overlay(), music: this.extras.music.overlay(), subathon: this.extras.subathon.state() } : {}),
       // Снимок для оверлея алертов после (пере)подключения: что идёт сейчас и с какого момента.
       ...(ov === 'alert' ? { alert: this.extras.alerts.nowPlaying() } : {})
     })
@@ -337,6 +367,7 @@ export class OverlayServer {
     const allowedHosts = kind === 'local' ? [`127.0.0.1:${port}`, `localhost:${port}`] : [`${host}:${port}`]
     const origins = allowedHosts.map((h) => `http://${h}`)
     const key = (): string => (kind === 'local' ? this.overlayKey : this.remoteKey)
+    const modOn = (): boolean => this.settings.get().mod.enabled && this.settings.get().mod.web
     const asset = async (rel: string): Promise<string> => readFile(join(this.resourcesDir, 'overlays', rel), 'utf8')
 
     app.addHook('onRequest', async (req: FastifyRequest, reply) => {
@@ -360,6 +391,11 @@ export class OverlayServer {
     } else {
       app.get<{ Querystring: { k?: string } }>('/remote', async (req, reply) => {
         if (!sameKey(req.query.k, key())) return reply.code(403).type('text/plain; charset=utf-8').send('Нет доступа: неверный ключ. Скопируйте ссылку заново в Crossember → Настройки → Второй ПК.')
+        return reply.header('Content-Security-Policy', PAGE_CSP).type('text/html; charset=utf-8').send(await asset('dock.html'))
+      })
+      app.get<{ Querystring: { k?: string } }>('/mod', async (req, reply) => {
+        if (!modOn()) return reply.code(403).type('text/plain; charset=utf-8').send('Пульт модератора выключен: Crossember → Бот и модераторы → Модераторы.')
+        if (!sameKey(req.query.k, this.modKey)) return reply.code(403).type('text/plain; charset=utf-8').send('Нет доступа: неверный ключ. Попросите стримера прислать новую ссылку.')
         return reply.header('Content-Security-Policy', PAGE_CSP).type('text/html; charset=utf-8').send(await asset('dock.html'))
       })
     }
@@ -414,15 +450,17 @@ export class OverlayServer {
       const origin = req.headers.origin
       // На локальном сервере ключ дока превращает подключение в док (с кнопками), ключ оверлеев — в оверлей.
       const asDock = kind === 'local' && sameKey(req.query.k, this.dockKey)
-      if ((origin && !origins.includes(origin)) || (!asDock && !sameKey(req.query.k, key()))) {
+      const asMod = kind === 'lan' && modOn() && sameKey(req.query.k, this.modKey)
+      if ((origin && !origins.includes(origin)) || (!asDock && !asMod && !sameKey(req.query.k, key()))) {
         socket.close(4003, 'forbidden')
         return
       }
-      if (asDock) {
-        this.sockets.set(socket, 'dock')
+      if (asDock || asMod) {
+        const k: 'dock' | 'mod' = asDock ? 'dock' : 'mod'
+        this.sockets.set(socket, k)
         socket.on('close', () => this.sockets.delete(socket))
-        socket.send(this.hello('dock'))
-        this.controlSocket(socket, 'dock')
+        socket.send(this.hello(k))
+        this.controlSocket(socket, k)
         return
       }
       this.sockets.set(socket, kind)
@@ -476,14 +514,14 @@ export class OverlayServer {
    * Ограничение частоты: сообщение в чат — не чаще раза в 0,5 с, кнопки — не больше 12 за 3 с.
    * Со второго устройства кнопки работают, только если это включено в настройках (проверяется на каждую команду).
    */
-  private controlSocket(socket: WebSocket, kind: 'dock' | 'lan'): void {
+  private controlSocket(socket: WebSocket, kind: 'dock' | 'lan' | 'mod'): void {
     let lastSend = 0
     let acts = 0
     const reset = setInterval(() => { acts = 0 }, 3000)
     socket.on('close', () => clearInterval(reset))
     const fail = (text: string): void => { if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ kind: 'error', text })) }
     socket.on('message', (raw: Buffer) => {
-      let m: { kind?: unknown; text?: unknown; id?: unknown }
+      let m: { kind?: unknown; text?: unknown; id?: unknown; op?: unknown }
       try {
         m = JSON.parse(raw.toString('utf8'))
       } catch {
@@ -495,7 +533,11 @@ export class OverlayServer {
         const now = Date.now()
         if (now - lastSend < 500) return
         lastSend = now
-        this.actions.send(m.text.slice(0, 500)).catch((e) => fail((e as Error).message))
+        const send = kind === 'mod' ? this.actions.sendMod : this.actions.send
+        send(m.text.slice(0, 500)).catch((e) => fail((e as Error).message))
+      } else if (m.kind === 'mod' && kind === 'mod' && typeof m.id === 'string' && m.id.length <= 100 && (m.op === 'delete' || m.op === 'timeout' || m.op === 'ban')) {
+        if (++acts > 12) return fail('Слишком часто — подождите пару секунд')
+        this.actions.moderate(m.id, m.op).catch((e) => fail((e as Error).message))
       } else if (m.kind === 'pin' && (m.id === null || (typeof m.id === 'string' && m.id.length <= 100))) {
         this.actions.pin(m.id as string | null)
       } else if (m.kind === 'act') {
@@ -503,6 +545,7 @@ export class OverlayServer {
         if (++acts > 12) return fail('Слишком часто — подождите пару секунд')
         const a = parseAction(m, this.actions.dock)
         if (!a) return
+        if (kind === 'mod' && !MOD_ACTIONS.includes(a.name)) return fail('Эта кнопка модератору недоступна')
         void runAction(this.actions.dock, a.name, a.args).then((err) => { if (err) fail(err) })
       }
     })
@@ -539,7 +582,7 @@ export class OverlayServer {
     const s = this.settings.get()
     const want = s.lan.enabled && !!s.lan.host
     if (this.lan) {
-      for (const [sock, kind] of this.sockets) if (kind === 'lan') sock.close()
+      for (const [sock, kind] of this.sockets) if (kind === 'lan' || kind === 'mod') sock.close()
       await this.lan.close().catch(() => undefined)
       this.lan = null
       this.lanUrl = null

@@ -549,3 +549,29 @@ select.input { cursor: pointer; }
 .vote-how { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 14px; }
 .vote-sum { min-width: 190px; }
 .auc-clock.vote-word { font-size: 34px; }
+
+/* ---------- Вторая волна: бот, ставки, награды, музыка, сабатон, панель Twitch ---------- */
+.head .right { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.btn.danger { border-color: #ff2d3c88; color: #ffb3b9; }
+.bot-cmd { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; background: var(--night); }
+.bot-cmd-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bot-cmd-head .grow { flex: 1; min-width: 0; }
+.bot-cmd-head .toggle { flex: none; }
+.bot-cmd-body { margin-top: 12px; }
+.bot-cmd textarea.input, .card textarea.input { resize: vertical; font: inherit; }
+.bet-outs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.bet-out { border: 1px solid var(--line-2); border-radius: 12px; padding: 12px; background: var(--night); min-width: 0; }
+.bet-out.win { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
+.bet-out.lose { opacity: .5; }
+.bet-out-h { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bet-pool { font: 800 22px var(--f-display); margin: 8px 0 2px; }
+.sub-clock { font: 800 56px/1.1 var(--f-display); letter-spacing: .02em; }
+.mu-now { display: flex; gap: 16px; align-items: center; }
+.mu-now .grow { flex: 1; min-width: 0; }
+.mu-art { width: 84px; height: 84px; border-radius: 12px; object-fit: cover; background: var(--coal-2); display: grid; place-items: center; font-size: 28px; color: var(--muted); flex: none; }
+.mu-title { font: 800 20px var(--f-display); margin: 4px 0 2px; }
+.mu-bar { position: relative; height: 4px; border-radius: 2px; background: var(--coal-2); margin: 12px 0 20px; }
+.mu-bar i { display: block; height: 100%; border-radius: 2px; background: var(--light); }
+.mu-bar span { position: absolute; right: 0; top: 8px; }
+.rw-dot { width: 12px; height: 12px; border-radius: 4px; flex: none; }
+.tw-modes { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
