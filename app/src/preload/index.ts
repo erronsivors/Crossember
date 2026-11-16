@@ -15,6 +15,7 @@ import type { GoalInput } from '../main/core/goal'
 import type { ProfilePart, ProfileSummary } from '../main/core/profile'
 import type { ObsCatalog } from '../main/core/obs'
 import type { TtsVoice } from '../main/core/tts'
+import type { SileroStatus } from '../main/core/silero'
 import type { AnalyticsPeriod, AnalyticsReport, StreamSamples, ViewerRef } from '../main/core/analytics'
 import type { Viewer } from '../main/core/points'
 import type { RewardMeta } from '../main/core/rewards'
@@ -147,6 +148,9 @@ const api = {
   obsCatalog: () => call<ObsCatalog>('hub:obsCatalog'),
   obsTest: (a: ObsAction) => call('hub:obsTest', a),
   ttsVoices: () => call<TtsVoice[]>('hub:ttsVoices'),
+  sileroStatus: () => call<SileroStatus>('hub:sileroStatus'),
+  sileroInstall: () => call<SileroStatus>('hub:sileroInstall'),
+  sileroRemove: () => call<void>('hub:sileroRemove'),
   ttsTest: (text: string) => call<string>('hub:ttsTest', text),
   daLogin: () => call('hub:daLogin'),
   daCancel: () => call('hub:daCancel'),

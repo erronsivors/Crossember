@@ -44,6 +44,7 @@ import { TemplateStore, sanitizeTemplate, sanitizeObs } from './core/templates'
 import { RuleEngine } from './core/rules'
 import { MediaLibrary } from './core/media'
 import { WindowsTts } from './core/tts'
+import { Silero } from './core/silero'
 import { Stats } from './core/stats'
 import { SoundLibrary } from './core/sounds'
 import type { DonationConnector } from './core/donations/common'
@@ -110,6 +111,7 @@ let stats: Stats
 let sounds: SoundLibrary
 let media: MediaLibrary
 let tts: WindowsTts
+let silero: Silero
 let templates: TemplateStore
 let rules: RuleEngine
 let counters: Counters
@@ -321,7 +323,10 @@ app.whenReady().then(async () => {
   boosty = new BoostyConnector(hub, settings, secrets, store)
   donations = [da, dp, dx, boosty]
   for (const d of donations) d.onChange = pushUpdate
-  tts = new WindowsTts(app.getPath('userData'), hub)
+  silero = new Silero(app.getPath('userData'), resourcesDir, hub)
+  // Модель Silero грузится ~10 с — заранее, если голос по умолчанию из Silero.
+  setTimeout(() => { if (settings.get().tts.voice.startsWith('silero:')) silero.warm() }, 5000)
+  tts = new WindowsTts(app.getPath('userData'), hub, () => { const t = settings.get().tts; return { chatterboxPort: t.chatterboxPort, chatterboxEmotion: t.chatterboxEmotion / 100 } }, silero)
   media = new MediaLibrary(app.getPath('userData'), store)
   templates = new TemplateStore(store)
   templates.onChange = pushUpdate
@@ -930,6 +935,9 @@ app.whenReady().then(async () => {
   handle('hub:obsCatalog', () => obs.catalog())
   handle('hub:obsTest', (a) => obs.run(sanitizeObs(a), (s) => fill(s, sampleEvent('donation'))))
   handle('hub:ttsVoices', () => tts.voices())
+  handle('hub:sileroStatus', () => silero.get())
+  handle('hub:sileroInstall', () => { void silero.install(); return silero.get() })
+  handle('hub:sileroRemove', () => silero.remove())
   handle('hub:ttsTest', async (text) => {
     const s = settings.get().tts
     const r = await tts.synth(str(text, 500), s.voice, s.rate)
@@ -1083,6 +1091,7 @@ app.on('before-quit', () => {
   for (const d of donations) d.stop()
   alerts?.dispose()
   tts?.dispose()
+  silero?.dispose()
   void obs?.stop()
   void server?.stop()
   store?.close()

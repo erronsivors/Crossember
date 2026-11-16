@@ -59,14 +59,39 @@ export async function previewTts(snap: HubSnapshot, text: string): Promise<void>
 
 // ---------- голоса ----------
 let voicesCache: TtsVoice[] | null = null
+const voiceListeners = new Set<(v: TtsVoice[]) => void>()
+/** Перечитать голоса (например, после запуска Chatterbox). */
+export async function reloadVoices(): Promise<TtsVoice[]> {
+  const v = await window.hub.ttsVoices()
+  voicesCache = v
+  for (const f of voiceListeners) f(v)
+  return v
+}
 export function useVoices(): { voices: TtsVoice[]; error: string | null } {
   const [voices, setVoices] = useState<TtsVoice[]>(voicesCache ?? [])
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
-    if (voicesCache) return
-    window.hub.ttsVoices().then((v) => { voicesCache = v; setVoices(v) }).catch((e) => setError(errText(e)))
+    voiceListeners.add(setVoices)
+    if (!voicesCache) reloadVoices().catch((e) => setError(errText(e)))
+    return () => { voiceListeners.delete(setVoices) }
   }, [])
   return { voices, error }
+}
+
+const ENGINE_GROUP: { id: TtsVoice['engine']; label: string }[] = [
+  { id: 'windows', label: 'Windows' },
+  { id: 'onecore', label: 'Windows OneCore' },
+  { id: 'silero', label: 'Silero (нейросеть)' },
+  { id: 'chatterbox', label: 'Chatterbox — клон по образцу' },
+  { id: 'chatterbox-builtin', label: 'Chatterbox — встроенные (с акцентом)' }
+]
+
+/** Подпись голоса, которого сейчас нет в списке (например, Chatterbox выключен). */
+function voiceFallback(v: string): string {
+  if (v.startsWith('cb:')) return `${v.replace(/^cb:(ref|voice):/, '').replace(/\.(wav|mp3)$/i, '')} · Chatterbox (не запущен)`
+  if (v.startsWith('onecore:')) return `${v.slice(8)} · OneCore (нет в системе)`
+  if (v.startsWith('silero:')) return `${v.slice(7)} · Silero (не установлен)`
+  return v
 }
 
 export function VoiceSelect({ value, onChange, allowDefault }: { value: string; onChange: (v: string) => void; allowDefault?: boolean }) {
@@ -75,8 +100,15 @@ export function VoiceSelect({ value, onChange, allowDefault }: { value: string; 
     <>
       <select className="input" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{allowDefault ? 'Как в настройках озвучки' : 'Первый русский голос'}</option>
-        {voices.map((v) => <option key={v.name} value={v.name}>{v.name.replace(/^Microsoft /, '')} · {v.culture}</option>)}
-        {value && !voices.some((v) => v.name === value) && <option value={value}>{value}</option>}
+        {ENGINE_GROUP.map((g) => {
+          const list = voices.filter((v) => v.engine === g.id)
+          return list.length > 0 && (
+            <optgroup key={g.id} label={g.label}>
+              {list.map((v) => <option key={v.name} value={v.name}>{v.label.replace(/^Microsoft /, '')}{v.culture ? ` · ${v.culture}` : ''}</option>)}
+            </optgroup>
+          )
+        })}
+        {value && !voices.some((v) => v.name === value) && <option value={value}>{voiceFallback(value)}</option>}
       </select>
       {error && <span className="small" style={{ color: '#ff7a84' }}>{error}</span>}
     </>

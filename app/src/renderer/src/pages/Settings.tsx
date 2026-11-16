@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { HubSnapshot } from '../../../main/core/types'
 import { Hint, NumberField, ThemePicker, Toggle } from '../components'
 import type { FloatChatSettings, TtsSettings } from '../../../main/core/settings'
-import { VoiceSelect, previewTts } from '../editors'
+import type { SileroStatus } from '../../../main/core/silero'
+import { VoiceSelect, previewTts, reloadVoices, useVoices } from '../editors'
 import { errText } from '../components'
 import type { ProfilePart, ProfileSummary } from '../../../main/core/profile'
 
@@ -240,8 +241,10 @@ function TtsCard({ snap }: { snap: HubSnapshot }) {
   return (
     <div className="card">
       <h3>Озвучка <Hint id="tts" /></h3>
-      <p className="small muted" style={{ marginTop: -6 }}>Голоса Windows — работают сразу, без установки. Озвучку включают правила (раздел «Правила») или слой «Озвучка» в шаблоне алерта.</p>
+      <p className="small muted" style={{ marginTop: -6 }}>Голоса Windows работают сразу, без установки. Свой голос — через Chatterbox на этом ПК. Озвучку включают правила (раздел «Правила») или слой «Озвучка» в шаблоне алерта — там же можно выбрать голос для отдельного алерта.</p>
       <div className="field"><label>Голос</label><VoiceSelect value={s.voice} onChange={(v) => set({ voice: v })} /></div>
+      <SileroBox />
+      <ChatterboxBox snap={snap} />
       <div className="grid g3" style={{ gap: 10 }}>
         <NumberField label="Скорость" value={s.rate} min={-10} max={10} suffix="−10…10" onChange={(v) => set({ rate: v })} />
         <NumberField label="Громкость" value={s.volume} min={0} max={100} suffix="%" onChange={(v) => set({ volume: v })} />
@@ -260,7 +263,91 @@ function TtsCard({ snap }: { snap: HubSnapshot }) {
         </div>
         {err && <span className="small" style={{ color: '#ff7a84' }}>{err}</span>}
       </div>
-      <p className="small muted">Здесь голос звучит в колонках ПК. На стриме озвучку играет оверлей «Алерты» — её слышно в OBS. Silero и свой голос появятся позже.</p>
+      <p className="small muted">Здесь голос звучит в колонках ПК. На стриме озвучку играет оверлей «Алерты» — её слышно в OBS. </p>
     </div>
+  )
+}
+
+/** Silero: установка по кнопке (Python + PyTorch + модель в папке данных), ход установки и удаление. */
+function SileroBox() {
+  const [st, setSt] = useState<SileroStatus | null>(null)
+  const [confirm, setConfirm] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const poll = (): void => {
+      window.hub.sileroStatus().then((s) => {
+        if (!alive) return
+        setSt((prev) => {
+          if (prev?.state === 'installing' && s.state === 'ready') void reloadVoices().catch(() => undefined)
+          return s
+        })
+        timer = setTimeout(poll, s.state === 'installing' ? 700 : 4000)
+      }).catch(() => undefined)
+    }
+    poll()
+    return () => { alive = false; clearTimeout(timer) }
+  }, [])
+  if (!st) return null
+  const install = (): void => { setErr(null); window.hub.sileroInstall().then(setSt).catch((e) => setErr(errText(e))) }
+  const remove = (): void => {
+    setConfirm(false)
+    window.hub.sileroRemove().then(() => window.hub.sileroStatus()).then((s) => { setSt(s); return reloadVoices() }).catch((e) => setErr(errText(e)))
+  }
+  return (
+    <details className="field" style={{ margin: '4px 0 6px' }} open={st.state === 'installing' || st.state === 'error' || undefined}>
+      <summary className="small" style={{ cursor: 'pointer' }}>Нейросетевые голоса — Silero {st.state === 'ready' ? '(установлены)' : st.state === 'installing' ? '(ставятся…)' : '(не установлены)'}</summary>
+      <p className="small muted" style={{ margin: '8px 0' }}>Пять русских голосов (Айдар, Евгений, Бая, Ксения, Ксения 2) с ударениями и интонацией вопросов. Работают на процессоре, видеокарта не нужна. Ставятся отдельно: Crossember скачает Python, PyTorch и модель Silero с их официальных сайтов — около 400 МБ, на диске займёт около 800 МБ. Модели Silero разрешены только для некоммерческого использования.</p>
+      {st.state === 'installing' && (
+        <div className="small">
+          {st.step}{st.progress >= 0 ? ` — ${Math.round(st.progress * 100)}%` : '…'}
+          <div style={{ height: 6, background: 'var(--coal-3)', borderRadius: 3, marginTop: 6, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${st.progress >= 0 ? Math.round(st.progress * 100) : 100}%`, background: 'var(--mix)', opacity: st.progress >= 0 ? 1 : 0.4 }} />
+          </div>
+        </div>
+      )}
+      {st.state === 'error' && <p className="small" style={{ color: '#ff7a84' }}>Не получилось: {st.error}</p>}
+      <div className="btnrow" style={{ marginTop: 8 }}>
+        {(st.state === 'none' || st.state === 'error') && <button className="btn sm primary" onClick={install}>{st.state === 'error' ? 'Повторить установку' : 'Установить Silero'}</button>}
+        {st.state === 'ready' && !confirm && <button className="btn sm" onClick={() => setConfirm(true)}>Удалить Silero</button>}
+        {confirm && <><span className="small">Удалить Silero и освободить место?</span><button className="btn sm" onClick={remove}>Да, удалить</button><button className="btn sm" onClick={() => setConfirm(false)}>Отмена</button></>}
+      </div>
+      {err && <p className="small" style={{ color: '#ff7a84' }}>{err}</p>}
+    </details>
+  )
+}
+
+/** Chatterbox: порт локального сервера, эмоциональность и проверка, видит ли его Crossember. */
+function ChatterboxBox({ snap }: { snap: HubSnapshot }) {
+  const s = snap.settings.tts
+  const set = (p: Partial<TtsSettings>): void => void window.hub.setSettings({ tts: p })
+  const { voices } = useVoices()
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const count = voices.filter((v) => v.engine === 'chatterbox' || v.engine === 'chatterbox-builtin').length
+  const check = (): void => {
+    setBusy(true)
+    setNote(null)
+    reloadVoices()
+      .then((v) => {
+        const own = v.filter((x) => x.engine === 'chatterbox').length
+        const all = v.filter((x) => x.engine === 'chatterbox' || x.engine === 'chatterbox-builtin').length
+        setNote(all ? `Chatterbox найден: своих образцов ${own}, встроенных голосов ${all - own}.` : `Chatterbox не отвечает на 127.0.0.1:${s.chatterboxPort}. Запустите его сервер и нажмите ещё раз.`)
+      })
+      .catch((e) => setNote(errText(e)))
+      .finally(() => setBusy(false))
+  }
+  return (
+    <details className="field" style={{ margin: '4px 0 10px' }}>
+      <summary className="small" style={{ cursor: 'pointer' }}>Свой голос — Chatterbox {count ? `(голосов: ${count})` : '(не найден)'}</summary>
+      <p className="small muted" style={{ margin: '8px 0' }}>Chatterbox-TTS-Server ставится отдельно и работает на этом ПК (лучше с видеокартой NVIDIA). Образец своего голоса, 10–30 секунд чистой речи, кладётся в его папку reference_audio — и появляется в списке голосов. Первая фраза после запуска сервера озвучивается дольше. Пока сервер выключен, алерты с этим голосом идут без озвучки.</p>
+      <div className="grid g3" style={{ gap: 10 }}>
+        <NumberField label="Порт сервера" value={s.chatterboxPort} min={1024} max={65535} suffix="127.0.0.1" onChange={(v) => set({ chatterboxPort: v })} />
+        <NumberField label="Эмоциональность" value={s.chatterboxEmotion} min={25} max={150} suffix="%, 50 — спокойно" onChange={(v) => set({ chatterboxEmotion: v })} />
+        <div className="field" style={{ alignSelf: 'end' }}><button className="btn sm" disabled={busy} onClick={check}>{busy ? 'Проверяю…' : 'Найти голоса'}</button></div>
+      </div>
+      {note && <p className="small muted">{note}</p>}
+    </details>
   )
 }
