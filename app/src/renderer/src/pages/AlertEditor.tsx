@@ -5,7 +5,7 @@ import { Hint, Toggle, errText } from '../components'
 import { ObsActionEditor, SoundSelect, VoiceSelect, kit, previewSound, previewTts, serverUrl, type KitHandle } from '../editors'
 import { playBuiltin } from '../sounds'
 import { ART_GROUPS, ART_SETS, artPath } from '../../../main/core/art'
-import { PACK_CATEGORIES, PACK_MODES, PACK_SETS, packPath } from '../../../main/core/alertpack'
+import { PACK_CATEGORIES, PACK_LAYER_NAME, PACK_SETS, packPath } from '../../../main/core/alertpack'
 
 // ---------- значения по умолчанию (как в core/templates.ts newLayer) ----------
 const LAYER_LABEL: Record<LayerType, string> = { card: 'Карточка', text: 'Текст', image: 'Картинка', video: 'Видео', sound: 'Звук', tts: 'Озвучка', obs: 'Действие OBS' }
@@ -45,7 +45,7 @@ export function makeLayer(type: LayerType, patch: Partial<Layer> = {}): Layer {
     text: card ? '{user} — {amount}' : type === 'tts' ? '{user} — {amount}. {message}' : type === 'text' ? '{user}' : '',
     kicker: card ? 'Новый донат' : '', showMessage: true, font: type === 'text' ? 'unbounded' : 'manrope', size: 56, color: '#ffffff', accent: '',
     align: 'center', bold: true, shadow: true, stroke: 0, media: '', fit: 'contain', loop: false, sound: type === 'sound' ? 'coin' : 'none', volume: 80,
-    voice: '', rate: 0, obs: { op: 'source', scene: '', source: '', filter: '', mode: 'show', media: 'restart', text: '', revertSec: 0 },
+    voice: '', rate: 0, wipe: 'none', wipeStart: 0, wipeMs: 600, obs: { op: 'source', scene: '', source: '', filter: '', mode: 'show', media: 'restart', text: '', revertSec: 0 },
     ...patch
   }
 }
@@ -95,7 +95,7 @@ const clamp = (v: number, a: number, b: number): number => Math.min(b, Math.max(
 const sec = (ms: number): string => `${(ms / 1000).toFixed(ms % 1000 ? 2 : 0)} с`
 
 // ---------- редактор ----------
-export function AlertEditor({ initial, snap, onClose }: { initial: AlertTemplate; snap: HubSnapshot; onClose: () => void }) {
+export function AlertEditor({ initial, snap, onClose, onBack }: { initial: AlertTemplate; snap: HubSnapshot; onClose: () => void; onBack?: () => void }) {
   const [t, setT] = useState<AlertTemplate>(initial)
   const [saved, setSaved] = useState(JSON.stringify(initial))
   const [history, setHistory] = useState<AlertTemplate[]>([])
@@ -105,7 +105,7 @@ export function AlertEditor({ initial, snap, onClose }: { initial: AlertTemplate
   const [kind, setKind] = useState('donation')
   const [playing, setPlaying] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
-  const [leaving, setLeaving] = useState(false)
+  const [leaving, setLeaving] = useState<false | 'close' | 'back'>(false)
   const exists = snap.templates.some((x) => x.id === t.id)
   const dirty = JSON.stringify(t) !== saved || !exists
   const total = totalMs(t, kind)
@@ -132,11 +132,19 @@ export function AlertEditor({ initial, snap, onClose }: { initial: AlertTemplate
     window.hub.templatePut(t).then((r) => { setT(r); setSaved(JSON.stringify(r)); setMsg('Сохранено') }).catch((e) => setMsg(errText(e)))
   }
 
-  // Ctrl+Z / Ctrl+S
+  const removeKf = (id: string, i: number): void => {
+    const l = t.layers.find((x) => x.id === id)
+    if (!l || !l.keyframes[i]) return
+    setLayer(id, { keyframes: l.keyframes.filter((_, j) => j !== i) })
+    setSelKf(null)
+  }
+
+  // Ctrl+Z / Ctrl+S, Delete — удалить выбранный ключевой кадр
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (!(e.ctrlKey || e.metaKey)) return
       const inField = (e.target as HTMLElement)?.closest('input, textarea, select')
+      if ((e.code === 'Delete' || e.code === 'Backspace') && !inField && sel && selKf !== null) { e.preventDefault(); removeKf(sel, selKf); return }
+      if (!(e.ctrlKey || e.metaKey)) return
       if (e.code === 'KeyZ' && !inField) { e.preventDefault(); undo() }
       if (e.code === 'KeyS') { e.preventDefault(); save() }
     }
@@ -168,7 +176,9 @@ export function AlertEditor({ initial, snap, onClose }: { initial: AlertTemplate
   return (
     <div className="ed">
       <div className="ed-top">
-        <button className="btn sm" onClick={() => (dirty && exists ? setLeaving(true) : dirty ? setLeaving(true) : onClose())}>← К алертам</button>
+        {onBack && !exists
+          ? <button className="btn sm" onClick={() => (JSON.stringify(t) !== saved ? setLeaving('back') : onBack())}>← К выбору шаблона</button>
+          : <button className="btn sm" onClick={() => (dirty ? setLeaving('close') : onClose())}>← К алертам</button>}
         <input className="input ed-name" value={t.name} maxLength={60} onChange={(e) => change({ ...t, name: e.target.value }, false)} />
         {dirty ? <span className="tag warn">Есть изменения</span> : <span className="tag">Сохранено</span>}
         <div className="btnrow" style={{ marginLeft: 'auto' }}>
@@ -182,9 +192,13 @@ export function AlertEditor({ initial, snap, onClose }: { initial: AlertTemplate
       </div>
       {leaving && (
         <div className="note warnbox btnrow" style={{ marginBottom: 10 }}>
-          Есть несохранённые изменения.
-          <button className="btn sm primary" onClick={() => { window.hub.templatePut(t).then(onClose).catch((e) => setMsg(errText(e))) }}>Сохранить и выйти</button>
-          <button className="btn sm" onClick={onClose}>Выйти без сохранения</button>
+          {leaving === 'back' ? 'Изменения в этом шаблоне пропадут.' : 'Есть несохранённые изменения.'}
+          {leaving === 'back'
+            ? <button className="btn sm primary" onClick={onBack}>Вернуться к выбору</button>
+            : <>
+              <button className="btn sm primary" onClick={() => { window.hub.templatePut(t).then(onClose).catch((e) => setMsg(errText(e))) }}>Сохранить и выйти</button>
+              <button className="btn sm" onClick={onClose}>Выйти без сохранения</button>
+            </>}
           <button className="btn sm" onClick={() => setLeaving(false)}>Остаться</button>
         </div>
       )}
@@ -210,6 +224,7 @@ export function AlertEditor({ initial, snap, onClose }: { initial: AlertTemplate
         onTime={(ms) => { setPlaying(false); setTime(ms) }}
         onPlay={() => { if (playing) setPlaying(false); else { setTime(0); setPlaying(true) } }}
         onSel={(id, kf) => { setSel(id); setSelKf(kf) }}
+        onRemoveKf={removeKf}
         onBegin={() => setHistory((h) => [...h.slice(-49), t])}
         onLayer={(id, p) => setLayer(id, p, false)}
         onDuration={(ms) => change({ ...t, durationMs: ms })} />
@@ -373,9 +388,9 @@ function setKeyAt(l: Layer, time: number, total: number, fn: (s: Keyframe) => Ke
 }
 
 // ---------- таймлайн ----------
-function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, onBegin, onLayer, onDuration }: {
+function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, onRemoveKf, onBegin, onLayer, onDuration }: {
   t: AlertTemplate; total: number; time: number; sel: string | null; selKf: number | null; playing: boolean
-  onTime: (ms: number) => void; onPlay: () => void; onSel: (id: string, kf: number | null) => void; onBegin: () => void
+  onTime: (ms: number) => void; onPlay: () => void; onSel: (id: string, kf: number | null) => void; onRemoveKf: (id: string, kf: number) => void; onBegin: () => void
   onLayer: (id: string, p: Partial<Layer>) => void; onDuration: (ms: number) => void
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
@@ -448,7 +463,7 @@ function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, 
           <input className="input mono sm" type="number" min={1} max={120} step={0.5} defaultValue={t.durationMs / 1000} key={t.durationMs}
             onBlur={(e) => { const v = Math.round(clamp(Number(e.target.value) || 6, 1, 120) * 1000); if (v !== t.durationMs) onDuration(v) }} /> с
         </label>
-        <span className="small muted">Тяните полоску — сдвиг, края — начало и длина, ◆ — ключевые кадры. <Hint id="edTimeline" /></span>
+        <span className="small muted">Тяните полоску — сдвиг, края — начало и длина, ◆ — ключевые кадры (правый клик или Delete — удалить). <Hint id="edTimeline" /></span>
       </div>
       <div className="ed-tl-grid" onPointerMove={moveTo} onPointerUp={end} onPointerCancel={end}>
         <div className="ed-tl-names">
@@ -472,8 +487,9 @@ function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, 
                   <span className="ed-tl-h l" onPointerDown={(e) => { onSel(l.id, null); start(e, { kind: 'l', id: l.id, x0: e.clientX, l }) }} />
                   <span className="ed-tl-h r" title={l.duration ? '' : 'До конца алерта — потяните, чтобы задать длину'} onPointerDown={(e) => { onSel(l.id, null); start(e, { kind: 'r', id: l.id, x0: e.clientX, l }) }} />
                   {l.keyframes.map((f, i) => (
-                    <span key={i} className={`kf ${sel === l.id && selKf === i ? 'on' : ''}`} style={{ left: f.t * px }} title={`Кадр ${sec(f.t)}`}
-                      onPointerDown={(e) => { onSel(l.id, i); onTime(l.start + f.t); start(e, { kind: 'kf', id: l.id, kf: i, x0: e.clientX, l }) }} />
+                    <span key={i} className={`kf ${sel === l.id && selKf === i ? 'on' : ''}`} style={{ left: f.t * px }} title={`Кадр ${sec(f.t)} — Delete или правый клик удаляет`}
+                      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onRemoveKf(l.id, i) }}
+                      onPointerDown={(e) => { if (e.button !== 0) return; onSel(l.id, i); onTime(l.start + f.t); start(e, { kind: 'kf', id: l.id, kf: i, x0: e.clientX, l }) }} />
                   ))}
                 </div>
               </div>
@@ -609,10 +625,12 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
           <Field label="Файл" span>
             <select className="input" value={l.media} onChange={(e) => onChange({ media: e.target.value })}>
               <option value="">— не выбран —</option>
+              {/* Части угловых сцен в списке не перечисляются (их сотни) — показываем текущую. */}
+              {l.media.includes('/corner/') && <option value={l.media}>Угловая сцена — {l.media.split('/').pop()}</option>}
               {media.length > 0 && <optgroup label="Мои файлы">{media.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</optgroup>}
               {l.type === 'image' && PACK_CATEGORIES.map((g) => (
                 <optgroup key={'p' + g} label={`Основные: ${g}`}>
-                  {PACK_SETS.filter((a) => a.category === g).flatMap((a) => PACK_MODES.map((m) => <option key={a.id + m.id} value={`p:${a.id}/${m.file}`}>{a.name} — {m.name}</option>))}
+                  {PACK_SETS.filter((a) => a.category === g).flatMap((a) => (['frame', 'hero', 'action', 'icon'] as const).map((n) => <option key={a.id + n} value={`p:${a.id}/${n}.webp`}>{a.name} — {PACK_LAYER_NAME[n].toLowerCase()}</option>))}
                 </optgroup>
               ))}
               {l.type === 'image' && ART_GROUPS.map((g) => (
@@ -625,6 +643,21 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
               ))}
             </select>
           </Field>
+          {/\/corner\/hero\/idle(-flip)?(-still)?\.webp$/.test(l.media) && (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <Toggle on={!l.media.endsWith('-still.webp')} label="Герой дышит и покачивается"
+                onChange={(on) => onChange({ media: on ? l.media.replace('-still.webp', '.webp') : l.media.replace(/\.webp$/, '-still.webp') })} />
+            </div>
+          )}
+          <Field label="Проявление">
+            <select className="input" value={l.wipe} onChange={(e) => onChange({ wipe: e.target.value as Layer['wipe'] })}>
+              <option value="none">Нет</option><option value="right">Шторка вправо</option><option value="down">Шторка вниз</option><option value="circle">Круг из центра</option>
+            </select>
+          </Field>
+          {l.wipe !== 'none' && <>
+            <Field label="Проявление с, сек"><N value={l.wipeStart / 1000} min={0} max={120} step={0.05} onChange={(n) => onChange({ wipeStart: Math.round(n * 1000) })} /></Field>
+            <Field label="Длина проявления, сек"><N value={l.wipeMs / 1000} min={0.05} max={10} step={0.05} onChange={(n) => onChange({ wipeMs: Math.round(n * 1000) })} /></Field>
+          </>}
           <Field label="Вписать">
             <select className="input" value={l.fit} onChange={(e) => onChange({ fit: e.target.value as Layer['fit'] })}>
               <option value="contain">Целиком</option><option value="cover">Заполнить</option><option value="fill">Растянуть</option>

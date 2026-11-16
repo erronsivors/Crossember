@@ -25,9 +25,11 @@ export function Alerts({ snap }: { snap: HubSnapshot }) {
   const q = snap.alerts
   const s = snap.settings.alerts
   const [editing, setEditing] = useState<AlertTemplate | null>(null)
+  const [fromPicker, setFromPicker] = useState(false)
+  const [picking, setPicking] = useState(false)
   const setAlerts = (patch: Record<string, unknown>): void => void window.hub.setSettings({ alerts: patch })
 
-  if (editing) return <AlertEditor key={editing.id} initial={editing} snap={snap} onClose={() => setEditing(null)} />
+  if (editing) return <AlertEditor key={editing.id} initial={editing} snap={snap} onClose={() => { setEditing(null); setFromPicker(false) }} onBack={fromPicker ? () => { setEditing(null); setFromPicker(false); setPicking(true) } : undefined} />
 
   return (
     <>
@@ -74,7 +76,7 @@ export function Alerts({ snap }: { snap: HubSnapshot }) {
             </div>
           </div>
 
-          <TemplatesCard snap={snap} onEdit={setEditing} />
+          <TemplatesCard snap={snap} onEdit={setEditing} picking={picking} setPicking={setPicking} onPicked={(t) => { setPicking(false); setFromPicker(true); setEditing(t) }} />
         </div>
 
         <div className="grid" style={{ alignContent: 'start' }}>
@@ -95,15 +97,22 @@ export function Alerts({ snap }: { snap: HubSnapshot }) {
   )
 }
 
-function TemplatesCard({ snap, onEdit }: { snap: HubSnapshot; onEdit: (t: AlertTemplate) => void }) {
+function TemplatesCard({ snap, onEdit, picking, setPicking, onPicked }: { snap: HubSnapshot; onEdit: (t: AlertTemplate) => void; picking: boolean; setPicking: (v: boolean) => void; onPicked: (t: AlertTemplate) => void }) {
   const [err, setErr] = useState<string | null>(null)
   const [del, setDel] = useState<string | null>(null)
-  const [picking, setPicking] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+  const importFolder = (): void => {
+    setErr(null); setNote(null)
+    window.hub.templateImport().then((r) => {
+      if (!r) return
+      setNote(`Добавлено шаблонов: ${r.ok}` + (r.bad.length ? `. Не удалось: ${r.bad.slice(0, 3).join('; ')}${r.bad.length > 3 ? '…' : ''}` : ''))
+    }).catch((e) => setErr(errText(e)))
+  }
   const wrap = (p: Promise<unknown>): void => { setErr(null); p.catch((e) => setErr(errText(e))) }
   const usedBy = (id: string): string[] => snap.rules.rules.filter((r) => r.actions.some((a) => a.type === 'alert' && a.templateId === id)).map((r) => r.name)
   return (
     <div className="card">
-      <h3>Шаблоны алертов <Hint id="alertTemplate" /><button className="btn sm primary r" onClick={() => setPicking(true)}>+ Новый</button></h3>
+      <h3>Шаблоны алертов <Hint id="alertTemplate" /><span className="r btnrow" style={{ margin: 0 }}><button className="btn sm" title="Добавить алерты из папки (сохранённые кнопкой «В папку»)" onClick={importFolder}>Из папки…</button><button className="btn sm primary" onClick={() => setPicking(true)}>+ Новый</button></span></h3>
       <p className="small muted" style={{ marginTop: -6 }}>Как выглядит алерт: слои на холсте и таймлайне. Когда какой показывать — решают <b>Правила</b>.</p>
       <div className="list">{snap.templates.map((t) => {
         const used = usedBy(t.id)
@@ -119,6 +128,7 @@ function TemplatesCard({ snap, onEdit }: { snap: HubSnapshot; onEdit: (t: AlertT
             <button className="btn sm" title="Показать в оверлее на тестовом донате" onClick={() => wrap(window.hub.templateTest(t, 'donation'))}>Тест</button>
             <button className="btn sm" onClick={() => onEdit(structuredClone(t))}>Изменить</button>
             <button className="btn sm" title="Сделать копию" onClick={() => wrap(window.hub.templateDuplicate(t.id))}>⧉</button>
+            <button className="btn sm" title="Сохранить в папку вместе со своими картинками и звуками — чтобы поделиться или перенести" onClick={() => { setNote(null); window.hub.templateExport(t.id).then((p) => { if (p) setNote(`Сохранено: ${p}`) }).catch((e) => setErr(errText(e))) }}>В папку</button>
             {del === t.id
               ? <button className="btn sm" style={{ borderColor: '#ff7a84' }} onClick={() => { setDel(null); wrap(window.hub.templateRemove(t.id)) }}>Удалить?</button>
               : <button className="btn sm" title="Удалить" onClick={() => setDel(t.id)}>✕</button>}
@@ -127,8 +137,9 @@ function TemplatesCard({ snap, onEdit }: { snap: HubSnapshot; onEdit: (t: AlertT
         )
       })}</div>
       {!snap.templates.length && <p className="small muted">Шаблонов нет — создайте первый.</p>}
+      {note && <p className="small muted">{note}</p>}
       {err && <p className="small" style={{ color: '#ff7a84' }}>{err}</p>}
-      {picking && <PresetPicker snap={snap} onClose={() => setPicking(false)} onPick={(t) => { setPicking(false); onEdit(t) }} />}
+      {picking && <PresetPicker snap={snap} onClose={() => setPicking(false)} onPick={onPicked} />}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify'
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify'
 import websocket, { type WebSocket } from '@fastify/websocket'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFile, readdir } from 'node:fs/promises'
@@ -14,7 +14,7 @@ import type { Stats } from './stats'
 import type { SoundLibrary } from './sounds'
 import type { MediaLibrary } from './media'
 import { ART_FILES } from './art'
-import type { AlertPack } from './alertpack-store'
+import { packPath } from './alertpack'
 import type { WindowsTts } from './tts'
 import type { Counter, Counters } from './counters'
 import type { Auction } from './auction'
@@ -97,7 +97,7 @@ const SECURITY_HEADERS = {
 /** Оверлеи-чаты: им в hello нужны недавние события и оформление. */
 const CHAT_OVERLAYS = new Set(['chat', 'chat-h', 'float'])
 
-const PAGE_CSP = `default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'`
+const PAGE_CSP = `default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'`
 
 const newKey = (): string => randomBytes(24).toString('base64url')
 
@@ -126,7 +126,6 @@ export interface OverlayExtras {
   stats: Stats
   sounds: SoundLibrary
   media: MediaLibrary
-  alertPack: AlertPack
   tts: WindowsTts
   counters: Counters
   auction: Auction
@@ -416,6 +415,23 @@ export class OverlayServer {
       return reply.header('Cache-Control', 'public, max-age=86400').header('Cross-Origin-Resource-Policy', 'cross-origin').type('image/svg+xml').send(await asset(`art/${name}.svg`))
     })
 
+    // Слои основного набора алертов (resources/alertpack, общие для всех, без ключа). Разрешено чтение из
+    // приложения (fetch в blob): так анимированный WebP каждый показ начинается с первого кадра.
+    const packFile = async (reply: FastifyReply, media: string, parts: string[]): Promise<FastifyReply> => {
+      if (!packPath(media)) return reply.code(404).send({ error: 'not found' })
+      try {
+        const body = await readFile(join(this.resourcesDir, 'alertpack', ...parts))
+        return reply.header('Cache-Control', 'public, max-age=86400').header('Cross-Origin-Resource-Policy', 'cross-origin')
+          .header('Access-Control-Allow-Origin', '*').type(media.endsWith('.png') ? 'image/png' : 'image/webp').send(body)
+      } catch {
+        return reply.code(404).send({ error: 'not found' })
+      }
+    }
+    app.get<{ Params: { id: string; file: string } }>('/p/:id/:file', async (req, reply) =>
+      packFile(reply, `p:${req.params.id}/${req.params.file}`, [req.params.id, req.params.file]))
+    app.get<{ Params: { id: string; sub: string; file: string } }>('/p/:id/corner/:sub/:file', async (req, reply) =>
+      packFile(reply, `p:${req.params.id}/corner/${req.params.sub}/${req.params.file}`, [req.params.id, 'corner', req.params.sub, req.params.file]))
+
     // Смайлы и бейджи из локального кэша (без ключа: это публичные картинки; Host всё равно проверяется).
     app.get<{ Params: { hash: string } }>('/e/:hash', async (req, reply) => {
       const img = await this.images.get(req.params.hash)
@@ -440,13 +456,6 @@ export class OverlayServer {
         reply.header('Cross-Origin-Resource-Policy', 'cross-origin').header('Accept-Ranges', 'bytes').type(m.type)
         if (range) reply.code(206).header('Content-Range', `bytes ${m.start}-${m.end}/${m.size}`)
         return reply.send(m.body)
-      })
-      // Основной набор алертов (импортирован в данные приложения).
-      app.get<{ Params: { id: string; file: string }; Querystring: { k?: string } }>('/p/:id/:file', async (req, reply) => {
-        if (!sameKey(req.query.k, key())) return reply.code(403).send({ error: 'forbidden' })
-        const body = this.extras.alertPack.get(req.params.id, req.params.file)
-        if (!body) return reply.code(404).send({ error: 'not found' })
-        return reply.header('Cross-Origin-Resource-Policy', 'cross-origin').type(req.params.file.endsWith('.png') ? 'image/png' : 'image/webp').send(body)
       })
       // Готовая озвучка.
       app.get<{ Params: { file: string }; Querystring: { k?: string } }>('/t/:file', async (req, reply) => {

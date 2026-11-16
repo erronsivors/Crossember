@@ -2,7 +2,7 @@
 import type { AlertTemplate, Keyframe, Layer } from '../../main/core/templates'
 import { makeLayer } from './pages/AlertEditor'
 import { ART_SETS, type ArtSet } from '../../main/core/art'
-import { PACK_MODES, type PackMode, type PackSet } from '../../main/core/alertpack'
+import { CORNER_POSITION_NAME, PACK_LAYER_NAME, PACK_LAYER_SIZE, PACK_MODES, type CornerFile, type CornerPosition, type PackMode, type PackSet } from '../../main/core/alertpack'
 
 export interface AlertPreset {
   id: string
@@ -283,29 +283,78 @@ function artPreset(a: ArtSet): AlertPreset {
 
 PRESETS.push(...ART_SETS.map(artPreset))
 
-// ---------- основной набор (Crossember-Alerts): готовая анимация WebP + текст по ключам набора ----------
+// ---------- основной набор (Crossember-Alerts): слои набора по ключевым кадрам + текст ----------
 
-/** Шаблон основного набора: анимация 1400×620 по центру 1920×1080, ник, сумма и сообщение двигаются по ключам набора. */
-export function packTemplate(s: PackSet, mode: PackMode): AlertTemplate {
-  const m = s.modes[mode]
-  const file = PACK_MODES.find((x) => x.id === mode)?.file ?? 'anim-classic.webp'
+const SOUND_BY_CAT: Record<string, string> = { 'Игровые': 'coin', 'Космос и Sci-Fi': 'pop', 'Еда': 'pop', 'Музыка и движение': 'fanfare' }
+
+/** Шаблон основного набора: каждый слой (рамка, персонаж, поза действия, эффекты) — картинка с ключами набора. */
+export function packTemplate(s: PackSet, mode: Exclude<PackMode, 'corner'>): AlertTemplate {
+  const sc = s.modes[mode]
   const ox = 260
   const oy = 230
   const [sx, sy, sw, sh] = s.safe
   const dark = parseInt(s.color.slice(1, 3), 16) + parseInt(s.color.slice(3, 5), 16) + parseInt(s.color.slice(5, 7), 16) < 380
-  const keys = (x: number, y: number): Keyframe[] => m.keys.map(([t, dx, dy, scale, opacity, ease]) => ({ t, x: x + dx, y: y + dy, scale, rotate: 0, opacity, ease }))
+  const images: Layer[] = sc.layers.map(([name, keys]) => {
+    const [w, h] = PACK_LAYER_SIZE[name]
+    const reveal = name === 'frame' ? sc.reveal : null
+    return makeLayer('image', {
+      name: PACK_LAYER_NAME[name], media: `p:${s.id}/${name}.webp`, x: keys[0][1], y: keys[0][2], w, h, animIn: 'none', animOut: 'none',
+      keyframes: keys.map(([t, x, y, scale, rotate, opacity, ease]) => ({ t, x, y, scale, rotate, opacity, ease })),
+      ...(reveal ? { wipe: reveal[0], wipeStart: reveal[1], wipeMs: reveal[2] } : {})
+    })
+  })
+  const tkeys = (x: number, y: number): Keyframe[] => sc.text.map(([t, dx, dy, scale, opacity, ease]) => ({ t, x: x + dx, y: y + dy, scale, rotate: 0, opacity, ease }))
   const lineH = [Math.round(sh * 0.36), Math.round(sh * 0.3), Math.round(sh * 0.34)]
   const ys = [oy + sy, oy + sy + lineH[0], oy + sy + lineH[0] + lineH[1]]
   const txt = (name: string, text: string, i: number, size: number, bold: boolean): Layer =>
-    makeLayer('text', { name, text, font: i === 2 ? 'manrope' : s.font, size, bold, color: s.color, shadow: !dark, x: ox + sx, y: ys[i], w: sw, h: lineH[i], animIn: 'none', animOut: 'none', keyframes: keys(ox + sx, ys[i]) })
+    makeLayer('text', { name, text, font: i === 2 ? 'manrope' : s.font, size, bold, color: i === 1 ? s.accent : s.color, accent: s.accent, shadow: !dark, x: ox + sx, y: ys[i], w: sw, h: lineH[i], animIn: 'none', animOut: 'none', keyframes: tkeys(ox + sx, ys[i]) })
   return {
-    id: uid(), name: `${s.name} · ${PACK_MODES.find((x) => x.id === mode)?.name ?? ''}`, theme: 'general', durationMs: m.ms, extendByMessage: false,
+    id: uid(), name: `${s.name} · ${PACK_MODES.find((x) => x.id === mode)?.name ?? ''}`, theme: 'general', durationMs: sc.ms, extendByMessage: false,
     layers: [
-      makeLayer('image', { name: 'Анимация', media: `p:${s.id}/${file}`, x: ox, y: oy, w: 1400, h: 620, animIn: 'none', animOut: 'none' }),
+      ...images,
       txt('Ник', '{user}', 0, Math.min(48, Math.round(lineH[0] * 0.78)), true),
       txt('Сумма', '{amount}', 1, Math.min(40, Math.round(lineH[1] * 0.78)), true),
       txt('Сообщение', '{message}', 2, Math.min(26, Math.round(lineH[2] * 0.42)), false),
-      makeLayer('sound', { sound: 'chime', volume: 60 })
+      makeLayer('sound', { sound: SOUND_BY_CAT[s.category] ?? 'chime', volume: 60 })
     ]
+  }
+}
+
+const CORNER_FILE_RE = /^(parts|hero)\/[a-z0-9-]{1,40}\.(webp|png)$/
+
+/**
+ * «Угловой»: шаблон из corner/scene.json набора для одного из шести положений. Слои — как в сцене
+ * (порядок, start/duration, ключи от начала слоя, проявление); три строки текста встают в text.area
+ * после первых insertAfter слоёв, их ключи — от начала алерта (слой текста начинается в 0).
+ */
+export function cornerTemplate(s: PackSet, file: CornerFile, pos: CornerPosition, breathe = true): AlertTemplate {
+  const sc = file.positions[pos]
+  if (!sc) throw new Error(`В наборе ${s.id} нет положения ${pos}`)
+  const images: Layer[] = sc.layers.filter((l) => CORNER_FILE_RE.test(l.file)).map((l) => makeLayer('image', {
+    name: l.name.slice(0, 40), media: `p:${s.id}/corner/${breathe ? l.file : l.file.replace(/^(hero\/idle(-flip)?)\.webp$/, '$1-still.webp')}`, x: l.x, y: l.y, w: l.w, h: l.h,
+    start: l.start, duration: l.duration, animIn: 'none', animOut: 'none',
+    keyframes: l.keyframes.map(({ t, x, y, scale, rotate, opacity, ease }) => ({ t, x, y, scale, rotate, opacity, ease })),
+    wipe: l.wipe, wipeStart: l.wipeStart, wipeMs: l.wipeMs || 600
+  }))
+  const { area, color, accent } = sc.text
+  const dark = parseInt(color.slice(1, 3), 16) + parseInt(color.slice(3, 5), 16) + parseInt(color.slice(5, 7), 16) < 380
+  const lineH = [Math.round(area.h * 0.36), Math.round(area.h * 0.3), Math.round(area.h * 0.34)]
+  const ys = [area.y, area.y + lineH[0], area.y + lineH[0] + lineH[1]]
+  const txt = (name: string, text: string, i: number, size: number, bold: boolean): Layer =>
+    makeLayer('text', {
+      name, text, font: i === 2 ? 'manrope' : s.font, size, bold, color: i === 1 ? accent : color, accent, shadow: !dark,
+      x: area.x, y: ys[i], w: area.w, h: lineH[i], animIn: 'none', animOut: 'none',
+      keyframes: sc.text.keyframes.map(({ t, x, y, scale, rotate, opacity, ease }) => ({ t, x: area.x + x, y: ys[i] + y, scale, rotate, opacity, ease }))
+    })
+  const texts = [
+    txt('Ник', '{user}', 0, Math.min(48, Math.round(lineH[0] * 0.78)), true),
+    txt('Сумма', '{amount}', 1, Math.min(40, Math.round(lineH[1] * 0.78)), true),
+    txt('Сообщение', '{message}', 2, Math.min(26, Math.round(lineH[2] * 0.55)), false)
+  ]
+  const at = Math.max(0, Math.min(images.length, sc.text.insertAfter))
+  return {
+    id: uid(), name: `${s.name} · ${PACK_MODES.find((x) => x.id === 'corner')?.name ?? ''} · ${CORNER_POSITION_NAME[pos]}`.slice(0, 60),
+    theme: 'general', durationMs: sc.durationMs, extendByMessage: false,
+    layers: [...images.slice(0, at), ...texts, ...images.slice(at), makeLayer('sound', { sound: SOUND_BY_CAT[s.category] ?? 'chime', volume: 60 })]
   }
 }

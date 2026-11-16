@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, globalShortcut, ipcMain, powerMonitor, session, shell, clipboard, type IpcMainInvokeEvent } from 'electron'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { release } from 'node:os'
 import { Logger } from './core/logger'
 import { FEEDBACK_EMAIL, bundleText, composeUrls, sanitizeForm, writeBundle, type LogBundle, type SystemInfo } from './core/feedback'
@@ -33,7 +33,9 @@ import { Smtc } from './core/smtc'
 import { Music } from './core/music'
 import { Subathon } from './core/subathon'
 import { Memealerts } from './core/memealerts'
-import { AlertPack } from './core/alertpack-store'
+import { exportAlert, findAlerts, importAlert, type FolderLibs } from './core/alertfolder'
+import { packHas } from './core/alertpack'
+import { readFile as readFileAsync } from 'node:fs/promises'
 import { Analytics, CHAT_PLATFORMS, isAnalyticsPeriod, type ChatPlatform } from './core/analytics'
 import { Profiles, type ProfilePart } from './core/profile'
 import { KickAuth } from './core/kickauth'
@@ -124,7 +126,6 @@ let spotify: Spotify
 let music: Music
 let subathon: Subathon
 let memealerts: Memealerts
-let alertPack: AlertPack
 let analytics: Analytics
 let profiles: Profiles
 let kickAuth: KickAuth
@@ -179,7 +180,6 @@ function snapshot(): HubSnapshot {
     music: music.state(),
     subathon: subathon.state(),
     memealerts: memealerts.state(),
-    alertPack: alertPack.state(),
     twitchScopes: Object.fromEntries(PANEL_SCOPES.map((sc) => [sc, twitch.access(sc)])),
     feedback: { email: FEEDBACK_EMAIL, crash: logger?.crash() ?? null },
     alertOverlays: server ? server.openCount('alert') : 0,
@@ -323,8 +323,6 @@ app.whenReady().then(async () => {
   for (const d of donations) d.onChange = pushUpdate
   tts = new WindowsTts(app.getPath('userData'), hub)
   media = new MediaLibrary(app.getPath('userData'), store)
-  alertPack = new AlertPack(join(app.getPath('userData'), 'alertpack'))
-  alertPack.onChange = pushUpdate
   templates = new TemplateStore(store)
   templates.onChange = pushUpdate
   const runObs = (a: Parameters<ObsConnector['run']>[0], e: HubEvent): Promise<void> => obs.run(a, (s) => fill(s, e))
@@ -596,7 +594,7 @@ app.whenReady().then(async () => {
       if (op === 'delete') await c?.deleteMessage?.(m)
       else await c?.ban?.(m, op === 'timeout' ? 600 : 0)
     }
-  }, { alerts, stats, sounds, media, alertPack, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, own: ownAccounts })
+  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, own: ownAccounts })
   obs.onChange = pushUpdate
   server.onClients = pushUpdate
   floatChat = new FloatChat(settings, hub, () => server.overlayUrl('float'))
@@ -834,12 +832,6 @@ app.whenReady().then(async () => {
   handle('hub:twClip', () => twitch.clip())
   handle('hub:twAnnounce', (text, color) => twitch.announce(str(text, 500), (['blue', 'green', 'orange', 'purple'].includes(color as string) ? color : 'primary') as 'primary'))
   // ---------- Memealerts ----------
-  handle('hub:packImport', async () => {
-    if (!win) return 0
-    const r = await dialog.showOpenDialog(win, { title: 'Папка набора Crossember-Alerts', properties: ['openDirectory'] })
-    if (r.canceled || !r.filePaths[0]) return 0
-    return alertPack.importFrom(r.filePaths[0])
-  })
   handle('hub:memeLogin', () => memealerts.login())
   handle('hub:memeCancel', () => memealerts.cancelLogin())
   handle('hub:memeLogout', () => memealerts.logout())
@@ -880,6 +872,41 @@ app.whenReady().then(async () => {
     rules.forgetTemplate(String(id))
   })
   handle('hub:templateDuplicate', (id) => templates.duplicate(str(id, 100)))
+  const folderLibs = (): FolderLibs => ({
+    mediaFile: (f) => join(app.getPath('userData'), 'media', f),
+    soundFile: (f) => join(app.getPath('userData'), 'sounds', f),
+    addMedia: (p) => media.add(p).id,
+    addSound: (p) => sounds.add(p).id
+  })
+  handle('hub:templateExport', async (id) => {
+    const t = templates.get(str(id, 100))
+    if (!t || !win) return null
+    const r = await dialog.showOpenDialog(win, { title: 'Куда сохранить алерт (будет создана папка с его именем)', properties: ['openDirectory', 'createDirectory'] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const out = exportAlert(t, r.filePaths[0], folderLibs())
+    shell.showItemInFolder(join(out, 'alert.json'))
+    return out
+  })
+  // Угловые сцены основного набора: resources/alertpack/<набор>/corner/scene.json (шесть положений).
+  handle('hub:packCorner', async (id: unknown) => {
+    const set = str(id, 70)
+    if (!packHas(set)) throw new Error('Нет такого набора')
+    return JSON.parse(await readFileAsync(join(resourcesDir, 'alertpack', set, 'corner', 'scene.json'), 'utf8')) as unknown
+  })
+  handle('hub:templateImport', async () => {
+    if (!win) return null
+    const r = await dialog.showOpenDialog(win, { title: 'Папка с алертом (или папка с несколькими алертами)', properties: ['openDirectory'] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const found = findAlerts(r.filePaths[0])
+    if (!found.length) throw new Error('В папке нет alert.json — выберите папку, сохранённую кнопкой «В папку»')
+    let ok = 0
+    const bad: string[] = []
+    for (const f of found) {
+      try { templates.put(importAlert(f, folderLibs())); ok++ } catch (e) { bad.push(`${basename(f)}: ${(e as Error).message}`) }
+    }
+    pushUpdate()
+    return { ok, bad }
+  })
   handle('hub:templateTest', (t, kind) => alerts.enqueue(sanitizeTemplate(t), sampleEvent(kind), true))
   handle('hub:mediaAdd', async () => {
     if (!win) return null

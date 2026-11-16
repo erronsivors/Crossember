@@ -18,6 +18,9 @@ export const ANIM_PRESETS = ['none', 'fade', 'up', 'down', 'left', 'right', 'zoo
 export type AnimPreset = (typeof ANIM_PRESETS)[number]
 export const EASES = ['linear', 'ease', 'in', 'out', 'inout', 'back'] as const
 export type Ease = (typeof EASES)[number]
+/** Проявление картинки: шторкой вправо, вниз или кругом из центра. */
+export const WIPES = ['none', 'right', 'down', 'circle'] as const
+export type Wipe = (typeof WIPES)[number]
 export const FONTS = ['manrope', 'unbounded', 'mono'] as const
 export type FontId = (typeof FONTS)[number]
 
@@ -91,6 +94,10 @@ export interface Layer {
   media: string
   fit: 'contain' | 'cover' | 'fill'
   loop: boolean
+  /** image/video: проявление и его начало/длина, мс от начала слоя. */
+  wipe: Wipe
+  wipeStart: number
+  wipeMs: number
   /** sound: встроенный звук или custom:<файл>. */
   sound: string
   /** sound / video / tts, %. */
@@ -199,6 +206,9 @@ export function newLayer(type: LayerType, patch: Partial<Layer> = {}): Layer {
     volume: 80,
     voice: '',
     rate: 0,
+    wipe: 'none',
+    wipeStart: 0,
+    wipeMs: 600,
     obs: sanitizeObs({})
   }
   return { ...base, ...patch }
@@ -240,6 +250,9 @@ export function sanitizeLayer(v: unknown): Layer {
     media: mediaId(o.media),
     fit: oneOf(o.fit, ['contain', 'cover', 'fill'] as const, 'contain'),
     loop: bool(o.loop, false),
+    wipe: oneOf(o.wipe, WIPES, 'none'),
+    wipeStart: num(o.wipeStart, 0, 0, 120_000),
+    wipeMs: num(o.wipeMs, 600, 50, 10_000),
     sound: soundId(o.sound, d.sound),
     volume: num(o.volume, d.volume, 0, 100),
     voice: str(o.voice, '', 100),

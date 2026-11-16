@@ -233,7 +233,9 @@ const api = {
   twAnnounce: (text: string, color: string) => call('hub:twAnnounce', text, color),
   // Memealerts
   memeLogin: () => call('hub:memeLogin'),
-  packImport: () => call<number>('hub:packImport'),
+  templateExport: (id: string) => call<string | null>('hub:templateExport', id),
+  packCorner: (id: string) => call<unknown>('hub:packCorner', id),
+  templateImport: () => call<{ ok: number; bad: string[] } | null>('hub:templateImport'),
   memeCancel: () => call('hub:memeCancel'),
   memeLogout: () => call('hub:memeLogout'),
   memeToken: (t: string) => call('hub:memeToken', t),

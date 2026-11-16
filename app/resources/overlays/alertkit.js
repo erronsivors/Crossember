@@ -4,6 +4,7 @@
 'use strict';
 (function () {
   const W = 1920, H = 1080;
+  const ANIMATED_RE = /^\/m\/.+\.(webp|gif)$|\/corner\/hero\/(?![a-z0-9-]*-still\.)[a-z0-9-]+\.webp$/;
   const CSS_EASE = { linear: 'linear', ease: 'ease', in: 'ease-in', out: 'ease-out', inout: 'ease-in-out', back: 'cubic-bezier(.2,.9,.3,1.35)' };
   const EASE_FN = {
     linear: (p) => p,
@@ -15,8 +16,9 @@
   };
   const FONT = { manrope: "'Manrope', sans-serif", unbounded: "'Unbounded', sans-serif", mono: "'JetBrains Mono', monospace" };
   const ICON = { donation: '₽', sub: '★', gift: '🎁', follow: '♥', raid: '↗', bits: '◆', reward: '✦', message: '💬' };
-  const SRC_RE = /^\/(m\/[0-9a-f]{32}\.(png|jpg|gif|webp|webm|mp4)|b\/[a-z0-9-]{1,48}\.svg|p\/[0-9]{2}-[a-z0-9-]{1,60}\/[a-z-]+\.(webp|png)|s\/[0-9a-f]{32}\.(mp3|wav|ogg)|t\/[0-9a-f]{40}\.wav)$/;
+  const SRC_RE = /^\/(m\/[0-9a-f]{32}\.(png|jpg|gif|webp|webm|mp4)|b\/[a-z0-9-]{1,48}\.svg|p\/[0-9]{2}-[a-z0-9-]{1,60}\/([a-z0-9-]+\.webp|corner\/(parts|hero)\/[a-z0-9-]{1,40}\.(webp|png))|s\/[0-9a-f]{32}\.(mp3|wav|ogg)|t\/[0-9a-f]{40}\.wav)$/;
   const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+  const WIPE = { right: ['inset(0 100% 0 0)', 'inset(0 0% 0 0)'], down: ['inset(0 0 100% 0)', 'inset(0 0 0% 0)'], circle: ['circle(0% at 50% 50%)', 'circle(75% at 50% 50%)'] };
 
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -120,8 +122,11 @@
         m.playsInline = true;
         m.preload = 'auto';
       } else m.alt = '';
-      // Анимированный WebP браузер не перезапускает при повторном показе того же адреса — добавляем метку.
-      m.src = opts.url(l.src) + (/\.webp$/.test(l.src) ? (opts.url(l.src).includes('?') ? '&' : '?') + 'r=' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : '');
+      // Анимированные WebP и GIF браузер не перезапускает при повторном показе того же адреса,
+      // а запускает с момента загрузки — адрес ставит mount() в начале слоя (см. later).
+      // Неподвижные части (рамки, доски) грузятся сразу, чтобы появиться точно к началу движения.
+      if (l.type === 'image' && !opts.paused && ANIMATED_RE.test(l.src)) m.dataset.later = '1';
+      else m.src = opts.url(l.src);
       box.append(m);
     } else if (opts.editor && l.type !== 'sound' && l.type !== 'tts' && l.type !== 'obs') {
       box.append(el('div', 'ak-empty', l.type === 'image' ? 'Выберите картинку' : 'Выберите видео'));
@@ -151,6 +156,24 @@
     let held = false;
     // Оверлей подключился посреди алерта: таймеры звуков и видео — от этого места, начавшееся раньше не запускается.
     const off = Math.max(0, num(opts.offset, 0));
+    const blobs = [];
+    // Анимированная картинка: свой адрес на каждый показ, выставленный в момент начала слоя, — тогда
+    // вход и уход персонажа идут с первого кадра. Встроенные (/p/) заранее читаются в память (blob),
+    // чтобы не было пустого кадра; для своих файлов — адрес с меткой.
+    function later(img, src, start) {
+      const url = opts.url(src);
+      const fresh = () => url + (url.includes('?') ? '&' : '?') + 'r=' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      let blob = null;
+      if (start > off && /^\/p\//.test(src) && typeof fetch === 'function') {
+        fetch(url).then((r) => (r.ok ? r.blob() : null)).then((b) => { blob = b; }).catch(() => {});
+      }
+      const show = () => {
+        if (stopped) return;
+        if (blob) { const u = URL.createObjectURL(blob); blobs.push(u); img.src = u; } else img.src = fresh();
+      };
+      if (start <= off) show();
+      else timers.push(setTimeout(show, start - off));
+    }
 
     for (const l of item.layers || []) {
       const start = num(l.start, 0);
@@ -207,6 +230,16 @@
       const outMs = Math.min(num(l.animOutMs, 450), dur);
       if (outF && outMs > 0) anims.push(inner.animate(outF, { duration: outMs, delay: start + dur - outMs, fill: 'forwards', easing: 'ease-in' }));
 
+      // Проявление картинки (шторка или круг).
+      const wipe = WIPE[l.wipe];
+      if (wipe && (l.type === 'image' || l.type === 'video')) {
+        const wms = Math.max(50, num(l.wipeMs, 600));
+        anims.push(inner.animate([{ clipPath: wipe[0] }, { clipPath: wipe[1] }], { duration: wms, delay: start + Math.max(0, num(l.wipeStart, 0)), fill: 'both', easing: 'cubic-bezier(.33,1,.68,1)' }));
+      }
+
+      const img = inner.querySelector('img[data-later]');
+      if (img) later(img, l.src, start);
+
       const vid = inner.querySelector('video');
       if (vid) {
         media.push({ v: vid, start });
@@ -253,6 +286,7 @@
         for (const m of media) m.v.pause();
         for (const a of anims) a.cancel();
         stage.replaceChildren();
+        for (const u of blobs) URL.revokeObjectURL(u);
       }
     };
     if (opts.paused) handle.seek(num(opts.startAt, 0));
