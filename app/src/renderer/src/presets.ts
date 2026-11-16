@@ -2,6 +2,7 @@
 import type { AlertTemplate, Keyframe, Layer } from '../../main/core/templates'
 import { makeLayer } from './pages/AlertEditor'
 import { ART_SETS, type ArtSet } from '../../main/core/art'
+import { KINETIC_PRESETS } from './textpresets'
 import { CORNER_POSITION_NAME, PACK_LAYER_NAME, PACK_LAYER_SIZE, PACK_MODES, type CornerFile, type CornerPosition, type PackMode, type PackSet } from '../../main/core/alertpack'
 
 export interface AlertPreset {
@@ -281,6 +282,8 @@ function artPreset(a: ArtSet): AlertPreset {
   }
 }
 
+// Текстовые с анимацией по буквам — сразу за обычными текстовыми.
+PRESETS.push(...KINETIC_PRESETS)
 PRESETS.push(...ART_SETS.map(artPreset))
 
 // ---------- основной набор (Crossember-Alerts): слои набора по ключевым кадрам + текст ----------

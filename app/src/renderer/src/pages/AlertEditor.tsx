@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import type { HubSnapshot } from '../../../main/core/types'
 import type { AlertTemplate, AnimPreset, Ease, Keyframe, Layer, LayerType, ObsAction } from '../../../main/core/templates'
+import { TEXT_FX, TEXT_FX_LABEL } from '../../../main/core/textfx'
 import { Hint, Toggle, errText } from '../components'
 import { ObsActionEditor, SoundSelect, VoiceSelect, kit, previewSound, previewTts, serverUrl, type KitHandle } from '../editors'
 import { playBuiltin } from '../sounds'
@@ -44,7 +45,7 @@ export function makeLayer(type: LayerType, patch: Partial<Layer> = {}): Layer {
     animIn: visual ? (card ? 'pop' : 'fade') : 'none', animInMs: 450, animOut: visual ? 'fade' : 'none', animOutMs: 450, keyframes: [],
     text: card ? '{user} — {amount}' : type === 'tts' ? '{user} — {amount}. {message}' : type === 'text' ? '{user}' : '',
     kicker: card ? 'Новый донат' : '', showMessage: true, font: type === 'text' ? 'unbounded' : 'manrope', size: 56, color: '#ffffff', accent: '',
-    align: 'center', bold: true, shadow: true, stroke: 0, media: '', fit: 'contain', loop: false, sound: type === 'sound' ? 'coin' : 'none', volume: 80,
+    align: 'center', bold: true, shadow: true, stroke: 0, textFx: 'none', fxStep: 45, media: '', fit: 'contain', loop: false, sound: type === 'sound' ? 'coin' : 'none', volume: 80,
     voice: '', rate: 0, wipe: 'none', wipeStart: 0, wipeMs: 600, obs: { op: 'source', scene: '', source: '', filter: '', mode: 'show', media: 'restart', text: '', revertSec: 0 },
     ...patch
   }
@@ -614,6 +615,12 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
           <Field label="Цвет суммы"><ColorPick value={l.accent} allowEmpty onChange={(c) => onChange({ accent: c })} /></Field>
           <Field label="Выравнивание"><Align value={l.align} onChange={(a) => onChange({ align: a })} /></Field>
           <Field label="Обводка, px"><N value={l.stroke} min={0} max={20} onChange={(n) => onChange({ stroke: n })} /></Field>
+          <Field label="Эффект по буквам">
+            <select className="input" value={l.textFx} onChange={(e) => onChange({ textFx: e.target.value as Layer['textFx'] })}>
+              {TEXT_FX.map((f) => <option key={f} value={f}>{TEXT_FX_LABEL[f]}</option>)}
+            </select>
+          </Field>
+          {l.textFx !== 'none' && <Field label="Пауза между буквами, мс"><N value={l.fxStep} min={5} max={300} onChange={(n) => onChange({ fxStep: n })} /></Field>}
         </div>
         <Toggle on={l.bold} onChange={(v) => onChange({ bold: v })} label="Жирный" />
         <Toggle on={l.shadow} onChange={(v) => onChange({ shadow: v })} label="Тень" />

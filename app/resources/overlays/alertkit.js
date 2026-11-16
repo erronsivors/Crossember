@@ -74,6 +74,85 @@
     return out ? [IDENT, from] : [from, IDENT];
   }
 
+  /**
+   * Эффекты текста по буквам. Каждая буква — inline-block внутри слова (слова не рвутся посреди),
+   * анимации — через Web Animations, поэтому перемотка и пауза в редакторе работают так же, как у слоёв.
+   */
+  const FX_MAX = 300;
+  const FX = {
+    type: { frames: [{ opacity: 0 }, { opacity: 0, offset: 0.99 }, { opacity: 1 }], ms: 40, easing: 'linear' },
+    drop: { frames: [{ opacity: 0, transform: 'translateY(-1.1em) rotate(-8deg)' }, { opacity: 1, offset: 0.6 }, { opacity: 1, transform: 'none' }], ms: 520, easing: 'cubic-bezier(.2,.9,.3,1.35)' },
+    rise: { frames: [{ opacity: 0, transform: 'translateY(.7em)' }, { opacity: 1, transform: 'none' }], ms: 480, easing: 'cubic-bezier(.2,.8,.3,1)' },
+    zoom: { frames: [{ opacity: 0, transform: 'scale(0)' }, { opacity: 1, transform: 'scale(1.25)', offset: 0.65 }, { opacity: 1, transform: 'none' }], ms: 420, easing: 'ease-out' },
+    flip: { frames: [{ opacity: 0, transform: 'perspective(400px) rotateX(-95deg)' }, { opacity: 1, transform: 'perspective(400px) rotateX(20deg)', offset: 0.7 }, { opacity: 1, transform: 'none' }], ms: 560, easing: 'ease-out' }
+  };
+  // Повторяемый «случайный» разброс по номеру буквы: одинаковый в эфире и в редакторе.
+  const rnd = (i, k) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+
+  function splitChars(t) {
+    const chars = [];
+    const walk = (node, grad, color) => {
+      for (const ch of [...node.childNodes]) {
+        if (ch.nodeType === 1) { walk(ch, grad || ch.classList.contains('ak-grad'), ch.style.color || color); continue; }
+        const frag = document.createDocumentFragment();
+        for (const part of String(ch.textContent).split(/(\s+)/)) {
+          if (!part) continue;
+          if (/^\s+$/.test(part)) { frag.append(document.createTextNode(part)); continue; }
+          const word = el('span', 'ak-word');
+          for (const c of part) {
+            const s = el('span', grad ? 'ak-ch ak-grad' : 'ak-ch', c);
+            if (color) s.style.color = color;
+            word.append(s);
+            chars.push(s);
+          }
+          frag.append(word);
+        }
+        ch.replaceWith(frag);
+      }
+    };
+    walk(t, false, '');
+    // Градиент суммы теперь на каждой букве: на родителе с inline-block детьми он не рисуется.
+    for (const g of t.querySelectorAll('.ak-amt.ak-grad')) g.classList.remove('ak-grad');
+    return chars;
+  }
+
+  /** Анимации букв слоя l, который начинается в start и длится dur. */
+  function textFx(chars, l, start, dur, anims) {
+    const fx = l.textFx;
+    if (!fx || fx === 'none' || !chars.length) return;
+    const step = Math.min(300, Math.max(5, num(l.fxStep, 45)));
+    chars.forEach((c, i) => {
+      const at = start + i * step;
+      if (FX[fx]) {
+        const f = FX[fx];
+        anims.push(c.animate(f.frames, { duration: f.ms, delay: at, fill: 'backwards', easing: f.easing }));
+      } else if (fx === 'scatter') {
+        const dx = (rnd(i, 1) - 0.5) * 900, dy = (rnd(i, 2) - 0.5) * 500, r = (rnd(i, 3) - 0.5) * 540;
+        anims.push(c.animate([{ opacity: 0, transform: `translate(${dx}px, ${dy}px) rotate(${r}deg) scale(1.6)` }, { opacity: 1, transform: 'none' }],
+          { duration: 700, delay: start + rnd(i, 4) * step * 8, fill: 'backwards', easing: 'cubic-bezier(.2,.8,.2,1)' }));
+      } else if (fx === 'flicker') {
+        // Неоновая вывеска: буквы загораются с перебоями в случайном порядке, одна потом ещё раз моргает.
+        const d = start + rnd(i, 5) * step * 10;
+        anims.push(c.animate([{ opacity: 0.08 }, { opacity: 1, offset: 0.1 }, { opacity: 0.15, offset: 0.2 }, { opacity: 1, offset: 0.32 }, { opacity: 0.3, offset: 0.4 }, { opacity: 1, offset: 0.5 }, { opacity: 1 }],
+          { duration: 700, delay: d, fill: 'backwards', easing: 'steps(1, end)' }));
+        if (rnd(i, 6) > 0.85 && dur > 2500) anims.push(c.animate([{ opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }], { duration: 160, delay: start + 1800 + rnd(i, 7) * 1500, easing: 'steps(1, end)' }));
+      } else if (fx === 'wave') {
+        anims.push(c.animate([{ transform: 'none' }, { transform: 'translateY(-.28em)' }, { transform: 'none' }],
+          { duration: 1100, delay: start + i * step, iterations: Math.max(1, Math.ceil((dur - i * step) / 1100)), easing: 'ease-in-out' }));
+      } else if (fx === 'glitch') {
+        // Глитч: вход скачками с цветным сдвигом, потом редкие короткие сбои.
+        const jump = (k) => `translate(${Math.round((rnd(i, k) - 0.5) * 24)}px, ${Math.round((rnd(i, k + 1) - 0.5) * 14)}px)`;
+        const split = '3px 0 #ff2e63, -3px 0 #2ee6ff';
+        anims.push(c.animate([{ opacity: 0, transform: jump(10), textShadow: split }, { opacity: 1, transform: jump(12), textShadow: split, offset: 0.3 }, { opacity: 0.6, transform: jump(14), offset: 0.6 }, { opacity: 1, transform: 'none', textShadow: 'none' }],
+          { duration: 360, delay: start + rnd(i, 8) * step * 6, fill: 'backwards', easing: 'steps(1, end)' }));
+        for (let b = 0; b < 3; b++) {
+          const t = start + 1400 + b * 1700 + rnd(b, 9) * 300;
+          if (t + 140 < start + dur && rnd(i, 20 + b) > 0.55) anims.push(c.animate([{ transform: jump(30 + b), textShadow: split }, { transform: 'none', textShadow: 'none' }], { duration: 140, delay: t, easing: 'steps(1, end)' }));
+        }
+      }
+    });
+  }
+
   function textParts(box, parts, l) {
     for (const p of parts || []) {
       if (p.t === 'amount') {
@@ -235,6 +314,11 @@
       if (wipe && (l.type === 'image' || l.type === 'video')) {
         const wms = Math.max(50, num(l.wipeMs, 600));
         anims.push(inner.animate([{ clipPath: wipe[0] }, { clipPath: wipe[1] }], { duration: wms, delay: start + Math.max(0, num(l.wipeStart, 0)), fill: 'both', easing: 'cubic-bezier(.33,1,.68,1)' }));
+      }
+
+      if (l.type === 'text' && l.textFx && l.textFx !== 'none') {
+        const txt = inner.querySelector('.ak-txt');
+        if (txt && txt.textContent.length <= FX_MAX) textFx(splitChars(txt), l, start, dur, anims);
       }
 
       const img = inner.querySelector('img[data-later]');

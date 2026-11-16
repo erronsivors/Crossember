@@ -21,6 +21,8 @@ export type Ease = (typeof EASES)[number]
 /** Проявление картинки: шторкой вправо, вниз или кругом из центра. */
 export const WIPES = ['none', 'right', 'down', 'circle'] as const
 export type Wipe = (typeof WIPES)[number]
+import { TEXT_FX, type TextFx } from './textfx'
+export { TEXT_FX, TEXT_FX_LABEL, type TextFx } from './textfx'
 export const FONTS = ['manrope', 'unbounded', 'mono'] as const
 export type FontId = (typeof FONTS)[number]
 
@@ -90,6 +92,10 @@ export interface Layer {
   shadow: boolean
   /** Обводка текста, px. */
   stroke: number
+  /** text: анимация по буквам. */
+  textFx: TextFx
+  /** text: пауза между буквами, мс. */
+  fxStep: number
   /** image/video: m:<md5>.<ext> из библиотеки Crossember. */
   media: string
   fit: 'contain' | 'cover' | 'fill'
@@ -199,6 +205,8 @@ export function newLayer(type: LayerType, patch: Partial<Layer> = {}): Layer {
     bold: true,
     shadow: true,
     stroke: 0,
+    textFx: 'none',
+    fxStep: 45,
     media: '',
     fit: 'contain',
     loop: false,
@@ -247,6 +255,8 @@ export function sanitizeLayer(v: unknown): Layer {
     bold: bool(o.bold, d.bold),
     shadow: bool(o.shadow, d.shadow),
     stroke: num(o.stroke, 0, 0, 20),
+    textFx: oneOf(o.textFx, TEXT_FX, 'none'),
+    fxStep: num(o.fxStep, 45, 5, 300),
     media: mediaId(o.media),
     fit: oneOf(o.fit, ['contain', 'cover', 'fill'] as const, 'contain'),
     loop: bool(o.loop, false),
