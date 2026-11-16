@@ -14,6 +14,8 @@ let own = [];
 const TAG = { twitch: 'Tw', youtube: 'YT', vk: 'VK', kick: 'K', goodgame: 'GG', donationalerts: 'DA', donatepay: 'DP', donatex: 'DX', boosty: 'B', hub: '₽' };
 const CHAT_SOURCES = ['twitch', 'youtube', 'vk', 'kick', 'goodgame'];
 const hexOk = (c) => typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c);
+// Как isLight в core/chatstyle.ts.
+const isLight = (c) => hexOk(c) && (0.299 * parseInt(c.slice(1, 3), 16) + 0.587 * parseInt(c.slice(3, 5), 16) + 0.114 * parseInt(c.slice(5, 7), 16)) / 255 > 0.6;
 
 function apply(overlays) {
   opts = mode === 'h' ? overlays.chatH : mode === 'f' ? overlays.float : overlays.chat;
@@ -50,13 +52,38 @@ function mention(text) {
   });
 }
 
+// Фильтры — как chatHidden/maskLinks в core/chatstyle.ts (держать одинаковыми).
+const norm = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е');
+const wordList = (s) => norm(s).split(/[\s,;]+/).map((w) => w.replace(/^@/, '')).filter(Boolean);
+const LINK_SRC = String.raw`(?:https?:\/\/|www\.)\S+|[\p{L}\p{N}-]+\.(?:ru|com|net|org|tv|gg|io|me|рф|su|xyz|info|ly|be|link|app|dev)(?:\/\S*)?`;
+const hasLink = (t) => new RegExp(LINK_SRC, 'iu').test(t);
+const maskLinks = (t) => String(t).replace(new RegExp(LINK_SRC, 'giu'), '[ссылка]');
+
+function hidden(m) {
+  const f = opts.look.filter;
+  if (wordList(f.bots).includes(norm(m.user))) return true;
+  const text = m.text || '';
+  if (f.commands && /^\s*!/.test(text)) return true;
+  if (f.links === 'hide' && hasLink(text)) return true;
+  const words = wordList(f.words);
+  if (words.length) { const t = norm(text); if (words.some((w) => t.includes(w))) return true; }
+  return false;
+}
+
+function emoteOnly(m) {
+  const p = Array.isArray(m.parts) ? m.parts : [];
+  return p.some((x) => x.t === 'emote') && p.every((x) => x.t === 'emote' || !String(x.v).trim());
+}
+
+const hhmm = (ts) => { const d = new Date(ts || Date.now()); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+
 function platOk(p) {
   const pl = opts.look.platforms;
   return !CHAT_SOURCES.includes(p) || !pl.length || pl.includes(p);
 }
 
 function visible(m, view) {
-  if (m.type === 'message') return platOk(m.platform);
+  if (m.type === 'message') return platOk(m.platform) && !hidden(m);
   if (m.type === 'system') return opts.showStatus;
   return !!view && !!opts.look.events[view.kind] && platOk(m.platform);
 }
@@ -64,13 +91,20 @@ function visible(m, view) {
 function platSpan(p) {
   const s = CB.el('span', 'plat', opts.look.plat === 'tag' ? (TAG[p] || '') : '');
   const c = opts.look.colors[p];
-  if (hexOk(c)) s.style.setProperty('--pc', c);
+  if (hexOk(c)) {
+    s.style.setProperty('--pc', c);
+    if (opts.look.plat === 'tag' && isLight(c)) s.style.color = '#16161c';
+  }
   return s;
 }
 
 function textNode(m) {
-  if (opts.look.showEmotes) return CB.parts(m);
-  return document.createTextNode(m.text || '');
+  const mask = opts.look.filter.links === 'mask';
+  if (opts.look.showEmotes) {
+    if (!mask || !Array.isArray(m.parts)) return CB.parts(mask ? { text: maskLinks(m.text || '') } : m);
+    return CB.parts({ parts: m.parts.map((p) => (p.t === 'text' ? { t: 'text', v: maskLinks(p.v) } : p)) });
+  }
+  return document.createTextNode(mask ? maskLinks(m.text || '') : (m.text || ''));
 }
 
 function messageRow(m) {
@@ -80,6 +114,9 @@ function messageRow(m) {
   if (m.userId) row.dataset.user = m.platform + ':' + m.userId;
   row.dataset.platform = m.platform;
   if (look.events.mention && mention(m.text)) row.classList.add('mention');
+  if (m.role && look.roles[m.role]) row.classList.add('role-' + m.role);
+  if (look.bigEmotes && look.showEmotes && emoteOnly(m)) row.classList.add('emo-only');
+  if (look.time) row.append(CB.el('span', 'time', hhmm(m.ts)));
   if (opts.showPlatform) row.append(platSpan(m.platform));
   if (opts.showBadges && Array.isArray(m.badges)) for (const b of m.badges) row.append(CB.img(b.url, 'badge', b.title));
   if (look.showName) {
@@ -104,6 +141,7 @@ function eventRow(m, view) {
   const c = look.colors[view.color];
   if (hexOk(c)) { row.style.setProperty('--ec', c); row.style.setProperty('--ecf', c + '4d'); }
   const head = CB.el('div', 'ev-head');
+  if (look.time) head.append(CB.el('span', 'time', hhmm(m.ts)));
   if (opts.showPlatform) head.append(platSpan(m.platform));
   head.append(CB.el('span', 'name', m.user), CB.el('span', 'ev-label', view.icon + ' ' + view.label));
   if (view.detail) head.append(CB.el('span', 'ev-detail', view.detail));
