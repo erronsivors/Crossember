@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.fl{animation:fl 1.1s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center bottom}
+@keyframes fl{from{transform:scale(1,1)}to{transform:scale(.85,1.15)}}
+.tw{animation:tw 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:1.3s}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.3}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#2b2140" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M150 60c60-20 110-20 160 0h780c0 0 20 20 20 40v200c0 20-20 40-20 40H310c-50 20-100 20-160 0 20-20 20-60 0-90 20-30 20-60 0-90 20-30 20-60 0-100z" fill="#f4ead2"/>
+<path d="M210 80v240" stroke="#c9b78e" stroke-width="5" fill="none"/>
+<path d="M100 60c20-10 40-10 60 0v280c-20 10-40 10-60 0 15-60 15-120 0-190 15-45 15-70 0-90z" fill="#5b3f8a"/>
+<path d="M1090 60h20c20 0 20 20 20 40v200c0 20 0 40-20 40h-20" fill="none" stroke="#c9b78e" stroke-width="5"/>
+<path d="M1130 40v90l20-18 20 18V40z" fill="#c24b4b"/>
+<path d="M1150 330c-40-10-70-20-80-50 40 5 70 20 80 50z" fill="#e3a33b" stroke-width="5"/>
+</g>
+<g stroke="#2b2140" stroke-width="5" stroke-linejoin="round">
+<path class="fl" d="M1100 372c-10-10-6-22 0-30 6 8 10 20 0 30z" fill="#ffb02e"/>
+<path class="tw" d="M1030 60l6 13 13 6-13 6-6 13-6-13-13-6 13-6z" fill="#ffd36a"/>
+<path class="tw t2" d="M360 365l5 11 11 5-11 5-5 11-5-11-11-5 11-5z" fill="#ffd36a"/>
+</g>
+</svg>

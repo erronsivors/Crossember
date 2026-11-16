@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.f{animation:fl 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.f2{animation-delay:1s}.f3{animation-delay:2s}
+@keyframes fl{0%,100%{transform:translateY(0);opacity:.55}50%{transform:translateY(-20px);opacity:1}}
+.gl{animation:gl 3s ease-in-out infinite}
+@keyframes gl{0%,100%{opacity:.5}50%{opacity:1}}
+</style>
+<defs><radialGradient id="g"><stop offset="0" stop-color="#8fe8ff" stop-opacity=".85"/><stop offset="1" stop-color="#8fe8ff" stop-opacity="0"/></radialGradient></defs>
+<ellipse cx="300" cy="566" rx="250" ry="18" fill="#0b0830" opacity=".3"/>
+<circle class="gl" cx="300" cy="270" r="230" fill="url(#g)"/>
+<g stroke="#1a1448" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M30 340l270 45 270-45v180l-270 40-270-40z" fill="#2c3d8f"/>
+<path d="M300 530c-70-35-170-40-240-25V290c70-18 170-18 240 20z" fill="#fff1cf"/>
+<path d="M300 530c70-35 170-40 240-25V290c-70-18-170-18-240 20z" fill="#fff1cf"/>
+<path d="M300 310v220" fill="none"/>
+<path d="M90 340c60-10 130-5 175 15M90 380c60-10 130-5 175 15M90 420c60-10 130-5 175 15M510 340c-60-10-130-5-175 15M510 380c-60-10-130-5-175 15" fill="none" stroke="#c9b583" stroke-width="5"/>
+<path d="M375 425c30-15 80-20 120-10" fill="none" stroke="#c9b583" stroke-width="5"/>
+<path d="M160 458l1-6 7 4z" fill="#c9b583" stroke="none"/>
+<path d="M70 505l-30-12v-28M530 505l30-12v-28" fill="none" stroke="#f2c14e" stroke-width="12"/>
+<path d="M300 310l-14 100 14-18 14 18z" fill="#e0457b" stroke-width="6"/>
+</g>
+<g fill="none" stroke="#2fb8e8" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="440" cy="345" r="20"/><path d="M440 325v40M420 345h40"/>
+<path d="M150 335l25 40M175 335l-25 40"/>
+</g>
+<g fill="none" stroke="#8fe8ff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+<path class="f" d="M300 120l-34 56h68z"/>
+<g class="f f2"><circle cx="170" cy="215" r="24"/><path d="M170 195v40"/></g>
+<g class="f f3"><path d="M430 190v50M430 190l30 15-30 15M430 240l30-15"/></g>
+</g>
+<g fill="#ffe27a" stroke="#1a1448" stroke-width="4">
+<path class="f f2" d="M300 40l7 16 16 7-16 7-7 16-7-16-16-7 16-7z"/>
+<path class="f" d="M510 120l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+<path class="f f3" d="M85 120l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

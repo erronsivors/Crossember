@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.fl{animation:fl 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.f2{animation-delay:.5s}.f3{animation-delay:1s}
+@keyframes fl{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.2)}}
+.sk{animation:sk 2.6s ease-out infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.k2{animation-delay:1.3s}
+@keyframes sk{0%{transform:translateY(14px) scale(.5);opacity:0}30%{opacity:1}100%{transform:translateY(-40px) scale(1);opacity:0}}
+</style>
+<g stroke="#3a1206" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path class="fl" d="M80 340c-30-40-10-80 10-110 5 30 30 30 30 0 30 30 20 90 5 110z" fill="#e8441a"/>
+<path class="fl f2" d="M1120 340c30-40 10-80-10-110-5 30-30 30-30 0-30 30-20 90-5 110z" fill="#e8441a"/>
+<path class="fl f3" d="M210 372c-10-25 0-40 15-52 5 15 20 15 20 0 15 15 10 40 0 52zM960 372c10-25 0-40-15-52-5 15-20 15-20 0-15 15-10 40 0 52z" fill="#ff9a2e" stroke-width="7"/>
+<rect x="120" y="105" width="960" height="265" rx="40" fill="#1d1612"/>
+<rect x="140" y="125" width="920" height="225" rx="26" fill="none" stroke="#ff9a2e" stroke-width="5"/>
+<path d="M300 372l20-28 20 28M600 372l20-28 20 28M860 372l20-28 20 28" fill="none" stroke="#e8441a" stroke-width="6" opacity="0"/>
+<path class="fl" d="M420 374c-6-20 4-30 14-38 4 10 14 10 14 0 10 10 8 30 0 38zM740 374c-6-20 4-30 14-38 4 10 14 10 14 0 10 10 8 30 0 38z" fill="#ff7a1f" stroke-width="6"/>
+</g>
+<g fill="#ffe27a" stroke="#3a1206" stroke-width="4" stroke-linejoin="round">
+<path class="sk" d="M70 190l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+<path class="sk k2" d="M1130 180l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+</g>
+</svg>

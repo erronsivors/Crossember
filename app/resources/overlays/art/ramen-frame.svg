@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.st{animation:rise 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom;opacity:0}
+.s2{animation-delay:1s}.s3{animation-delay:2s}
+@keyframes rise{0%{transform:translateY(15px) scaleY(.6);opacity:0}30%{opacity:.8}100%{transform:translateY(-30px) scaleY(1.1);opacity:0}}
+.sw{animation:sw 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 0}
+@keyframes sw{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+</style>
+<g stroke="#3a1c12" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M140 80h1020v250c0 12-8 20-20 20H160c-12 0-20-8-20-20z" fill="#fbeed8"/>
+<path d="M165 100h970v220H165z" fill="none" stroke="#e0b48a" stroke-width="5" stroke-dasharray="3 14"/>
+<path d="M140 50h1020v30H140z" fill="#8b4a2b"/>
+<path d="M200 50v30M1100 50v30" stroke-width="6" fill="none"/>
+<g class="sw"><path d="M1040 80h110v120l-18 14-18-14-18 14-18-14-18 14-18-14z" fill="#d8462c"/>
+<path d="M1070 110h50M1070 140h50" stroke="#fff3e6" stroke-width="8" fill="none"/></g>
+<path d="M140 335h1020" stroke-width="9"/>
+<path d="M170 350c30 10 50 10 80 0M250 350c30 10 50 10 80 0M330 350c30 10 50 10 80 0" fill="none" stroke="#d8462c" stroke-width="7"/>
+</g>
+<g fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round">
+<path class="st" d="M420 50c-12-15 12-22 0-40"/>
+<path class="st s2" d="M480 50c-12-15 12-22 0-40"/>
+<path class="st s3" d="M540 50c-12-15 12-22 0-40"/>
+</g>
+</svg>

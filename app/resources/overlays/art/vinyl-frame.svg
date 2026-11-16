@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.rec{animation:spin 4s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.nt{animation:nt 3s ease-out infinite;opacity:0}
+.n2{animation-delay:1.5s}
+@keyframes nt{0%{transform:translateY(10px);opacity:0}30%{opacity:1}100%{transform:translateY(-30px);opacity:0}}
+</style>
+<g stroke="#0d0d14" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M70 50h1060c20 0 30 10 30 30v240c0 20-10 30-30 30H70c-20 0-30-10-30-30V80c0-20 10-30 30-30z" fill="#1f2133"/>
+<path d="M90 70h1020v260H90z" fill="none" stroke="#ff5a7a" stroke-width="4" stroke-dasharray="4 12"/>
+<g class="rec"><circle cx="1100" cy="385" r="66" fill="#14141c"/>
+<circle cx="1100" cy="385" r="46" fill="none" stroke="#2c2c3a" stroke-width="4"/>
+<circle cx="1100" cy="385" r="24" fill="#ff5a7a" stroke-width="5"/>
+<path d="M1100 325a60 60 0 0 1 40 14" fill="none" stroke="#8a8aa8" stroke-width="6"/>
+<circle cx="1100" cy="385" r="5" fill="#14141c" stroke="none"/></g>
+</g>
+<g fill="none" stroke="#ff5a7a" stroke-width="7" stroke-linecap="round" class="nt"><path d="M320 40v-24l20-4v24"/></g>
+<g fill="none" stroke="#ffcc33" stroke-width="7" stroke-linecap="round" class="nt n2"><path d="M700 40v-24l20-4v24"/></g>
+</svg>

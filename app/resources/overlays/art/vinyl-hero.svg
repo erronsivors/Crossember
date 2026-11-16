@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.rec{animation:spin 3.2s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.arm{animation:arm 4s ease-in-out infinite;transform-box:fill-box;transform-origin:85% 15%}
+@keyframes arm{0%,100%{transform:rotate(0)}50%{transform:rotate(-2deg)}}
+.nt{animation:nt 2.8s ease-out infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.n2{animation-delay:1.4s}
+@keyframes nt{0%{transform:translateY(10px);opacity:0}30%{opacity:1}100%{transform:translateY(-40px);opacity:0}}
+</style>
+<ellipse cx="300" cy="568" rx="250" ry="12" fill="#000" opacity=".25"/>
+<g stroke="#0d0d14" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<rect x="40" y="60" width="520" height="500" rx="46" fill="#3a3f5c"/>
+<rect x="62" y="82" width="476" height="456" rx="32" fill="#4d5478" stroke="none"/>
+<circle cx="290" cy="320" r="214" fill="#14141c"/>
+<g class="rec">
+<circle cx="290" cy="320" r="190" fill="none" stroke="#2c2c3a" stroke-width="4"/>
+<circle cx="290" cy="320" r="160" fill="none" stroke="#2c2c3a" stroke-width="4"/>
+<circle cx="290" cy="320" r="130" fill="none" stroke="#2c2c3a" stroke-width="4"/>
+<path d="M290 130a190 190 0 0 1 120 50M290 510a190 190 0 0 1-120-50" fill="none" stroke="#8a8aa8" stroke-width="8" opacity=".7"/>
+<circle cx="290" cy="320" r="86" fill="#ff5a7a"/>
+<path d="M290 234a86 86 0 0 1 0 172z" fill="#ffd0da" stroke="none"/>
+<circle cx="290" cy="320" r="86" fill="none"/>
+<circle cx="290" cy="320" r="12" fill="#14141c"/>
+</g>
+<g class="arm">
+<circle cx="500" cy="120" r="30" fill="#b9bdd0"/>
+<path d="M500 120L430 330l-30 40" fill="none" stroke-width="22"/>
+<path d="M500 120L430 330l-30 40" fill="none" stroke="#e5e7f2" stroke-width="8"/>
+<path d="M385 360l34-12 16 36-34 12z" fill="#ffcc33"/>
+</g>
+<circle cx="500" cy="120" r="12" fill="#ffcc33" stroke-width="5"/>
+</g>
+<g fill="#ffcc33" stroke="#0d0d14" stroke-width="5" stroke-linejoin="round">
+<path class="nt" d="M80 150v-40l30-8v40" fill="none" stroke="#ffcc33" stroke-width="8"/>
+<circle class="nt n2" cx="100" cy="112" r="10"/>
+</g>
+</svg>

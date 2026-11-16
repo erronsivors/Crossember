@@ -24,6 +24,7 @@ import type { RewardsState } from './rewards'
 import type { MusicState } from './music'
 import type { SubathonState } from './subathon'
 import type { MemealertsState } from './memealerts'
+import type { AlertPackState } from './alertpack-store'
 
 export type Platform = 'twitch' | 'youtube' | 'vk' | 'kick' | 'goodgame' | 'donationalerts' | 'donatepay' | 'donatex' | 'boosty' | 'obs' | 'hub'
 
@@ -177,6 +178,7 @@ export interface HubSnapshot {
   music: MusicState
   subathon: SubathonState
   memealerts: MemealertsState
+  alertPack: AlertPackState
   /** Права Twitch для новых разделов: есть (ok), нужен вход (login) или повторный вход (relogin). */
   twitchScopes: Record<string, 'ok' | 'login' | 'relogin'>
   /** Обратная связь: адрес автора и последняя серьёзная ошибка (для плашки «Сообщить об ошибке»). */

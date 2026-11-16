@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.p{animation:pf 3.6s ease-in infinite;opacity:0;transform-box:fill-box;transform-origin:center}
+.p2{animation-delay:1.2s}.p3{animation-delay:2.4s}
+@keyframes pf{0%{transform:translate(0,-10px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translate(-30px,60px) rotate(140deg);opacity:0}}
+</style>
+<g stroke="#4a1f30" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M70 60c10-20 40-20 50 0h960c10-20 40-20 50 0v280c-10 20-40 20-50 0H120c-10 20-40 20-50 0z" fill="#fff3f6"/>
+<path d="M100 90h1000v220H100z" fill="none" stroke="#f3b1c9" stroke-width="5"/>
+<path d="M1170 20c-60 40-60 90-130 100" fill="none" stroke="#7a4a3a" stroke-width="12"/>
+<path d="M1100 340c-60-10-120 0-170 40" fill="none" stroke="#7a4a3a" stroke-width="10"/>
+</g>
+<g fill="#ffc0d6" stroke="#4a1f30" stroke-width="5" stroke-linejoin="round">
+<circle cx="1120" cy="70" r="24"/><circle cx="1060" cy="110" r="20"/><circle cx="990" cy="372" r="22"/><circle cx="1070" cy="352" r="18"/>
+<g fill="#e2558a" stroke="none"><circle cx="1120" cy="70" r="7"/><circle cx="1060" cy="110" r="6"/><circle cx="990" cy="372" r="7"/><circle cx="1070" cy="352" r="6"/></g>
+<path class="p" d="M900 60c-16-16-4-32 8-24 10 8 4 20-8 24z"/>
+<path class="p p2" d="M780 40c-16-16-4-32 8-24 10 8 4 20-8 24z"/>
+<path class="p p3" d="M1010 50c-16-16-4-32 8-24 10 8 4 20-8 24z"/>
+</g>
+</svg>

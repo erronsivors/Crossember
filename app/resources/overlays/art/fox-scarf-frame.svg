@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.lf{animation:fall 3.4s ease-in infinite;transform-box:fill-box;transform-origin:center}
+.l2{animation-delay:1.1s}.l3{animation-delay:2.2s}
+@keyframes fall{0%{transform:translate(0,-20px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translate(-30px,60px) rotate(120deg);opacity:0}}
+</style>
+<g stroke="#3b2416" stroke-width="9" stroke-linejoin="round">
+<path d="M150 70h940c30 0 55 20 55 50v160c0 30-25 50-55 50H150c-30 0-20-40-5-70-15-30-15-60 0-90-15-30-25-100 5-100z" fill="#fff0d6"/>
+<path d="M190 96h870c20 0 30 10 30 30v148c0 20-10 30-30 30H190" fill="none" stroke="#e7a867" stroke-width="5" stroke-dasharray="14 12" stroke-linecap="round"/>
+<path d="M1040 70h50c30 0 55 20 55 50v50c-40-5-85-25-105-100z" fill="#ee7a2b"/>
+<path d="M1000 330c40-5 100-25 145-45v-5c0 30-25 50-55 50h-90z" fill="#b2562a"/>
+</g>
+<g stroke="#3b2416" stroke-width="5" stroke-linejoin="round">
+<path class="lf" d="M1080 40c20 10 28 28 20 46-20-4-30-24-20-46z" fill="#e0621f"/>
+<path class="lf l2" d="M900 20c20 10 28 28 20 46-20-4-30-24-20-46z" fill="#f2a933"/>
+<path class="lf l3" d="M600 15c20 10 28 28 20 46-20-4-30-24-20-46z" fill="#c8402b"/>
+</g>
+</svg>

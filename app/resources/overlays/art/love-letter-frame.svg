@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.h{animation:pu 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.h2{animation-delay:.8s}.h3{animation-delay:1.6s}
+@keyframes pu{0%,100%{transform:scale(.8);opacity:.6}50%{transform:scale(1.15);opacity:1}}
+</style>
+<g stroke="#5a1630" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M40 60h1120v290H40z" fill="#fff0f2"/>
+<path d="M40 60l560 200 560-200" fill="#f8c3d0"/>
+<path d="M40 350l330-190M1160 350L830 160" fill="none" stroke-width="6" stroke="#e58aa3"/>
+<path d="M40 60l560 200 560-200" fill="none"/>
+<path d="M100 100h1000v220H100z" fill="none" stroke="#e58aa3" stroke-width="5" stroke-dasharray="2 14"/>
+<path d="M120 90l480 180 480-180" fill="none" stroke="#fff0f2" stroke-width="0"/>
+</g>
+<rect x="150" y="130" width="900" height="190" rx="14" fill="#fff0f2"/>
+<g fill="#e8315f" stroke="#5a1630" stroke-width="5" stroke-linejoin="round">
+<path class="h" d="M90 200c-20-14-20-34-6-34 6 0 6 6 6 6s0-6 6-6c14 0 14 20-6 34z"/>
+<path class="h h2" d="M1110 230c-20-14-20-34-6-34 6 0 6 6 6 6s0-6 6-6c14 0 14 20-6 34z"/>
+<path class="h h3" d="M1100 120c-14-10-14-24-4-24 4 0 4 4 4 4s0-4 4-4c10 0 10 14-4 24z"/>
+</g>
+</svg>

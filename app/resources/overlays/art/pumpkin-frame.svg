@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.fl{animation:fl 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.f2{animation-delay:.6s}.f3{animation-delay:1.2s}
+@keyframes fl{0%,100%{transform:scaleY(1);opacity:1}50%{transform:scaleY(.75);opacity:.75}}
+.bat{animation:fly 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes fly{0%,100%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-10px) scaleX(.75)}}
+</style>
+<g stroke="#ff8a1f" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<path d="M50 70l40-30 60 22 70-22 80 22 90-22 90 22 100-22 90 22 100-22 90 22 50-18 40 30-14 90 14 80-40 40-60-14-90 22-100-22-90 22-100-22-90 22-70-22-60 22-40-40 14-80z" fill="#1c1410"/>
+<path d="M92 90l40-12 70 18 90-18 90 18 100-18 100 18 90-18 100 18 40-10M92 310l40 12 70-18 90 18 90-18 100 18 100-18 90 18 100-18 40 10" fill="none" stroke="#5a2a0a" stroke-width="4"/>
+<path d="M1070 40c20 0 40 20 40 60" fill="none" stroke="#3f7a2a" stroke-width="12"/>
+<path d="M1110 100c-15-8-25 4-20 16" fill="none" stroke="#5aa03a" stroke-width="6"/>
+<path d="M980 360c-10-50 10-80 20-90 10 20 25 20 30-10 20 30 40 50 20 100z" fill="#ff8a1f" class="fl" stroke="none"/>
+<path d="M1110 360c-6-40 10-60 16-70 8 14 18 14 22-8 14 24 26 40 12 78z" fill="#ffcc33" class="fl f2" stroke="none"/>
+<path d="M70 360c-6-40 10-60 16-70 8 14 18 14 22-8 14 24 26 40 12 78z" fill="#ff8a1f" class="fl f3" stroke="none"/>
+</g>
+<g fill="#ff8a1f" stroke="none">
+<path class="bat" d="M1000 70c14-18 28-10 36-20 8 10 22 2 36 20-14-3-22 0-36 12-14-12-22-9-36-12z"/>
+</g>
+</svg>

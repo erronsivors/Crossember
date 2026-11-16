@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:1.2s}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.3}50%{transform:scale(1.1);opacity:1}}
+.eye{animation:blink 3.6s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.bun{animation:sq 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes sq{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.95)}}
+</style>
+<ellipse cx="300" cy="570" rx="220" ry="14" fill="#3d220e" opacity=".22"/>
+<g stroke="#3d220e" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M80 520c0-25 20-40 40-40h360c20 0 40 15 40 40 0 25-20 40-40 40H120c-20 0-40-15-40-40z" fill="#e8a04a"/>
+<path d="M85 440h430l-30 40H115z" fill="#5fa84a"/>
+<path d="M95 440c20-15 40 5 60-5s40 15 60 5 40 10 60 0 40 15 60 5 40 10 60 0 40-10 60 0v10H95z" fill="#7cc65a" stroke="none"/>
+<path d="M75 380h450v60H75z" fill="#6a3418"/>
+<path d="M75 380c0 0 10 30 40 30s20-30 50-30 30 30 60 30 20-30 50-30 30 30 60 30 20-30 50-30 30 30 60 30 15-20 30-30" fill="none" stroke-width="0"/>
+<path d="M85 350h430l-70 55-60-35-60 45-60-45-60 35z" fill="#ffc531"/>
+<path d="M75 290h450v70H75z" fill="#6a3418"/>
+<path d="M80 250h440l-20 40H100z" fill="#ff6b4a"/>
+<path d="M80 250c15-10 30 5 45-3s35 12 50 0 30 10 50 0 35 10 50 0 30 10 50 0 35 8 50 0 30 8 45 3" fill="none" stroke-width="0"/>
+<path d="M70 240c-10-110 90-180 230-180s240 70 230 180z" fill="#e8a04a"/>
+<path d="M105 180c15-55 70-85 130-90" fill="none" stroke="#f7c77a" stroke-width="12"/>
+<path d="M210 120l12-6M300 100l12 4M390 120l-12 8M170 175l10-8M430 170l10 8M260 160l8 6M350 160l8-6" stroke="#fff3d6" stroke-width="8" fill="none"/>
+<path d="M70 240h460" stroke-width="9"/>
+<g class="eye"><ellipse cx="240" cy="325" rx="11" ry="16" fill="#fff" stroke="none"/><circle cx="243" cy="328" r="7" fill="#3d220e" stroke="none"/></g>
+<g class="eye"><ellipse cx="360" cy="325" rx="11" ry="16" fill="#fff" stroke="none"/><circle cx="357" cy="328" r="7" fill="#3d220e" stroke="none"/></g>
+<path d="M280 345c10 12 30 12 40 0" fill="none" stroke="#fff3d6" stroke-width="7"/>
+<path class="tw" d="M510 160l8 18 18 8-18 8-8 18-8-18-18-8 18-8z" fill="#ffe25a" stroke-width="4"/>
+<path class="tw t2" d="M80 110l6 13 13 6-13 6-6 13-6-13-13-6 13-6z" fill="#ffe25a" stroke-width="4"/>
+</g>
+</svg>

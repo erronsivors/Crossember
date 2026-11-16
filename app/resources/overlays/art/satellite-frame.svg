@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.sg{animation:sg 2.4s ease-in-out infinite}
+.g2{animation-delay:.5s}.g3{animation-delay:1s}
+@keyframes sg{0%,100%{opacity:.15}50%{opacity:1}}
+.ld{animation:ld 1.2s steps(1) infinite}
+@keyframes ld{0%{fill:#7dff9b}50%{fill:#1a5a2a}}
+</style>
+<g stroke-linejoin="round" stroke-linecap="round">
+<rect x="150" y="50" width="1010" height="300" rx="20" fill="#0a1632" stroke="#0a1230" stroke-width="9"/>
+<rect x="170" y="70" width="970" height="260" rx="10" fill="none" stroke="#5fd4ff" stroke-width="4"/>
+<rect x="1160" y="60" width="32" height="280" fill="#2a63c8" stroke="#0a1230" stroke-width="7"/>
+<path d="M1160 130h32M1160 200h32M1160 270h32" fill="none" stroke="#7fc4ff" stroke-width="4"/>
+<path d="M200 90h40M200 310h40M1060 90h40M1060 310h40" stroke="#5fd4ff" stroke-width="8" opacity=".8"/>
+</g>
+<circle class="ld" cx="190" cy="100" r="8" stroke="#0a1230" stroke-width="4"/>
+<g fill="none" stroke="#5fd4ff" stroke-width="6" stroke-linecap="round">
+<path class="sg" d="M1060 368c20 10 40 10 60 0"/><path class="sg g2" d="M1045 384c30 12 70 12 100 0"/>
+</g>
+<g fill="#fff"><circle cx="1180" cy="40" r="3"/><circle cx="1170" cy="370" r="3"/><circle cx="125" cy="372" r="2"/></g>
+</svg>

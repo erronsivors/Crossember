@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.tail{animation:wag .7s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes wag{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+.eye{animation:blink 3.6s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.mail{animation:bob 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes bob{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg) translateY(-6px)}}
+</style>
+<ellipse cx="300" cy="568" rx="210" ry="16" fill="#2f2a26" opacity=".2"/>
+<g stroke="#2f2a26" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<ellipse class="tail" cx="470" cy="470" rx="26" ry="32" fill="#e8963f"/>
+<path d="M150 565c-15-100 30-190 150-190s165 90 150 190z" fill="#e8963f"/>
+<path d="M225 565c0-60 25-105 75-105s75 45 75 105z" fill="#fff6e8" stroke="none"/>
+<path d="M165 200L125 70l105 70zM435 200l40-130-105 70z" fill="#e8963f"/>
+<path d="M170 170l-20-55 50 32zM430 170l20-55-50 32z" fill="#ff9fb0" stroke="none"/>
+<path d="M100 270c0-90 80-140 200-140s200 50 200 140c0 70-80 115-200 115S100 340 100 270z" fill="#e8963f"/>
+<path d="M300 140c-45 40-55 100-45 150-25 10-60 35-60 55 30 30 75 40 105 40s75-10 105-40c0-20-35-45-60-55 10-50 0-110-45-150z" fill="#fff6e8" stroke="none"/>
+<path d="M300 140c-45 40-55 100-45 150M300 140c45 40 55 100 45 150" fill="none" stroke-width="0"/>
+<g class="eye"><ellipse cx="228" cy="262" rx="15" ry="20" fill="#2f2a26" stroke="none"/><circle cx="233" cy="254" r="5" fill="#fff" stroke="none"/></g>
+<g class="eye"><ellipse cx="372" cy="262" rx="15" ry="20" fill="#2f2a26" stroke="none"/><circle cx="377" cy="254" r="5" fill="#fff" stroke="none"/></g>
+<ellipse cx="300" cy="318" rx="22" ry="15" fill="#2f2a26"/>
+<path d="M300 333v10M300 343c-5 18-30 20-38 6M300 343c5 18 30 20 38 6" fill="none" stroke-width="6"/>
+<path d="M285 358c5 25 25 25 30 0z" fill="#ff7f95" stroke-width="5"/>
+<path d="M130 160c0-50 80-90 170-90s170 40 170 90c-60-20-110-28-170-28s-110 8-170 28z" fill="#2d5a8f"/>
+<path d="M140 168c70 30 250 30 320 0l5 28c-80 30-250 30-330 0z" fill="#1e3f66"/>
+<circle cx="300" cy="105" r="18" fill="#f5c84a" stroke-width="5"/><path d="M300 95l3 8 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z" fill="#2d5a8f" stroke="none"/>
+<g class="mail"><rect x="270" y="440" width="170" height="110" rx="8" fill="#fff9ec" transform="rotate(-8 355 495)"/><path d="M270 445l85 55 85-55" fill="none" stroke-width="7" transform="rotate(-8 355 495)"/><circle cx="355" cy="505" r="16" fill="#d8562a" stroke-width="5" transform="rotate(-8 355 495)"/></g>
+<ellipse cx="260" cy="515" rx="38" ry="28" fill="#e8963f"/><ellipse cx="195" cy="555" rx="40" ry="14" fill="#fff6e8"/><ellipse cx="405" cy="555" rx="40" ry="14" fill="#fff6e8"/>
+</g>
+</svg>

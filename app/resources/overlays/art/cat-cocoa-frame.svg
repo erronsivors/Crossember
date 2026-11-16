@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.7s}.t3{animation-delay:1.4s}
+@keyframes tw{0%,100%{transform:scale(.6);opacity:.4}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#2b1a14" stroke-width="9" stroke-linejoin="round">
+<rect x="40" y="40" width="1130" height="320" rx="60" fill="#fff4e4"/>
+<rect x="64" y="64" width="1082" height="272" rx="42" fill="none" stroke="#e9b98a" stroke-width="6" stroke-dasharray="2 18" stroke-linecap="round"/>
+<path d="M1060 40h80c17 0 30 13 30 30v80c-40-5-80-30-110-110z" fill="#e8553f"/>
+<path d="M1095 40c10 30 35 60 75 70" fill="none" stroke="#fff4e4" stroke-width="10"/>
+<path d="M1050 360c15-40 50-60 120-62v32c0 17-13 30-30 30z" fill="#7fb069"/>
+</g>
+<g fill="#ffc94d" stroke="#2b1a14" stroke-width="5" stroke-linejoin="round">
+<path class="tw" d="M1000 90l8 18 18 8-18 8-8 18-8-18-18-8 18-8z"/>
+<path class="tw t2" d="M1110 230l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+<path class="tw t3" d="M330 320l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+</g>
+</svg>

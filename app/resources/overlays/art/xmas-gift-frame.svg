@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.sn{animation:fall 3.4s linear infinite}
+.n2{animation-delay:1.1s}.n3{animation-delay:2.2s}
+@keyframes fall{0%{transform:translateY(-14px);opacity:0}20%{opacity:1}100%{transform:translateY(40px);opacity:0}}
+.b{animation:bl 2s ease-in-out infinite}.b2{animation-delay:.7s}.b3{animation-delay:1.3s}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+<g stroke="#08150e" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 50h1080l-24 150 24 150H60l24-150z" fill="#12362a"/>
+<path d="M92 78h1016l-18 122 18 122H92l18-122z" fill="none" stroke="#ffd54a" stroke-width="5" stroke-dasharray="3 14"/>
+<path d="M60 50h1080" stroke="#fff" stroke-width="22"/>
+<path d="M60 350h1080" stroke="#fff" stroke-width="22"/>
+<path d="M130 40c60 40 140 40 220 0s160-10 220 10 160 30 250-5 160-20 230 0" fill="none" stroke="#1f7a4a" stroke-width="10"/>
+<g class="b"><circle cx="190" cy="68" r="11" fill="#ff4b4b"/></g>
+<g class="b b2"><circle cx="460" cy="62" r="11" fill="#ffd54a"/></g>
+<g class="b b3"><circle cx="760" cy="64" r="11" fill="#4bb6ff"/></g>
+<circle cx="1000" cy="60" r="11" fill="#ff4b4b"/>
+<path d="M1030 270l60-60 60 60v60h-120z" fill="#d93a3a"/>
+<path d="M1090 210v120M1030 270h120" stroke="#ffd54a" stroke-width="14"/>
+<path d="M1090 210c-30-35-55-10-38 4zM1090 210c30-35 55-10 38 4z" fill="#ffd54a" stroke-width="6"/>
+</g>
+<g fill="#fff" stroke="none">
+<circle class="sn" cx="400" cy="30" r="6"/><circle class="sn n2" cx="780" cy="24" r="5"/><circle class="sn n3" cx="1130" cy="30" r="6"/>
+</g>
+</svg>

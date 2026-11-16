@@ -4,6 +4,8 @@ import type { AlertTemplate, AnimPreset, Ease, Keyframe, Layer, LayerType, ObsAc
 import { Hint, Toggle, errText } from '../components'
 import { ObsActionEditor, SoundSelect, VoiceSelect, kit, previewSound, previewTts, serverUrl, type KitHandle } from '../editors'
 import { playBuiltin } from '../sounds'
+import { ART_GROUPS, ART_SETS, artPath } from '../../../main/core/art'
+import { PACK_CATEGORIES, PACK_MODES, PACK_SETS, packPath } from '../../../main/core/alertpack'
 
 // ---------- значения по умолчанию (как в core/templates.ts newLayer) ----------
 const LAYER_LABEL: Record<LayerType, string> = { card: 'Карточка', text: 'Текст', image: 'Картинка', video: 'Видео', sound: 'Звук', tts: 'Озвучка', obs: 'Действие OBS' }
@@ -78,7 +80,7 @@ export function previewItem(t: AlertTemplate, kind: string, volume: number, vars
       parts: l.type === 'card' || l.type === 'text' ? parts(l.text, s, vars) : undefined,
       kickerText: l.type === 'card' ? fillText(l.kicker, s, vars) : undefined,
       message: l.type === 'card' && l.showMessage && s.message ? s.message : null,
-      src: (l.type === 'image' || l.type === 'video') && l.media ? `/m/${l.media.slice(2)}` : l.type === 'sound' && l.sound.startsWith('custom:') ? `/s/${l.sound.slice(7)}` : undefined,
+      src: (l.type === 'image' || l.type === 'video') && l.media ? artPath(l.media) || packPath(l.media) || `/m/${l.media.slice(2)}` : l.type === 'sound' && l.sound.startsWith('custom:') ? `/s/${l.sound.slice(7)}` : undefined,
       builtin: l.type === 'sound' && l.sound !== 'none' && !l.sound.startsWith('custom:') ? l.sound : undefined,
       vol: (l.volume / 100) * volume
     }))
@@ -607,7 +609,20 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
           <Field label="Файл" span>
             <select className="input" value={l.media} onChange={(e) => onChange({ media: e.target.value })}>
               <option value="">— не выбран —</option>
-              {media.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              {media.length > 0 && <optgroup label="Мои файлы">{media.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</optgroup>}
+              {l.type === 'image' && PACK_CATEGORIES.map((g) => (
+                <optgroup key={'p' + g} label={`Основные: ${g}`}>
+                  {PACK_SETS.filter((a) => a.category === g).flatMap((a) => PACK_MODES.map((m) => <option key={a.id + m.id} value={`p:${a.id}/${m.file}`}>{a.name} — {m.name}</option>))}
+                </optgroup>
+              ))}
+              {l.type === 'image' && ART_GROUPS.map((g) => (
+                <optgroup key={g} label={`Встроенные: ${g}`}>
+                  {ART_SETS.filter((a) => a.group === g).flatMap((a) => [
+                    <option key={a.id + 'h'} value={`b:${a.id}-hero`}>{a.name}</option>,
+                    <option key={a.id + 'f'} value={`b:${a.id}-frame`}>{a.name} — рамка</option>
+                  ])}
+                </optgroup>
+              ))}
             </select>
           </Field>
           <Field label="Вписать">

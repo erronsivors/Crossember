@@ -15,7 +15,7 @@
   };
   const FONT = { manrope: "'Manrope', sans-serif", unbounded: "'Unbounded', sans-serif", mono: "'JetBrains Mono', monospace" };
   const ICON = { donation: '₽', sub: '★', gift: '🎁', follow: '♥', raid: '↗', bits: '◆', reward: '✦', message: '💬' };
-  const SRC_RE = /^\/(m\/[0-9a-f]{32}\.(png|jpg|gif|webp|webm|mp4)|s\/[0-9a-f]{32}\.(mp3|wav|ogg)|t\/[0-9a-f]{40}\.wav)$/;
+  const SRC_RE = /^\/(m\/[0-9a-f]{32}\.(png|jpg|gif|webp|webm|mp4)|b\/[a-z0-9-]{1,48}\.svg|p\/[0-9]{2}-[a-z0-9-]{1,60}\/[a-z-]+\.(webp|png)|s\/[0-9a-f]{32}\.(mp3|wav|ogg)|t\/[0-9a-f]{40}\.wav)$/;
   const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
   const el = (tag, cls, text) => {
@@ -120,7 +120,8 @@
         m.playsInline = true;
         m.preload = 'auto';
       } else m.alt = '';
-      m.src = opts.url(l.src);
+      // Анимированный WebP браузер не перезапускает при повторном показе того же адреса — добавляем метку.
+      m.src = opts.url(l.src) + (/\.webp$/.test(l.src) ? (opts.url(l.src).includes('?') ? '&' : '?') + 'r=' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) : '');
       box.append(m);
     } else if (opts.editor && l.type !== 'sound' && l.type !== 'tts' && l.type !== 'obs') {
       box.append(el('div', 'ak-empty', l.type === 'image' ? 'Выберите картинку' : 'Выберите видео'));

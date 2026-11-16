@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.7s}.t3{animation-delay:1.4s}
+@keyframes tw{0%,100%{transform:scale(.4);opacity:.3}50%{transform:scale(1.2);opacity:1}}
+.ds{animation:ds 4s linear infinite}
+@keyframes ds{to{stroke-dashoffset:-60}}
+</style>
+<g stroke="#12082f" stroke-width="9" stroke-linejoin="round">
+<rect x="90" y="100" width="1020" height="290" rx="90" fill="#150b3c"/>
+<rect x="112" y="120" width="976" height="250" rx="72" fill="none" stroke="#c38bff" stroke-width="5" stroke-dasharray="30 30" stroke-linecap="round" class="ds"/>
+<path d="M600 100c-90-20-130 0-190 0 60 0 100 25 190 25s130-25 190-25c-60 0-100-20-190 0z" fill="#6b5aa6" stroke-width="5" opacity=".0"/>
+</g>
+<g fill="#8fe8ff" opacity=".85"><circle cx="150" cy="150" r="3"/><circle cx="1060" cy="340" r="3"/><circle cx="1040" cy="150" r="3"/><circle cx="170" cy="340" r="3"/><circle cx="130" cy="250" r="2"/><circle cx="1075" cy="250" r="2"/></g>
+<g fill="#fff3a0" stroke="#12082f" stroke-width="4" stroke-linejoin="round">
+<path class="tw" d="M80 90l8 18 18 8-18 8-8 18-8-18-18-8 18-8z"/>
+<path class="tw t2" d="M1130 120l7 16 16 7-16 7-7 16-7-16-16-7 16-7z"/>
+<path class="tw t3" d="M1110 350l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+</g>
+</svg>

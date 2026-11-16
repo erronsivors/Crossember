@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.cp{animation:cp 1s steps(1) infinite}
+@keyframes cp{0%{opacity:1}50%{opacity:.1}}
+.ld{animation:ld 1.4s steps(1) infinite}
+.l2{animation-delay:.5s}.l3{animation-delay:1s}
+@keyframes ld{0%{fill:#3ef0c8}50%{fill:#15463c}}
+</style>
+<defs><pattern id="s" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="4" fill="#3ef0c8" opacity=".06"/></pattern></defs>
+<g stroke-linejoin="round">
+<rect x="150" y="45" width="1030" height="320" rx="24" fill="#0a1626" stroke="#0e1626" stroke-width="9"/>
+<rect x="150" y="45" width="1030" height="320" rx="24" fill="url(#s)"/>
+<rect x="170" y="65" width="990" height="280" rx="12" fill="none" stroke="#3ef0c8" stroke-width="4"/>
+<path d="M170 100V65h35M1160 100V65h-35M170 310v35h35M1160 310v35h-35" fill="none" stroke="#3ef0c8" stroke-width="8"/>
+</g>
+<g stroke="#0e1626" stroke-width="4"><circle class="ld" cx="1130" cy="94" r="8"/><circle class="ld l2" cx="1104" cy="94" r="8"/><circle class="ld l3" cx="1078" cy="94" r="8"/></g>
+<rect class="cp" x="1100" y="322" width="22" height="8" fill="#3ef0c8"/>
+</svg>

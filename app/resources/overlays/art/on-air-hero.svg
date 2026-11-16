@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.gl{animation:gl 2.4s ease-in-out infinite}
+@keyframes gl{0%,100%{opacity:1}45%{opacity:.75}50%{opacity:1}55%{opacity:.55}}
+.bar{animation:eq 1s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.b2{animation-delay:.2s}.b3{animation-delay:.4s}.b4{animation-delay:.6s}.b5{animation-delay:.8s}
+@keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+</style>
+<defs><filter id="b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter></defs>
+<ellipse cx="300" cy="568" rx="200" ry="12" fill="#000" opacity=".3"/>
+<g class="gl">
+<rect x="70" y="60" width="460" height="170" rx="34" fill="#ff3b3b" filter="url(#b)" opacity=".7"/>
+<rect x="70" y="60" width="460" height="170" rx="34" fill="#2a0a0e" stroke="#ff3b3b" stroke-width="10"/>
+<rect x="92" y="82" width="416" height="126" rx="20" fill="none" stroke="#ff9a8a" stroke-width="4"/>
+<g fill="#ff3b3b"><rect class="bar" x="130" y="120" width="26" height="50" rx="13"/><rect class="bar b2" x="190" y="100" width="26" height="90" rx="13"/><rect class="bar b3" x="250" y="112" width="26" height="66" rx="13"/><rect class="bar b4" x="310" y="96" width="26" height="98" rx="13"/><rect class="bar b5" x="370" y="116" width="26" height="58" rx="13"/><rect class="bar" x="430" y="128" width="26" height="34" rx="13" style="animation-delay:.5s"/></g>
+</g>
+<g stroke="#101018" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M300 520v-50" fill="none" stroke-width="16"/>
+<path d="M200 560h200l-20-40H220z" fill="#3a3f55"/>
+<path d="M300 520V470" stroke="#b5b5c4" stroke-width="8"/>
+<path d="M215 340c0 60 35 110 85 110s85-50 85-110" fill="none" stroke-width="16"/>
+<path d="M215 340c0 60 35 110 85 110s85-50 85-110" fill="none" stroke="#b5b5c4" stroke-width="6"/>
+<rect x="240" y="270" width="120" height="170" rx="60" fill="#3a3f55" transform="translate(0 -20)"/>
+<path d="M252 300h96M248 330h104M248 360h104M254 390h92" stroke="#8a90a8" stroke-width="5" fill="none"/>
+<path d="M270 262c8-6 20-8 30-8" fill="none" stroke="#fff" stroke-width="6" opacity=".6"/>
+<rect x="276" y="448" width="48" height="26" rx="8" fill="#ff3b3b" stroke-width="6"/>
+</g>
+</svg>

@@ -13,6 +13,8 @@ import type { AlertEngine, AlertItem } from './alerts'
 import type { Stats } from './stats'
 import type { SoundLibrary } from './sounds'
 import type { MediaLibrary } from './media'
+import { ART_FILES } from './art'
+import type { AlertPack } from './alertpack-store'
 import type { WindowsTts } from './tts'
 import type { Counter, Counters } from './counters'
 import type { Auction } from './auction'
@@ -124,6 +126,7 @@ export interface OverlayExtras {
   stats: Stats
   sounds: SoundLibrary
   media: MediaLibrary
+  alertPack: AlertPack
   tts: WindowsTts
   counters: Counters
   auction: Auction
@@ -406,6 +409,13 @@ export class OverlayServer {
       return reply.type(type).send(await asset(req.params.file))
     })
 
+    // Встроенные картинки алертов (общие для всех, без ключа).
+    app.get<{ Params: { file: string } }>('/b/:file', async (req, reply) => {
+      const name = req.params.file.replace(/\.svg$/, '')
+      if (!ART_FILES.has(name)) return reply.code(404).send({ error: 'not found' })
+      return reply.header('Cache-Control', 'public, max-age=86400').header('Cross-Origin-Resource-Policy', 'cross-origin').type('image/svg+xml').send(await asset(`art/${name}.svg`))
+    })
+
     // Смайлы и бейджи из локального кэша (без ключа: это публичные картинки; Host всё равно проверяется).
     app.get<{ Params: { hash: string } }>('/e/:hash', async (req, reply) => {
       const img = await this.images.get(req.params.hash)
@@ -430,6 +440,13 @@ export class OverlayServer {
         reply.header('Cross-Origin-Resource-Policy', 'cross-origin').header('Accept-Ranges', 'bytes').type(m.type)
         if (range) reply.code(206).header('Content-Range', `bytes ${m.start}-${m.end}/${m.size}`)
         return reply.send(m.body)
+      })
+      // Основной набор алертов (импортирован в данные приложения).
+      app.get<{ Params: { id: string; file: string }; Querystring: { k?: string } }>('/p/:id/:file', async (req, reply) => {
+        if (!sameKey(req.query.k, key())) return reply.code(403).send({ error: 'forbidden' })
+        const body = this.extras.alertPack.get(req.params.id, req.params.file)
+        if (!body) return reply.code(404).send({ error: 'not found' })
+        return reply.header('Cross-Origin-Resource-Policy', 'cross-origin').type(req.params.file.endsWith('.png') ? 'image/png' : 'image/webp').send(body)
       })
       // Готовая озвучка.
       app.get<{ Params: { file: string }; Querystring: { k?: string } }>('/t/:file', async (req, reply) => {

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.hr{animation:hr 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.h2{animation-delay:1s}.h3{animation-delay:2s}
+@keyframes hr{0%,100%{transform:scale(.7);opacity:.4}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#4a2b3a" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M40 230c0-25 50-60 80-80 15-45 80-70 130-50 40-30 110-30 140 10 50-40 130-35 160 15 40-30 120-30 160 10 30-15 90-10 120 25 50-20 120 10 130 70 40 15 70 55 60 100-15 35-60 60-110 55-30 20-80 25-120 5-45 25-110 25-150 0-40 20-100 20-140 0-45 22-110 20-150-5-50 20-110 5-130-30-50 0-90-20-130-60-20-20-40-35-40-45z" fill="#fff7f9"/>
+<path d="M100 230c60-40 120-60 190-65M1040 120c30 10 60 40 70 75" fill="none" stroke="#f3cfdb" stroke-width="6" opacity="0"/>
+<path d="M60 330c20 10 40 5 60-10" fill="none" stroke="#f3cfdb" stroke-width="6"/>
+<path d="M1100 330c20-5 40-15 55-35" fill="none" stroke="#f3cfdb" stroke-width="6"/>
+</g>
+<g fill="#e2668f" stroke="#4a2b3a" stroke-width="5" stroke-linejoin="round">
+<path class="hr" d="M120 90c-14-18-38 0-22 20 8 10 22 20 22 20s14-10 22-20c16-20-8-38-22-20z" transform="translate(-10 10)"/>
+<path class="hr h2" d="M1110 60c-12-15-32 0-18 17 7 8 18 17 18 17s12-9 18-17c14-17-6-32-18-17z"/>
+<path class="hr h3" d="M1090 340c-10-12-26 0-14 14 6 7 14 14 14 14s10-7 14-14c12-14-4-26-14-14z"/>
+</g>
+</svg>

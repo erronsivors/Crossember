@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.cf{animation:cf 3s linear infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.c2{animation-delay:1s}.c3{animation-delay:2s}
+@keyframes cf{0%{transform:translateY(-10px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translateY(60px) rotate(240deg);opacity:0}}
+.sw{animation:sw 3s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 0}
+.s2{animation-delay:1.5s}
+@keyframes sw{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+</style>
+<g stroke="#4a2238" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 90h1080v250H60z" fill="#fff0f6"/>
+<path d="M60 340h1080v20c-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0-30 30-60 30-90 0z" fill="#ff6fa8"/>
+<path d="M60 90h1080v18c-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0-20 24-40 24-60 0z" fill="#ffb3d1" stroke-width="7"/>
+<path d="M60 40c120 40 220 40 300 0M840 40c80 40 180 40 300 0" fill="none" stroke-width="5"/>
+<path class="sw" d="M110 54l36 8-20 34z" fill="#ffd23a" stroke-width="5"/>
+<path class="sw s2" d="M200 62l36 4-16 34z" fill="#7fd1ff" stroke-width="5"/>
+<path class="sw" d="M290 56l36 0-18 34z" fill="#9be07a" stroke-width="5"/>
+<path class="sw s2" d="M880 56l36 0-18 34z" fill="#ff8f6a" stroke-width="5"/>
+<path class="sw" d="M970 62l36 4-16 34z" fill="#ffd23a" stroke-width="5"/>
+<path class="sw s2" d="M1060 54l36 8-20 34z" fill="#7fd1ff" stroke-width="5"/>
+</g>
+<g stroke="none">
+<rect class="cf" x="420" y="10" width="16" height="9" fill="#ffd23a"/><rect class="cf c2" x="760" y="6" width="16" height="9" fill="#7fd1ff"/><rect class="cf c3" x="1130" y="20" width="16" height="9" fill="#9be07a"/>
+</g>
+</svg>

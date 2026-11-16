@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.sg{animation:sg 2.4s ease-in-out infinite}
+.g2{animation-delay:.5s}.g3{animation-delay:1s}
+@keyframes sg{0%,100%{opacity:.15}50%{opacity:1}}
+.ft{animation:ft 4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes ft{0%,100%{transform:rotate(-14deg) translateY(0)}50%{transform:rotate(-9deg) translateY(-12px)}}
+.ld{animation:ld 1.2s steps(1) infinite}
+@keyframes ld{0%{fill:#7dff9b}50%{fill:#1a5a2a}}
+</style>
+<g class="ft" stroke="#0c1a3a" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M130 290h-95v140h95zM470 290h95v140h-95z" fill="#2a63c8"/>
+<path d="M130 290h-95v140h95zM470 290h95v140h-95z" fill="none" stroke="#0c1a3a"/>
+<path d="M82 290v140M35 337h95M35 384h95M518 290v140M470 337h95M470 384h95" fill="none" stroke="#7fc4ff" stroke-width="5"/>
+<path d="M170 360h-40M430 360h40" stroke-width="12" fill="none"/>
+<rect x="170" y="270" width="260" height="200" rx="26" fill="#f2c14e"/>
+<path d="M185 300h230M185 440h230" fill="none" stroke="#c88a14" stroke-width="8"/>
+<rect x="225" y="320" width="150" height="100" rx="14" fill="#16284f"/>
+<circle class="ld" cx="260" cy="355" r="10" stroke="none"/>
+<path d="M290 355h60M260 392h90" fill="none" stroke="#5fd4ff" stroke-width="8"/>
+<path d="M300 270v-40" fill="none" stroke-width="10"/>
+<path d="M230 230c0-60 140-60 140 0z" fill="#d6e2f5"/>
+<path d="M300 200v-70" fill="none" stroke-width="8"/>
+<circle cx="300" cy="120" r="14" fill="#ff5a7a" stroke-width="7"/>
+</g>
+<g fill="none" stroke="#5fd4ff" stroke-width="9" stroke-linecap="round">
+<path class="sg" d="M350 80c25-20 55-20 80 0"/><path class="sg g2" d="M335 45c40-35 90-35 130 0"/><path class="sg g3" d="M320 10c55-50 125-50 180 0"/>
+</g>
+<g fill="#fff"><circle cx="70" cy="150" r="5"/><circle cx="90" cy="520" r="4"/><circle cx="530" cy="540" r="5"/></g>
+</svg>

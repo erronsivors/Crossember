@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.tail{animation:wag 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:5% 80%}
+@keyframes wag{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(10deg)}}
+.eye{animation:blink 3.6s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.flk{animation:fl 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes fl{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(5deg)}}
+</style>
+<ellipse cx="300" cy="565" rx="190" ry="18" fill="#3b2416" opacity=".18"/>
+<g stroke="#3b2416" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path class="tail" d="M400 520c90 10 150-50 130-140-10-45-50-70-80-40-25 30 0 70-20 100-10 20-40 30-70 30z" fill="#ee7a2b"/>
+<path class="tail" d="M515 400c-20-30-55-35-70-10 30-5 55 0 70 10z" fill="#fff4e0" stroke="none"/>
+<path d="M170 565c-25-110 20-200 130-200s155 90 130 200z" fill="#ee7a2b"/>
+<path d="M230 565c0-70 30-110 70-110s70 40 70 110z" fill="#fff4e0" stroke="none"/>
+<path class="flk" d="M165 215L140 70l110 70zM435 215l25-145-110 70z" fill="#ee7a2b"/>
+<path d="M172 185l-10-70 55 40zM428 185l10-70-55 40z" fill="#3b2416" stroke="none"/>
+<path d="M95 270c20-90 100-140 205-140s185 50 205 140c-10 60-100 105-205 105S105 330 95 270z" fill="#ee7a2b"/>
+<path d="M95 270c60 20 110 55 140 100 30 8 60 8 65 8s35 0 65-8c30-45 80-80 140-100-5 55-95 105-205 105S100 325 95 270z" fill="#fff4e0" stroke="none"/>
+<g class="eye"><ellipse cx="235" cy="255" rx="16" ry="22" fill="#3b2416" stroke="none"/><circle cx="241" cy="246" r="6" fill="#fff" stroke="none"/></g>
+<g class="eye"><ellipse cx="365" cy="255" rx="16" ry="22" fill="#3b2416" stroke="none"/><circle cx="371" cy="246" r="6" fill="#fff" stroke="none"/></g>
+<path d="M283 305h34l-17 20z" fill="#3b2416"/>
+<path d="M300 325c-4 18-28 20-36 6M300 325c4 18 28 20 36 6" fill="none" stroke-width="6"/>
+<ellipse cx="195" cy="315" rx="20" ry="11" fill="#ff8a7a" stroke="none" opacity=".6"/>
+<ellipse cx="405" cy="315" rx="20" ry="11" fill="#ff8a7a" stroke="none" opacity=".6"/>
+<path d="M150 395c50 35 250 35 300 0l15 55c-60 45-270 45-330 0z" fill="#c8402b"/>
+<path d="M200 418l-12 55M262 430l-8 55M340 430l8 55M400 418l12 55" stroke="#ffd45a" stroke-width="16" fill="none"/>
+<path d="M395 440l25 100 55-10-30-75z" fill="#c8402b"/>
+<path d="M410 490l55-12M418 515l55-12" stroke="#ffd45a" stroke-width="12" fill="none"/>
+<ellipse cx="240" cy="540" rx="42" ry="26" fill="#3b2416"/><ellipse cx="360" cy="540" rx="42" ry="26" fill="#3b2416"/>
+</g>
+</svg>

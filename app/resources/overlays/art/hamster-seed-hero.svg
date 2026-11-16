@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.eye{animation:blink 3.5s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.seed{animation:nib 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes nib{0%,100%{transform:rotate(-3deg) translateY(0)}50%{transform:rotate(3deg) translateY(-6px)}}
+.ck{animation:ck 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes ck{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+</style>
+<ellipse cx="300" cy="568" rx="200" ry="16" fill="#4a2a12" opacity=".22"/>
+<g stroke="#4a2a12" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<ellipse cx="300" cy="440" rx="190" ry="125" fill="#e9b26b"/>
+<ellipse cx="300" cy="480" rx="115" ry="80" fill="#fff0d8" stroke="none"/>
+<ellipse cx="190" cy="160" rx="42" ry="46" fill="#e9b26b"/><ellipse cx="410" cy="160" rx="42" ry="46" fill="#e9b26b"/>
+<ellipse cx="190" cy="165" rx="20" ry="24" fill="#ff9fa0" stroke="none"/><ellipse cx="410" cy="165" rx="20" ry="24" fill="#ff9fa0" stroke="none"/>
+<path class="ck" d="M300 140c110 0 190 60 190 140 0 70-70 110-190 110S110 350 110 280c0-80 80-140 190-140z" fill="#e9b26b"/>
+<path d="M300 140c-30 20-40 45-30 70h60c10-25 0-50-30-70z" fill="#b97a3a" stroke="none"/>
+<ellipse cx="200" cy="320" rx="70" ry="55" fill="#fff0d8" stroke="none"/><ellipse cx="400" cy="320" rx="70" ry="55" fill="#fff0d8" stroke="none"/>
+<g class="eye"><ellipse cx="235" cy="265" rx="14" ry="19" fill="#4a2a12" stroke="none"/><circle cx="240" cy="258" r="5" fill="#fff" stroke="none"/></g>
+<g class="eye"><ellipse cx="365" cy="265" rx="14" ry="19" fill="#4a2a12" stroke="none"/><circle cx="370" cy="258" r="5" fill="#fff" stroke="none"/></g>
+<path d="M288 300h24l-12 14z" fill="#e0607a" stroke-width="5"/>
+<path d="M300 314c-3 12-20 16-28 6M300 314c3 12 20 16 28 6" fill="none" stroke-width="6"/>
+<path d="M285 322l-6 12h12zM315 322l6 12h-12z" fill="#fff" stroke-width="4"/>
+<ellipse cx="170" cy="300" rx="22" ry="12" fill="#ff8a7a" stroke="none" opacity=".6"/><ellipse cx="430" cy="300" rx="22" ry="12" fill="#ff8a7a" stroke="none" opacity=".6"/>
+<path d="M120 290l-45-6M120 306l-45 8M480 290l45-6M480 306l45 8" fill="none" stroke-width="5"/>
+<g class="seed"><path d="M300 360c-70 10-120 70-100 140 20 20 90 20 130-20 40-45 30-110-30-120z" fill="#3a3a3a" transform="rotate(-8 300 430)"/><path d="M290 380c-40 20-70 60-65 105M310 385c-30 25-50 55-50 90" fill="none" stroke="#f5f0e6" stroke-width="10" transform="rotate(-8 300 430)"/></g>
+<ellipse cx="250" cy="495" rx="34" ry="26" fill="#e9b26b"/><ellipse cx="350" cy="475" rx="34" ry="26" fill="#e9b26b"/>
+<ellipse cx="215" cy="552" rx="42" ry="14" fill="#e9b26b"/><ellipse cx="385" cy="552" rx="42" ry="14" fill="#e9b26b"/>
+</g>
+</svg>

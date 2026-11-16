@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}.t2{animation-delay:1.2s}
+@keyframes tw{0%,100%{transform:scale(.7) rotate(0);opacity:.5}50%{transform:scale(1.1) rotate(20deg);opacity:1}}
+</style>
+<g stroke="#3a2010" stroke-width="8" stroke-linejoin="round">
+<path d="M40 50l50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 50 12 50-12 40 10v284l-40 10-50-12-50 12-50-12-50 12-50-12-50 12-50-12-50 12-50-12-50 12-50-12-50 12-50-12-50 12-50-12-50 12-50-12-50 12-40-10z" fill="#ead3a0"/>
+<path d="M70 85h1060v230H70z" fill="#f3e2b8" stroke-width="5"/>
+<path d="M82 97h1036v206H82z" fill="none" stroke-width="2" stroke-dasharray="10 6"/>
+</g>
+<g fill="#b9966a" opacity=".5"><path d="M900 300c60-20 110 10 190-10l-10 30h-180z"/></g>
+<g fill="#8c2a12" stroke="#3a2010" stroke-width="4" stroke-linejoin="round"><circle cx="58" cy="70" r="9"/><circle cx="1142" cy="70" r="9"/><circle cx="58" cy="330" r="9"/><circle cx="1142" cy="330" r="9"/></g>
+<path class="tw" d="M1100 120l8 18 20 2-15 13 5 20-18-10-18 10 5-20-15-13 20-2z" fill="#c9a468" stroke="#3a2010" stroke-width="4" stroke-linejoin="round"/>
+<path class="tw t2" d="M120 310l6 13 14 1-11 10 4 14-13-7-13 7 4-14-11-10 14-1z" fill="#c9a468" stroke="#3a2010" stroke-width="4" stroke-linejoin="round"/>
+</svg>

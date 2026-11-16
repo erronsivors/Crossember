@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.sw{animation:sw 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+@keyframes sw{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.gl{animation:gl 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes gl{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.15)}}
+</style>
+<ellipse cx="300" cy="555" rx="190" ry="14" fill="#000" opacity=".25"/>
+<g class="sw" stroke="#3a2010" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M120 50l30 14 30-14 30 14 30-14 30 14 30-14 30 14 30-14 30 14 30-14 30 14 30-14 30 14 20-8v485l-20 8-30-14-30 14-30-14-30 14-30-14-30 14-30-14-30 14-30-14-30 14-30-14-30 14-20-8z" fill="#e6c88c"/>
+<path d="M150 90h300v420H150z" fill="none" stroke-width="6"/>
+<path d="M165 105h270v390H165z" fill="none" stroke-width="3"/>
+<path d="M300 120l12 28 30 3-22 20 7 30-27-16-27 16 7-30-22-20 30-3z" fill="#8c2a12" stroke-width="5"/>
+<path d="M190 170h220v200H190z" fill="#c9a468" stroke-width="6"/>
+<path d="M240 340c0-55 20-85 60-85s60 30 60 85z" fill="#6b3a1a" stroke-width="6"/>
+<ellipse cx="300" cy="260" rx="38" ry="44" fill="#e8b585" stroke-width="6"/>
+<path d="M225 235h150" stroke-width="8"/><path d="M250 235c0-40 20-65 50-65s50 25 50 65z" fill="#4a2a12" stroke-width="7"/>
+<path d="M200 238h200" stroke-width="7"/>
+<path d="M282 258h4M314 258h4" stroke-width="7"/>
+<path d="M280 285c10 8 30 8 40 0" fill="none" stroke-width="5"/><path d="M285 278c10-6 20-6 30 0" fill="none" stroke-width="5"/>
+<path d="M270 300l30 28 30-28" fill="none" stroke="#8c2a12" stroke-width="7"/>
+<circle class="gl" cx="300" cy="318" r="9" fill="#e8c05a" stroke-width="4"/>
+<path d="M190 395h220M190 420h220" stroke-width="5" fill="none" stroke="#8c2a12"/>
+<path d="M200 450h200v34H200z" fill="#8c2a12" stroke-width="5"/><path d="M215 467h170" stroke="#e6c88c" stroke-width="7" stroke-dasharray="14 8"/>
+</g>
+<path d="M140 80l-6 8" stroke="#3a2010" stroke-width="3"/>
+</svg>

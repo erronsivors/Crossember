@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.h{animation:up 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom;opacity:0}
+.h2{animation-delay:1s}.h3{animation-delay:2s}
+@keyframes up{0%{transform:translateY(30px) scale(.5);opacity:0}30%{opacity:1}100%{transform:translateY(-60px) scale(1);opacity:0}}
+.bob{animation:bob 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes bob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.06)}}
+</style>
+<ellipse cx="300" cy="566" rx="240" ry="14" fill="#6b1a35" opacity=".2"/>
+<g stroke="#5a1630" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M90 330l210-150 210 150v220H90z" fill="#f4a3b8"/>
+<rect x="140" y="200" width="320" height="250" rx="10" fill="#fff6f0"/>
+<path d="M180 250h240M180 290h240M180 330h160" fill="none" stroke="#f1b9c6" stroke-width="8"/>
+<path class="bob" d="M300 410c-60-40-60-90-20-90 18 0 20 14 20 14s2-14 20-14c40 0 40 50-20 90z" fill="#e8315f" transform="translate(0 -110)"/>
+<path d="M90 550V330l210 130 210-130v220z" fill="#ef7d9c"/>
+<path d="M90 550l170-130M510 550L340 420" fill="none" stroke-width="6"/>
+<path d="M90 330l210 130 210-130" fill="none"/>
+<path d="M300 520c-40-26-40-60-14-60 12 0 14 10 14 10s2-10 14-10c26 0 26 34-14 60z" fill="#e8315f" stroke-width="6"/>
+<path class="h" d="M150 190c-30-20-30-50-8-50 10 0 8 10 8 10s0-10 10-10c20 0 20 30-10 50z" fill="#ff7fa0" stroke-width="6"/>
+<path class="h h2" d="M450 190c-30-20-30-50-8-50 10 0 8 10 8 10s0-10 10-10c20 0 20 30-10 50z" fill="#ff5f87" stroke-width="6"/>
+<path class="h h3" d="M300 150c-24-16-24-40-6-40 8 0 6 8 6 8s-2-8 8-8c16 0 16 24-8 40z" fill="#e8315f" stroke-width="6"/>
+</g>
+</svg>

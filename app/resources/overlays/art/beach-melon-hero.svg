@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.ray{animation:spin 8s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.eye{animation:blink 4s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+.sw{animation:sw 3s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes sw{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+</style>
+<ellipse cx="300" cy="566" rx="250" ry="16" fill="#c99a52" opacity=".5"/>
+<g stroke="#1d3a44" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<g class="ray"><circle cx="480" cy="120" r="52" fill="#ffd23a"/>
+<path d="M480 30v-18M480 210v18M390 120h-18M570 120h18M416 56l-12-12M544 184l12 12M416 184l-12 12M544 56l12-12" fill="none" stroke="#ffb01f"/></g>
+<g class="sw">
+<path d="M130 560L190 150" fill="none" stroke="#6b4423" stroke-width="12"/>
+<path d="M70 190C80 70 270 40 320 150z" fill="#ff5a5f"/>
+<path d="M190 150c-10-30-60-70-100-40M190 150c10-30 30-60 70-70" fill="none" stroke-width="6"/>
+<path d="M190 150L120 100M190 150l40-70" stroke="#fff" stroke-width="10" fill="none"/>
+</g>
+<path d="M130 330h340c0 130-80 220-170 220S130 460 130 330z" fill="#3f9a4a"/>
+<path d="M146 330h308c0 118-72 198-154 198S146 448 146 330z" fill="#f1f7c8" stroke="none"/>
+<path d="M160 330h280c0 108-66 176-140 176S160 438 160 330z" fill="#ff5a5f" stroke="none"/>
+<path d="M162 340h276c-2 24-8 40-14 52H176c-6-12-12-28-14-52z" fill="#ff8f8f" stroke="none"/>
+<g fill="#2b1a14" stroke="none"><path d="M230 410l-8 20 14 4zM370 410l8 20-14 4zM300 470l-8 20 16 0zM255 480l-6 18 12 0zM345 480l6 18-12 0z" transform="translate(0 -6)"/></g>
+<g class="eye"><ellipse cx="258" cy="400" rx="12" ry="16" fill="#1d3a44" stroke="none"/><circle cx="262" cy="394" r="4" fill="#fff" stroke="none"/></g>
+<g class="eye"><ellipse cx="342" cy="400" rx="12" ry="16" fill="#1d3a44" stroke="none"/><circle cx="346" cy="394" r="4" fill="#fff" stroke="none"/></g>
+<path d="M270 440c10 16 50 16 60 0z" fill="#8a1f30" stroke-width="6"/>
+<ellipse cx="226" cy="432" rx="16" ry="9" fill="#ff9fa0" stroke="none" opacity=".8"/><ellipse cx="374" cy="432" rx="16" ry="9" fill="#ff9fa0" stroke="none" opacity=".8"/></g>
+</svg>

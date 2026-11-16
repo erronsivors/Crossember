@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" shape-rendering="crispEdges">
+<style>
+.sp{animation:sp 1.8s steps(2) infinite}.s2{animation-delay:.9s}
+@keyframes sp{0%,100%{opacity:1}50%{opacity:.1}}
+</style>
+<rect x="60" y="40" width="1080" height="320" fill="#1a1d28"/>
+<rect x="80" y="60" width="1040" height="280" fill="#2b2f3c"/>
+<rect x="100" y="80" width="1000" height="240" fill="#1b1e29"/>
+<g fill="#2f3342"><rect x="100" y="160" width="1000" height="6"/><rect x="100" y="240" width="1000" height="6"/><rect x="400" y="80" width="6" height="80"/><rect x="800" y="160" width="6" height="80"/><rect x="560" y="240" width="6" height="80"/></g>
+<rect x="80" y="60" width="1040" height="10" fill="#7a8196"/><rect x="80" y="330" width="1040" height="10" fill="#14161e"/>
+<rect x="80" y="60" width="10" height="280" fill="#656c82"/><rect x="1110" y="60" width="10" height="280" fill="#14161e"/>
+<g fill="#ffd76a"><rect x="40" y="20" width="60" height="20"/><rect x="40" y="20" width="20" height="60"/><rect x="1100" y="20" width="60" height="20"/><rect x="1140" y="20" width="20" height="60"/>
+<rect x="40" y="360" width="60" height="20"/><rect x="40" y="320" width="20" height="60"/><rect x="1100" y="360" width="60" height="20"/><rect x="1140" y="320" width="20" height="60"/></g>
+<g fill="#fff3b0"><rect class="sp" x="1120" y="190" width="20" height="20"/><rect class="sp s2" x="50" y="190" width="20" height="20"/></g>
+</svg>

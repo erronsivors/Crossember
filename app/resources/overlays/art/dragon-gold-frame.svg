@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.8s}.t3{animation-delay:1.6s}
+@keyframes tw{0%,100%{transform:scale(.4);opacity:.3}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#2a130a" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M170 60c0-20 15-30 35-30h940c20 0 35 10 35 30v270c0 20-15 30-35 30H205c-20 0-35-10-35-30z" fill="#3a1d1a"/>
+<path d="M190 50h920c30 0 50 20 50 50" fill="none" stroke="#f0b429" stroke-width="10"/>
+<path d="M190 340h970" fill="none" stroke="#f0b429" stroke-width="10"/>
+<path d="M200 70h900M200 330h900" fill="none" stroke="#7a3a2a" stroke-width="4" opacity=".0"/>
+<circle cx="205" cy="70" r="11" fill="#ffd650" stroke-width="5"/><circle cx="1145" cy="70" r="11" fill="#ffd650" stroke-width="5"/>
+<circle cx="205" cy="330" r="11" fill="#ffd650" stroke-width="5"/><circle cx="1145" cy="330" r="11" fill="#ffd650" stroke-width="5"/>
+<circle cx="360" cy="362" r="24" fill="#ffd650"/><circle cx="420" cy="368" r="20" fill="#ffd650"/>
+<circle cx="1000" cy="364" r="24" fill="#ffd650"/><circle cx="1060" cy="368" r="20" fill="#ffd650"/><circle cx="1110" cy="360" r="26" fill="#ffd650"/>
+<path d="M360 350v24M1000 352v24M1110 346v28" stroke="#c88a14" stroke-width="5" fill="none"/>
+</g>
+<g fill="#fff3a0" stroke="#2a130a" stroke-width="4" stroke-linejoin="round">
+<path class="tw" d="M1100 120l7 16 16 7-16 7-7 16-7-16-16-7 16-7z"/>
+<path class="tw t2" d="M470 345l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+<path class="tw t3" d="M1075 300l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.8s}.t3{animation-delay:1.6s}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.4}50%{transform:scale(1.2);opacity:1}}
+</style>
+<g stroke="#0a0f2e" stroke-width="9" stroke-linejoin="round">
+<path d="M170 40h950l50 50v220l-50 50H170l-50-50V90z" fill="#141c52"/>
+<path d="M180 62h930l38 38v200l-38 38H180l-38-38V100z" fill="none" stroke="#3fc8f0" stroke-width="4"/>
+<path d="M170 40h60l-20 24h-40zM1120 40l50 50-24 20-30-30zM170 360h60l-20-24h-40zM1120 360l50-50-24-20-30 30z" fill="#f2c14e" stroke-width="5"/>
+</g>
+<g fill="none" stroke="#3fc8f0" stroke-width="5" stroke-linecap="round" opacity=".7">
+<path d="M1128 150v100M1118 170l10-12 10 12M1118 230l10 12 10-12"/>
+<path d="M170 338h60M970 338h120"/>
+</g>
+<g fill="#ffe27a" stroke="#0a0f2e" stroke-width="4" stroke-linejoin="round">
+<path class="tw" d="M1100 70l7 16 16 7-16 7-7 16-7-16-16-7 16-7z"/>
+<path class="tw t2" d="M1060 340l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+<path class="tw t3" d="M290 336l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

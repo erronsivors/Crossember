@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" shape-rendering="crispEdges">
+<style>
+.sw{animation:sw 3s ease-in-out infinite}
+@keyframes sw{0%,100%{transform:translateX(0);opacity:0}20%{opacity:.35}60%{transform:translateX(780px);opacity:.35}61%,99%{opacity:0}}
+.bl{animation:bl 1.4s steps(2) infinite}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+<rect x="60" y="50" width="1080" height="300" fill="#05180d"/>
+<rect x="60" y="50" width="1080" height="300" fill="#103a1c"/>
+<rect x="60" y="50" width="1080" height="14" fill="#6dd36a"/><rect x="60" y="336" width="1080" height="14" fill="#07200f"/>
+<rect x="60" y="50" width="14" height="300" fill="#6dd36a"/><rect x="1126" y="50" width="14" height="300" fill="#07200f"/>
+<rect x="74" y="64" width="1052" height="272" fill="#0a2a14"/>
+<rect x="90" y="80" width="1020" height="240" fill="#0c3318"/>
+<rect class="sw" x="300" y="80" width="60" height="240" fill="#fff"/>
+<rect x="1040" y="90" width="50" height="50" fill="#ffc531"/><rect x="1050" y="100" width="30" height="30" fill="#8a5d00"/><rect x="1058" y="108" width="14" height="14" fill="#fff6c0"/>
+<g fill="#ffc531"><rect x="1100" y="40" width="30" height="14" class="bl"/><rect x="1107" y="33" width="16" height="28" class="bl"/></g>
+<rect x="40" y="320" width="30" height="30" fill="#ffc531"/><rect x="46" y="326" width="18" height="18" fill="#8a5d00"/>
+<rect x="1130" y="320" width="30" height="30" fill="#ffc531"/><rect x="1136" y="326" width="18" height="18" fill="#8a5d00"/>
+<rect x="40" y="50" width="30" height="30" fill="#ffc531"/><rect x="46" y="56" width="18" height="18" fill="#8a5d00"/>
+</svg>

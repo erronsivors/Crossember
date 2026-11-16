@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.8s}.t3{animation-delay:1.6s}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.3}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#4a2033" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<rect x="130" y="60" width="1040" height="290" rx="50" fill="#fff5f9"/>
+<path d="M130 110c0-30 20-50 50-50h940c30 0 50 20 50 50v20c-15 0-20 25-35 25s-20-35-40-35-20 40-45 40-25-30-45-30-25 50-50 50-25-40-50-40-25 35-45 35-25-40-50-40-20 45-45 45-30-40-50-40-25 40-50 40-20-35-45-35-30 40-50 40-20-30-45-30-30 30-50 30-20-35-45-35-30 35-50 35-20-40-45-40-20 30-40 30-20-25-35-25z" fill="#ff7fb4"/>
+<path d="M150 90h900" stroke="#ffc2dc" stroke-width="8" fill="none"/>
+<path d="M190 300h40M260 320h60M900 310h70M1030 300h40" stroke-width="10" fill="none" stroke="#5fc4f0"/>
+<path d="M240 300h10M330 315h10M980 300h10" stroke-width="10" fill="none" stroke="#ffe25a"/>
+</g>
+<g fill="#ffe25a" stroke="#4a2033" stroke-width="5" stroke-linejoin="round">
+<path class="tw" d="M1130 250l8 18 18 8-18 8-8 18-8-18-18-8 18-8z"/>
+<path class="tw t2" d="M110 215l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+<path class="tw t3" d="M700 370l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

@@ -1,11 +1,15 @@
 // Готовые наборы шаблонов алертов: выбираются при создании шаблона и дальше правятся в конструкторе.
-import type { AlertTemplate, Keyframe } from '../../main/core/templates'
+import type { AlertTemplate, Keyframe, Layer } from '../../main/core/templates'
 import { makeLayer } from './pages/AlertEditor'
+import { ART_SETS, type ArtSet } from '../../main/core/art'
+import { PACK_MODES, type PackMode, type PackSet } from '../../main/core/alertpack'
 
 export interface AlertPreset {
   id: string
   name: string
   desc: string
+  /** Подгруппа векторных наборов; без группы — раздел «Текстовые». */
+  group?: string
   make(): AlertTemplate
 }
 
@@ -242,3 +246,66 @@ export const PRESETS: AlertPreset[] = [
     })
   }
 ]
+
+// ---------- наборы с встроенными картинками (resources/overlays/art) ----------
+
+/** Шаблон из векторного набора: рамка под текст, персонаж с лёгким покачиванием, ник, сумма и сообщение. */
+function artPreset(a: ArtSet): AlertPreset {
+  return {
+    id: `art-${a.id}`,
+    name: a.name,
+    desc: a.desc,
+    group: a.group,
+    make: () => {
+      const dur = 7000
+      const dark = parseInt(a.color.slice(1, 3), 16) + parseInt(a.color.slice(3, 5), 16) + parseInt(a.color.slice(5, 7), 16) < 380
+      const txt = { font: a.font, color: a.color, accent: a.accent, shadow: !dark, bold: true }
+      const side = a.layout === 'side'
+      const fr = side ? { x: 420, y: 140 } : { x: 360, y: 330 }
+      const hero = side ? { x: 250, y: 100, s: 440 } : { x: 750, y: 10, s: 420 }
+      const tx = side ? { x: fr.x + 300, y: fr.y + 70, w: 820, align: 'left' as const } : { x: fr.x + 150, y: fr.y + 120, w: 900, align: 'center' as const }
+      const bob = (t: number, dy: number): Keyframe => kfx(t, hero.x, hero.y + dy)
+      return {
+        id: uid(), name: a.name, theme: 'general', durationMs: dur, extendByMessage: true,
+        layers: [
+          makeLayer('image', { name: 'Рамка', media: `b:${a.id}-frame`, x: fr.x, y: fr.y, w: 1200, h: 400, animIn: side ? 'right' : 'up', animInMs: 550, animOutMs: 500, start: 120 }),
+          makeLayer('image', { name: 'Персонаж', media: `b:${a.id}-hero`, x: hero.x, y: hero.y, w: hero.s, h: hero.s, animIn: a.heroIn, animInMs: 650, animOutMs: 450,
+            keyframes: [bob(0, 0), bob(dur * 0.25, -14), bob(dur * 0.5, 0), bob(dur * 0.75, -14), bob(dur, 0)] }),
+          makeLayer('text', { name: 'Ник', text: '{user}', size: 54, x: tx.x, y: tx.y, w: tx.w, h: 76, align: tx.align, start: 380, animIn: 'up', animInMs: 420, ...txt }),
+          makeLayer('text', { name: 'Сумма', text: '{amount}', size: 46, x: tx.x, y: tx.y + 74, w: tx.w, h: 64, align: tx.align, start: 520, animIn: 'pop', animInMs: 420, ...txt, color: a.accent }),
+          makeLayer('text', { name: 'Сообщение', text: '{message}', size: 28, bold: false, x: tx.x, y: tx.y + 140, w: tx.w, h: 96, align: tx.align, start: 700, animIn: 'fade', animInMs: 500, font: 'manrope', color: a.color, shadow: !dark }),
+          makeLayer('sound', { sound: a.sound, volume: 70 })
+        ]
+      }
+    }
+  }
+}
+
+PRESETS.push(...ART_SETS.map(artPreset))
+
+// ---------- основной набор (Crossember-Alerts): готовая анимация WebP + текст по ключам набора ----------
+
+/** Шаблон основного набора: анимация 1400×620 по центру 1920×1080, ник, сумма и сообщение двигаются по ключам набора. */
+export function packTemplate(s: PackSet, mode: PackMode): AlertTemplate {
+  const m = s.modes[mode]
+  const file = PACK_MODES.find((x) => x.id === mode)?.file ?? 'anim-classic.webp'
+  const ox = 260
+  const oy = 230
+  const [sx, sy, sw, sh] = s.safe
+  const dark = parseInt(s.color.slice(1, 3), 16) + parseInt(s.color.slice(3, 5), 16) + parseInt(s.color.slice(5, 7), 16) < 380
+  const keys = (x: number, y: number): Keyframe[] => m.keys.map(([t, dx, dy, scale, opacity, ease]) => ({ t, x: x + dx, y: y + dy, scale, rotate: 0, opacity, ease }))
+  const lineH = [Math.round(sh * 0.36), Math.round(sh * 0.3), Math.round(sh * 0.34)]
+  const ys = [oy + sy, oy + sy + lineH[0], oy + sy + lineH[0] + lineH[1]]
+  const txt = (name: string, text: string, i: number, size: number, bold: boolean): Layer =>
+    makeLayer('text', { name, text, font: i === 2 ? 'manrope' : s.font, size, bold, color: s.color, shadow: !dark, x: ox + sx, y: ys[i], w: sw, h: lineH[i], animIn: 'none', animOut: 'none', keyframes: keys(ox + sx, ys[i]) })
+  return {
+    id: uid(), name: `${s.name} · ${PACK_MODES.find((x) => x.id === mode)?.name ?? ''}`, theme: 'general', durationMs: m.ms, extendByMessage: false,
+    layers: [
+      makeLayer('image', { name: 'Анимация', media: `p:${s.id}/${file}`, x: ox, y: oy, w: 1400, h: 620, animIn: 'none', animOut: 'none' }),
+      txt('Ник', '{user}', 0, Math.min(48, Math.round(lineH[0] * 0.78)), true),
+      txt('Сумма', '{amount}', 1, Math.min(40, Math.round(lineH[1] * 0.78)), true),
+      txt('Сообщение', '{message}', 2, Math.min(26, Math.round(lineH[2] * 0.42)), false),
+      makeLayer('sound', { sound: 'chime', volume: 60 })
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.sd{animation:sd 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.d2{animation-delay:1s}.d3{animation-delay:2s}
+@keyframes sd{0%,100%{transform:translateY(0) rotate(-10deg)}50%{transform:translateY(-8px) rotate(10deg)}}
+</style>
+<g stroke="#4a2a12" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 90l90 0h250c30-30 100-30 130-30h140c0 0 20 20 80 30h330l60 60v120l-60 60H60l40-40v-30l-40-30v-60l40-30z" fill="#c98a4a"/>
+<path d="M60 90v220l40-40v-30l-40-30z" fill="#a96a2f" stroke="none"/>
+<path d="M150 90h900l50 40v140l-50 50H150z" fill="#fff1d6" stroke-width="7"/>
+<path d="M1100 330l60-60v60z" fill="#a96a2f"/>
+</g>
+<g stroke="#4a2a12" stroke-width="5" stroke-linejoin="round" fill="#3a3a3a">
+<path class="sd" d="M80 345c-15 5-22 18-15 30 12 5 30-3 33-18z"/>
+<path class="sd d2" d="M1120 60c-12 3-18 14-12 24 10 4 24-3 27-15z"/>
+<path class="sd d3" d="M980 360c-12 3-18 14-12 24 10 4 24-3 27-15z"/>
+</g>
+</svg>

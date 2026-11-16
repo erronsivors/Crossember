@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.rl{animation:spin 3s linear infinite;transform-box:fill-box;transform-origin:center}
+.r2{animation-duration:2.4s}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tp{animation:wv 2.6s ease-in-out infinite;transform-box:fill-box;transform-origin:0 0}
+@keyframes wv{0%,100%{transform:rotate(0)}50%{transform:rotate(3deg)}}
+</style>
+<ellipse cx="300" cy="560" rx="260" ry="12" fill="#000" opacity=".2"/>
+<g stroke="#2a2a2a" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path class="tp" d="M120 490C60 560-20 560 10 520" fill="none" stroke="#5a3a1c" stroke-width="12"/>
+<rect x="40" y="130" width="520" height="340" rx="28" fill="#ff6a2a"/>
+<rect x="76" y="160" width="448" height="190" rx="14" fill="#fff0d6"/>
+<path d="M76 200h448" fill="none" stroke="#ff6a2a" stroke-width="22"/>
+<path d="M76 300h448" fill="none" stroke="#2a2a2a" stroke-width="5"/>
+<rect x="210" y="236" width="180" height="64" rx="32" fill="#2a2a2a"/>
+<g class="rl"><circle cx="250" cy="268" r="26" fill="#fff0d6"/><path d="M250 244v16M250 276v16M226 268h16M258 268h16" fill="none" stroke-width="5"/></g>
+<g class="rl r2"><circle cx="350" cy="268" r="26" fill="#fff0d6"/><path d="M350 244v16M350 276v16M326 268h16M358 268h16" fill="none" stroke-width="5"/></g>
+<path d="M110 470l30-90h320l30 90z" fill="#3b3b3b"/>
+<circle cx="210" cy="430" r="16" fill="#fff0d6"/><circle cx="390" cy="430" r="16" fill="#fff0d6"/>
+<rect x="260" y="408" width="80" height="34" rx="6" fill="#fff0d6" stroke-width="5"/>
+<circle cx="70" cy="160" r="9" fill="#fff0d6" stroke-width="5"/><circle cx="530" cy="160" r="9" fill="#fff0d6" stroke-width="5"/><circle cx="70" cy="440" r="9" fill="#fff0d6" stroke-width="5"/><circle cx="530" cy="440" r="9" fill="#fff0d6" stroke-width="5"/>
+</g>
+</svg>

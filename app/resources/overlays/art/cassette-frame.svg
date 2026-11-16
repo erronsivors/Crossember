@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.rl{animation:spin 3s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes tw{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+<g stroke="#2a2a2a" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<rect x="40" y="30" width="1120" height="340" rx="30" fill="#ff6a2a"/>
+<rect x="290" y="60" width="870" height="270" rx="16" fill="#fff0d6"/>
+<path d="M290 100h870" fill="none" stroke="#ff6a2a" stroke-width="16"/>
+<path d="M290 310h870" fill="none" stroke="#ff6a2a" stroke-width="10"/>
+<path d="M340 340h760l-24 30H364z" fill="#3b3b3b" stroke-width="6"/>
+<circle cx="70" cy="60" r="9" fill="#fff0d6" stroke-width="5"/><circle cx="70" cy="340" r="9" fill="#fff0d6" stroke-width="5"/>
+<circle cx="1130" cy="60" r="9" fill="#fff0d6" stroke-width="5"/><circle cx="1130" cy="340" r="9" fill="#fff0d6" stroke-width="5"/>
+</g>
+<g fill="#2a2a2a" stroke="none">
+<circle class="tw" cx="1090" cy="352" r="6" fill="#ff6a2a"/><circle class="tw" style="animation-delay:.8s" cx="1060" cy="352" r="6" fill="#ffcc33"/>
+</g>
+</svg>

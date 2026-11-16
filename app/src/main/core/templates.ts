@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { Store } from './db'
 import { BUILTIN_SOUNDS, type Theme } from './settings'
+import { artPath } from './art'
+import { packPath } from './alertpack'
 
 /**
  * Шаблоны алертов для конструктора: холст 1920×1080 + слои на таймлайне.
@@ -125,7 +127,7 @@ const obsName = (v: unknown): string => str(v, '', 120).trim()
 const color = (v: unknown, d: string): string => (typeof v === 'string' && /^(#[0-9a-fA-F]{6})?$/.test(v) ? v : d)
 export const soundId = (v: unknown, d: string): string =>
   typeof v === 'string' && ((BUILTIN_SOUNDS as readonly string[]).includes(v) || /^custom:[0-9a-f]{32}\.(mp3|wav|ogg)$/.test(v)) ? v : d
-const mediaId = (v: unknown): string => (typeof v === 'string' && /^m:[0-9a-f]{32}\.(png|jpg|gif|webp|webm|mp4)$/.test(v) ? v : '')
+const mediaId = (v: unknown): string => (typeof v === 'string' && (/^m:[0-9a-f]{32}\.(png|jpg|gif|webp|webm|mp4)$/.test(v) || artPath(v) !== '' || packPath(v) !== '') ? v : '')
 
 export function sanitizeObs(v: unknown): ObsAction {
   const o = obj(v)
@@ -329,7 +331,7 @@ export class TemplateStore {
   /** Какие файлы медиа и звуков используются (чтобы не удалить нужное). */
   usedMedia(): Set<string> {
     const s = new Set<string>()
-    for (const t of this.list) for (const l of t.layers) { if (l.media) s.add(l.media); if (l.sound.startsWith('custom:')) s.add(l.sound) }
+    for (const t of this.list) for (const l of t.layers) { if (l.media.startsWith('m:')) s.add(l.media); if (l.sound.startsWith('custom:')) s.add(l.sound) }
     return s
   }
 }

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.8s}.t3{animation-delay:1.6s}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.3}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#3d220e" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 110l30-30h260l40 25h420l40-25h260l30 30v30l-20 20v80l20 20v40l-30 30H90l-30-30v-40l20-20v-80l-20-20z" fill="#ffd96a" transform="translate(0 0)"/>
+<path d="M90 120h1020v230H90z" fill="none" stroke-width="0"/>
+<path d="M150 120h900v230H150z" fill="#fff8e6" stroke-width="7"/>
+<path d="M150 120h900" stroke="#ffd96a" stroke-width="0"/>
+<path d="M90 80v270M1110 80v270" stroke="#e8b43a" stroke-width="5" fill="none" opacity="0"/>
+<path d="M80 130h50M80 150h50M80 170h50M1070 130h50M1070 150h50M1070 170h50" stroke="#d8371f" stroke-width="8" fill="none"/>
+<path d="M80 300h50M80 320h50M1070 300h50M1070 320h50" stroke="#d8371f" stroke-width="8" fill="none"/>
+<path d="M150 336h900" stroke="#d8371f" stroke-width="6" stroke-dasharray="20 14" fill="none"/>
+<path d="M150 134h900" stroke="#d8371f" stroke-width="6" stroke-dasharray="20 14" fill="none"/>
+</g>
+<g fill="#ffb02e" stroke="#3d220e" stroke-width="5" stroke-linejoin="round">
+<path class="tw" d="M1060 60l8 18 18 8-18 8-8 18-8-18-18-8 18-8z"/>
+<path class="tw t2" d="M130 55l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+<path class="tw t3" d="M600 372l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

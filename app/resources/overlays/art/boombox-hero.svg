@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.sp{animation:pump .5s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.s2{animation-delay:.25s}
+@keyframes pump{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.nt{animation:nt 2.6s ease-out infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.n2{animation-delay:.9s}.n3{animation-delay:1.8s}
+@keyframes nt{0%{transform:translateY(20px) rotate(-8deg);opacity:0}30%{opacity:1}100%{transform:translateY(-50px) rotate(8deg);opacity:0}}
+</style>
+<ellipse cx="300" cy="568" rx="260" ry="12" fill="#000" opacity=".3"/>
+<g stroke="#101010" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M130 190c0-70 40-100 100-100h140c60 0 100 30 100 100" fill="none" stroke-width="22"/>
+<path d="M130 190c0-70 40-100 100-100h140c60 0 100 30 100 100" fill="none" stroke="#b5b5c4" stroke-width="8"/>
+<rect x="40" y="170" width="520" height="390" rx="40" fill="#34344a"/>
+<rect x="60" y="190" width="480" height="350" rx="28" fill="#ffd23a" stroke="none"/>
+<rect x="40" y="170" width="520" height="390" rx="40" fill="none"/>
+<rect x="195" y="205" width="210" height="110" rx="14" fill="#101010"/>
+<rect x="210" y="220" width="180" height="80" rx="8" fill="#2f3b2a"/>
+<path d="M225 285l20-30 20 20 25-35 25 40 20-25 30 30" fill="none" stroke="#9aff6a" stroke-width="5"/>
+<circle cx="230" cy="350" r="14" fill="#fff"/><circle cx="300" cy="350" r="14" fill="#fff"/><circle cx="370" cy="350" r="14" fill="#fff"/>
+<path d="M230 342v8M300 342v8M370 342v8" stroke-width="4" fill="none"/>
+<rect x="205" y="395" width="190" height="100" rx="10" fill="#fff0c4"/>
+<rect x="225" y="415" width="150" height="60" rx="8" fill="#101010"/>
+<circle cx="260" cy="445" r="15" fill="#ffd23a" stroke-width="5"/><circle cx="340" cy="445" r="15" fill="#ffd23a" stroke-width="5"/>
+<g class="sp"><circle cx="115" cy="380" r="68" fill="#34344a"/><circle cx="115" cy="380" r="46" fill="#101010" stroke-width="6"/><circle cx="115" cy="380" r="16" fill="#ff5a5a" stroke-width="5"/></g>
+<g class="sp s2"><circle cx="485" cy="380" r="68" fill="#34344a"/><circle cx="485" cy="380" r="46" fill="#101010" stroke-width="6"/><circle cx="485" cy="380" r="16" fill="#ff5a5a" stroke-width="5"/></g>
+<circle cx="115" cy="250" r="14" fill="#fff0c4" stroke-width="6"/><circle cx="485" cy="250" r="14" fill="#fff0c4" stroke-width="6"/>
+</g>
+<g fill="none" stroke="#ffd23a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+<path class="nt" d="M70 120v-50l26-8v50"/>
+<path class="nt n2" d="M270 70v-40l24-6v40" />
+<path class="nt n3" d="M520 120v-50l26-8v50"/>
+</g>
+<g fill="#ffd23a" stroke="none"><circle class="nt" cx="60" cy="122" r="11"/><circle class="nt n2" cx="260" cy="72" r="10"/><circle class="nt n3" cx="510" cy="122" r="11"/></g>
+</svg>

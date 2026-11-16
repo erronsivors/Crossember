@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.ff{animation:ff 3s ease-in-out infinite}
+.f2{animation-delay:1s}.f3{animation-delay:2s}
+@keyframes ff{0%,100%{transform:translate(0,0);opacity:.4}50%{transform:translate(16px,-22px);opacity:1}}
+.wg{animation:wg 2.4s ease-in-out infinite}
+@keyframes wg{0%,100%{opacity:.7}50%{opacity:1}}
+</style>
+<ellipse cx="300" cy="566" rx="250" ry="16" fill="#1d3a14" opacity=".25"/>
+<g stroke="#2e1a10" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M200 560c-10-80-5-170 20-230h160c25 60 30 150 20 230z" fill="#fbe9c6"/>
+<path d="M250 560v-100c0-40 100-40 100 0v100z" fill="#8a5a34"/>
+<circle cx="338" cy="515" r="6" fill="#f2c14e" stroke="none"/>
+<rect class="wg" x="230" y="350" width="50" height="60" rx="25" fill="#ffe27a"/>
+<path d="M255 350v60M230 380h50" fill="none" stroke-width="6"/>
+<path d="M310 360h50" fill="none" stroke-width="5" stroke="#d9c49a"/>
+<path d="M30 340c0-170 120-290 270-290s270 120 270 290c0 30-30 40-90 20-60-20-120-25-180-25s-120 5-180 25c-60 20-90 10-90-20z" fill="#e2452f"/>
+<path d="M100 330c-10-60 20-130 70-180" fill="none" stroke="#ff8a70" stroke-width="12" stroke-opacity=".7"/>
+<ellipse cx="190" cy="170" rx="42" ry="30" fill="#fff6e6" stroke-width="7"/>
+<ellipse cx="400" cy="130" rx="34" ry="24" fill="#fff6e6" stroke-width="7"/>
+<ellipse cx="480" cy="250" rx="38" ry="26" fill="#fff6e6" stroke-width="7"/>
+<ellipse cx="300" cy="240" rx="46" ry="30" fill="#fff6e6" stroke-width="7"/>
+<ellipse cx="110" cy="280" rx="28" ry="20" fill="#fff6e6" stroke-width="7"/>
+<path d="M60 560c10-30 20-45 40-55 10 20 5 40-5 55zM500 560c-10-30-20-45-40-55-10 20-5 40 5 55z" fill="#5fa84a" stroke-width="7"/>
+<path d="M60 560h60M480 560h60" fill="none" stroke-width="7"/>
+<path d="M520 560c0-25 10-35 30-40 5 18 0 32-10 40z" fill="#e2452f" stroke-width="6"/>
+</g>
+<g fill="#fff59a" stroke="#c9a83a" stroke-width="3">
+<circle class="ff" cx="90" cy="420" r="9"/><circle class="ff f2" cx="500" cy="380" r="8"/><circle class="ff f3" cx="140" cy="520" r="7"/>
+</g>
+</svg>

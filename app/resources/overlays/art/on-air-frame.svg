@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.gl{animation:gl 2.6s ease-in-out infinite}
+@keyframes gl{0%,100%{opacity:1}45%{opacity:.75}50%{opacity:1}55%{opacity:.5}}
+.dot{animation:dt 1.2s steps(1) infinite}
+.d2{animation-delay:.4s}.d3{animation-delay:.8s}
+@keyframes dt{0%{opacity:1}50%{opacity:.2}}
+</style>
+<rect x="50" y="50" width="1100" height="300" rx="50" fill="#14090c" stroke="#101018" stroke-width="9"/>
+<g class="gl" fill="none" stroke="#ff3b3b" stroke-width="8" stroke-linecap="round">
+<rect x="72" y="72" width="1056" height="256" rx="34"/>
+<path d="M300 88h760M300 312h760" stroke="#ff9a8a" stroke-width="3"/>
+</g>
+<g fill="#ff3b3b" stroke="none">
+<circle class="dot" cx="100" cy="100" r="9"/><circle class="dot d2" cx="1100" cy="100" r="9"/><circle class="dot d3" cx="1100" cy="300" r="9"/><circle class="dot" cx="1100" cy="200" r="9"/>
+</g>
+<rect x="50" y="50" width="1100" height="300" rx="50" fill="none" stroke="#101018" stroke-width="9"/>
+</svg>

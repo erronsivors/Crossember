@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.lf{animation:fall 3.4s ease-in infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.l2{animation-delay:1.1s}.l3{animation-delay:2.2s}
+@keyframes fall{0%{transform:translate(0,-30px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translate(30px,120px) rotate(200deg);opacity:0}}
+.sw{animation:sw 3.2s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes sw{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+.eye{animation:blink 4s infinite;transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+</style>
+<ellipse cx="300" cy="566" rx="220" ry="13" fill="#3b2412" opacity=".22"/>
+<defs><path id="m" d="M0-34l8 14 14-8-2 18 18-6-10 14 14 6-26 4 2 18-14-12v20h-4v-20l-14 12 2-18-26-4 14-6-10-14 18 6-2-18 14 8z"/></defs>
+<g stroke="#3b2412" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<g class="sw">
+<path d="M300 200v280c0 40 50 40 50 0" fill="none" stroke-width="22"/>
+<path d="M300 200v280c0 40 50 40 50 0" fill="none" stroke="#7a4a2a" stroke-width="8"/>
+<path d="M60 250C70 110 190 60 300 60s230 50 240 190c-30-30-60-30-80 0-20-30-60-30-80 0-20-30-60-30-80 0-20-30-60-30-80 0-20-30-60-30-80 0z" fill="#e8721f"/>
+<path d="M300 60C260 100 230 170 220 250M300 60c40 40 70 110 80 190" fill="none" stroke-width="6"/>
+<path d="M300 60C290 130 280 190 280 250" fill="none" stroke="none"/>
+<path d="M300 60c-30 40-50 110-48 190c10-10 30-20 48 0z" fill="#f2a43a" stroke="none"/>
+<path d="M300 60c30 40 50 110 48 190c-10-10-30-20-48 0z" fill="#f2a43a" stroke="none" opacity="0"/>
+<path d="M300 52v-22" stroke-width="10"/>
+<g class="eye"><ellipse cx="260" cy="170" rx="11" ry="15" fill="#3b2412" stroke="none"/><circle cx="264" cy="164" r="4" fill="#fff" stroke="none"/></g>
+<g class="eye"><ellipse cx="340" cy="170" rx="11" ry="15" fill="#3b2412" stroke="none"/><circle cx="344" cy="164" r="4" fill="#fff" stroke="none"/></g>
+<path d="M280 198c10 14 30 14 40 0" fill="none" stroke-width="6"/>
+<ellipse cx="235" cy="196" rx="16" ry="9" fill="#ff9a7a" stroke="none" opacity=".7"/><ellipse cx="365" cy="196" rx="16" ry="9" fill="#ff9a7a" stroke="none" opacity=".7"/>
+</g>
+<g transform="translate(120 410) rotate(-20) scale(1.1)" fill="#d9631c"><use href="#m"/></g>
+<g transform="translate(470 470) rotate(25) scale(1.3)" fill="#b8301c"><use href="#m"/></g>
+<g transform="translate(200 520) rotate(60) scale(.9)" fill="#f2b21f"><use href="#m"/></g>
+<g class="lf" fill="#e8721f"><path d="M80 300c-14-14-4-30 10-24 10 6 6 20-10 24z"/></g>
+<g class="lf l2" fill="#f2b21f"><path d="M520 300c-14-14-4-30 10-24 10 6 6 20-10 24z"/></g>
+<g class="lf l3" fill="#b8301c"><path d="M40 380c-14-14-4-30 10-24 10 6 6 20-10 24z"/></g>
+</g>
+</svg>

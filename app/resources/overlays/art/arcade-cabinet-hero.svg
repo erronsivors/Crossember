@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" shape-rendering="crispEdges">
+<style>
+.scr{animation:scr 1.2s steps(2) infinite}
+@keyframes scr{0%,100%{opacity:1}50%{opacity:.55}}
+.led{animation:led 1s steps(2) infinite}.l2{animation-delay:.5s}
+@keyframes led{0%,100%{opacity:1}50%{opacity:.2}}
+.ball{animation:ball 1.6s ease-in-out infinite}
+@keyframes ball{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+</style>
+<rect x="140" y="540" width="320" height="20" fill="#000" opacity=".25"/>
+<rect x="160" y="60" width="280" height="40" fill="#1b1030"/>
+<rect x="140" y="100" width="320" height="460" fill="#1b1030"/>
+<rect x="160" y="80" width="280" height="20" fill="#ff3fa4"/>
+<rect x="180" y="60" width="240" height="20" fill="#3ff2ff"/>
+<rect x="160" y="120" width="20" height="360" fill="#3a2670"/><rect x="420" y="120" width="20" height="360" fill="#3a2670"/>
+<rect x="180" y="120" width="240" height="200" fill="#2d2060"/>
+<rect x="200" y="140" width="200" height="160" fill="#05151f"/>
+<g class="scr"><rect x="200" y="140" width="200" height="160" fill="#0b3a4a"/>
+<rect x="240" y="180" width="20" height="20" fill="#ff3fa4"/><rect x="280" y="180" width="20" height="20" fill="#ff3fa4"/><rect x="340" y="180" width="20" height="20" fill="#ff3fa4"/>
+<rect x="240" y="200" width="60" height="20" fill="#ff3fa4"/><rect x="260" y="220" width="20" height="20" fill="#ff3fa4"/>
+<rect x="220" y="160" width="20" height="20" fill="#ffd23f"/><rect x="360" y="160" width="20" height="20" fill="#ffd23f"/></g>
+<rect x="280" y="260" width="40" height="20" fill="#3ff2ff"/><rect x="290" y="270" width="20" height="10" fill="#fff"/>
+<g class="ball"><rect x="320" y="240" width="20" height="20" fill="#fff"/></g>
+<rect x="200" y="140" width="200" height="20" fill="#fff" opacity=".12"/>
+<rect x="140" y="320" width="320" height="40" fill="#ff3fa4"/>
+<rect x="140" y="320" width="320" height="10" fill="#ff8fcd"/>
+<rect x="140" y="360" width="320" height="120" fill="#2d2060"/>
+<rect x="160" y="380" width="280" height="80" fill="#3a2670"/>
+<rect x="220" y="380" width="20" height="30" fill="#8a8aa0"/><rect x="210" y="360" width="40" height="30" fill="#e8262b"/><rect x="210" y="360" width="20" height="10" fill="#ff8a8a"/>
+<rect x="190" y="420" width="80" height="20" fill="#0e0a20"/>
+<rect x="320" y="400" width="40" height="40" fill="#ffd23f"/><rect x="320" y="400" width="20" height="20" fill="#fff3a0"/>
+<rect x="380" y="400" width="40" height="40" fill="#3ff2ff"/><rect x="380" y="400" width="20" height="20" fill="#bffaff"/>
+<rect x="160" y="480" width="280" height="80" fill="#0e0a20"/>
+<rect x="260" y="500" width="80" height="20" fill="#05151f"/>
+<rect class="led" x="180" y="500" width="20" height="20" fill="#3ff2ff"/><rect class="led l2" x="400" y="500" width="20" height="20" fill="#ff3fa4"/>
+<rect x="140" y="100" width="20" height="460" fill="#0e0a20"/><rect x="440" y="100" width="20" height="460" fill="#0e0a20"/>
+</svg>

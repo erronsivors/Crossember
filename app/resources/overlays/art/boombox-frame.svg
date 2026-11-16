@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.sp{animation:pump .5s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.s2{animation-delay:.25s}
+@keyframes pump{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.eq{animation:eq 1.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom}
+.e2{animation-delay:.3s}.e3{animation-delay:.6s}
+@keyframes eq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
+</style>
+<g stroke="#101010" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<rect x="40" y="100" width="1120" height="270" rx="40" fill="#34344a"/>
+<rect x="190" y="124" width="820" height="226" rx="14" fill="#1b1b28" stroke="#ffd23a" stroke-width="4"/>
+<g class="sp"><circle cx="105" cy="260" r="46" fill="#1b1b28"/><circle cx="105" cy="260" r="24" fill="#ff5a5a" stroke-width="5"/></g>
+<g class="sp s2"><circle cx="1095" cy="260" r="46" fill="#1b1b28"/><circle cx="1095" cy="260" r="24" fill="#ff5a5a" stroke-width="5"/></g>
+<path d="M60 100c10-60 40-80 100-80M1140 100c-10-60-40-80-100-80" fill="none" stroke="#b5b5c4" stroke-width="10"/>
+<circle cx="105" cy="150" r="12" fill="#fff0c4" stroke-width="5"/><circle cx="1095" cy="150" r="12" fill="#fff0c4" stroke-width="5"/>
+</g>
+<g fill="#ffd23a" stroke="none">
+<rect class="eq" x="30" y="40" width="14" height="40" rx="3"/><rect class="eq e2" x="50" y="40" width="14" height="40" rx="3"/>
+<rect class="eq e3" x="1136" y="40" width="14" height="40" rx="3"/><rect class="eq e2" x="1156" y="40" width="14" height="40" rx="3" style="opacity:.0"/>
+</g>
+</svg>

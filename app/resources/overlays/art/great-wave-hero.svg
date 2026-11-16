@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.sp{animation:sp 3s ease-out infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.p2{animation-delay:1s}.p3{animation-delay:2s}
+@keyframes sp{0%{transform:translate(0,10px) scale(.5);opacity:0}30%{opacity:1}100%{transform:translate(-14px,-34px) scale(1);opacity:0}}
+.sea{animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.sun{animation:pl 4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pl{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+</style>
+<g stroke="#12203a" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+<circle class="sun" cx="470" cy="130" r="64" fill="#c8352b"/>
+<path d="M580 570V380C540 260 430 160 300 150 200 145 110 190 70 270c-10 20 0 30 15 25 15-35 65-65 115-60-30 35-10 65 30 65 30 0 60-30 50-60 60 30 100 100 100 180 0 60-40 100-80 130z" fill="#1f4e8c"/>
+<path d="M580 570V440C520 380 440 360 400 420c-10 60-40 100-80 150z" fill="#2e6bb0" stroke="none"/>
+<path d="M300 150C200 145 110 190 70 270c-10 20 0 30 15 25 15-35 65-65 115-60-30 35-10 65 30 65 30 0 60-30 50-60 30 15 55 40 70 70 0-60-40-120-120-140-30-8-60-10-90-10z" fill="#f4ecd8"/>
+<path d="M70 270l-18-20 24 6zM100 250l-14-22 22 10zM132 238l-6-24 18 14zM168 232l4-24 12 18zM210 232l16-18 2 22zM250 240l22-10-2 20z" fill="#f4ecd8"/>
+<path d="M300 150C400 160 500 230 540 320M360 215C430 250 470 310 480 380M420 260c30 30 50 70 50 110" fill="none" stroke="#f4ecd8" stroke-width="7"/>
+<path d="M150 360c40-20 90-10 110 30M200 440c30-14 70-4 90 24" fill="none" stroke="#f4ecd8" stroke-width="6"/>
+<g class="sea">
+<path d="M0 570V500c20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0 20-20 50-20 70 0V570z" fill="#1f4e8c" transform="translate(-10 0)"/>
+<path d="M40 540c20-14 40-14 60 0M160 540c20-14 40-14 60 0M280 540c20-14 40-14 60 0M400 540c20-14 40-14 60 0M520 540c20-14 40-14 60 0" fill="none" stroke="#f4ecd8" stroke-width="6"/>
+</g>
+</g>
+<g fill="#f4ecd8" stroke="#12203a" stroke-width="4">
+<circle class="sp" cx="60" cy="240" r="9"/><circle class="sp p2" cx="100" cy="215" r="7"/><circle class="sp p3" cx="40" cy="290" r="6"/>
+</g>
+</svg>

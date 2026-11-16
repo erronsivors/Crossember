@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.d{animation:dp 2.6s ease-in infinite;opacity:0}
+.d2{animation-delay:1.3s}
+@keyframes dp{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(24px);opacity:0}}
+</style>
+<g stroke-linejoin="round" stroke-linecap="round">
+<path d="M40 14H1160L1186 40V340H14V40z" fill="#1d1530" stroke="#0e0818" stroke-width="9"/>
+<path d="M46 322V52L60 38H1140L1154 52V322" fill="none" stroke="#4b2f7a" stroke-width="3"/>
+<path d="M14 330H1186V346C1176 346 1172 362 1160 362 1148 362 1146 346 1130 346H1030C1020 346 1018 376 1002 376 986 376 984 346 972 346H830C820 346 818 366 806 366 794 366 792 346 780 346H620C610 346 608 380 592 380 576 380 574 346 560 346H420C410 346 408 364 396 364 384 364 382 346 370 346H210C200 346 198 372 184 372 170 372 168 346 156 346H14z" fill="#a6ff4d" stroke="#12101a" stroke-width="7"/>
+<path d="M30 336H1170" stroke="#d3ff9c" stroke-width="5" fill="none"/>
+<g stroke="#cfc6ea" stroke-width="2.5" fill="none" opacity=".7">
+<path d="M1179 22h-60M1179 22l-3 62M1179 22l-18 57M1179 22l-33 47M1179 22l-47 30M1179 22l-57 16M1179 22l-62 4"/>
+<path d="M1149 22A30 30 0 0 0 1179 52M1139 22A40 40 0 0 0 1179 62M1124 22A55 55 0 0 0 1179 77"/>
+</g>
+</g>
+<g fill="#a6ff4d" stroke="#12101a" stroke-width="3"><circle class="d" cx="1002" cy="380" r="6"/><circle class="d d2" cx="592" cy="384" r="6"/></g>
+</svg>

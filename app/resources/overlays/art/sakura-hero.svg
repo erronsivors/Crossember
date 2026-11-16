@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.p{animation:pf 3.6s ease-in infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.p2{animation-delay:1.2s}.p3{animation-delay:2.4s}
+@keyframes pf{0%{transform:translate(0,-20px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translate(-40px,120px) rotate(160deg);opacity:0}}
+.sw{animation:sw 3.4s ease-in-out infinite;transform-box:fill-box;transform-origin:100% 100%}
+@keyframes sw{0%,100%{transform:rotate(0)}50%{transform:rotate(2deg)}}
+</style>
+<g stroke="#4a1f30" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<g class="sw">
+<path d="M560 560c-90-80-120-160-250-210C220 316 150 260 70 130" fill="none" stroke-width="30"/>
+<path d="M560 560c-90-80-120-160-250-210C220 316 150 260 70 130" fill="none" stroke="#7a4a3a" stroke-width="14"/>
+<path d="M300 345c-10-60 10-110 60-150M400 440c20-30 60-50 100-40M200 285c0-50-20-90-60-120" fill="none" stroke-width="18"/>
+<path d="M300 345c-10-60 10-110 60-150M400 440c20-30 60-50 100-40M200 285c0-50-20-90-60-120" fill="none" stroke="#7a4a3a" stroke-width="7"/>
+</g>
+<defs><g id="f">
+<path d="M0-8C-26-34-18-52 0-48 18-52 26-34 0-8zM8 0C34-26 52-18 48 0 52 18 34 26 8 0zM0 8C26 34 18 52 0 48-18 52-26 34 0 8zM-8 0C-34 26-52 18-48 0-52-18-34-26-8 0z" fill="#ffc0d6" stroke-width="5" transform="rotate(45)"/>
+<circle r="9" fill="#e2558a" stroke="none"/>
+</g></defs>
+<g transform="translate(150 160) scale(1.3)"><use href="#f"/></g>
+<g transform="translate(360 190) scale(1.7)"><use href="#f"/></g>
+<g transform="translate(215 300) scale(1.4)"><use href="#f"/></g>
+<g transform="translate(500 395) scale(1.5)"><use href="#f"/></g>
+<g transform="translate(305 350) scale(1.2)"><use href="#f"/></g>
+<g transform="translate(95 135) scale(1)"><use href="#f"/></g>
+<g transform="translate(440 285) scale(1.1)"><use href="#f"/></g>
+<g transform="translate(470 500) scale(1)"><use href="#f"/></g>
+</g>
+<g fill="#ffc0d6" stroke="#4a1f30" stroke-width="5" stroke-linejoin="round">
+<path class="p" d="M330 80c-20-20-4-40 10-30 12 10 4 26-10 30z"/>
+<path class="p p2" d="M220 60c-20-20-4-40 10-30 12 10 4 26-10 30z"/>
+<path class="p p3" d="M460 130c-20-20-4-40 10-30 12 10 4 26-10 30z"/>
+</g>
+</svg>

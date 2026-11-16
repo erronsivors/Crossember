@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.sun{animation:gl 3s ease-in-out infinite}
+@keyframes gl{0%,100%{opacity:1}50%{opacity:.8}}
+.gr{animation:mv 2s linear infinite}
+@keyframes mv{from{transform:translateY(0)}to{transform:translateY(30px)}}
+.pk{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes tw{0%,100%{transform:scale(.6);opacity:.4}50%{transform:scale(1.1);opacity:1}}
+</style>
+<defs>
+<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe94d"/><stop offset=".5" stop-color="#ff7a3d"/><stop offset="1" stop-color="#ff2f8e"/></linearGradient>
+<clipPath id="c"><rect x="0" y="0" width="600" height="560"/></clipPath>
+<clipPath id="g"><path d="M0 560V380h600v180z"/></clipPath>
+</defs>
+<g clip-path="url(#c)">
+<g class="sun">
+<circle cx="300" cy="300" r="210" fill="url(#s)" opacity=".28"/>
+<path d="M300 90a210 210 0 0 1 210 210v80H90v-80A210 210 0 0 1 300 90z" fill="url(#s)"/>
+</g>
+<g fill="#0b0a1f"><rect x="80" y="250" width="440" height="8"/><rect x="80" y="288" width="440" height="12"/><rect x="80" y="326" width="440" height="16"/><rect x="80" y="362" width="440" height="20"/></g>
+<path d="M0 380h600v180H0z" fill="#0b0a1f"/>
+<path d="M0 380h600" stroke="#00e5ff" stroke-width="8"/>
+<g clip-path="url(#g)" stroke="#ff2fd0" stroke-width="5" fill="none">
+<path d="M300 380L-100 560M300 380L20 560M300 380L160 560M300 380L300 560M300 380L440 560M300 380L580 560M300 380L700 560"/>
+<g class="gr"><path d="M0 400h600M0 430h600M0 470h600M0 520h600M0 590h600" stroke="#00e5ff" stroke-width="4"/></g>
+</g>
+<g fill="#00e5ff"><path class="pk" d="M110 130l8 18 18 8-18 8-8 18-8-18-18-8 18-8z"/><path class="pk" style="animation-delay:1s" d="M500 90l6 14 14 6-14 6-6 14-6-14-14-6 14-6z"/></g>
+</g>
+</svg>

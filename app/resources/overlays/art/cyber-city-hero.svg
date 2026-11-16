@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.w{animation:w 2.4s steps(1) infinite}
+.w2{animation-delay:.8s}.w3{animation-delay:1.6s}
+@keyframes w{0%{opacity:1}50%{opacity:.15}}
+.bk{animation:bk 1.6s ease-in-out infinite}
+@keyframes bk{0%,100%{opacity:.3}50%{opacity:1}}
+</style>
+<ellipse cx="300" cy="566" rx="280" ry="14" fill="#ff2fd0" opacity=".35"/>
+<g stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+<path d="M40 560V330h80v230z" fill="#16123f" stroke="#2fe8ff"/>
+<path d="M400 560V300h110v260z" fill="#16123f" stroke="#2fe8ff"/>
+<path d="M140 560V180h100v380z" fill="#1d1752" stroke="#ff2fd0"/>
+<path d="M250 560V90h110v470z" fill="#1d1752" stroke="#ff2fd0"/>
+<path d="M370 560V230h50v330z" fill="#241a66" stroke="#2fe8ff"/>
+<path d="M505 560V400h60v160z" fill="#16123f" stroke="#ff2fd0"/>
+<path d="M305 90V35" fill="none" stroke="#ff2fd0"/>
+<path d="M190 180v-35" fill="none" stroke="#2fe8ff"/>
+<path d="M450 300v-30" fill="none" stroke="#2fe8ff"/>
+</g>
+<circle class="bk" cx="305" cy="30" r="9" fill="#ff5a7a"/><circle class="bk" cx="190" cy="140" r="7" fill="#ff5a7a"/>
+<rect x="268" y="180" width="74" height="40" rx="6" fill="#ff2fd0"/><path d="M280 200h50" stroke="#16123f" stroke-width="8" stroke-linecap="round"/>
+<g fill="#ffe27a">
+<rect class="w" x="160" y="220" width="16" height="14"/><rect class="w w2" x="200" y="220" width="16" height="14"/><rect class="w w3" x="160" y="270" width="16" height="14"/><rect class="w" x="200" y="320" width="16" height="14"/><rect class="w w2" x="160" y="370" width="16" height="14"/><rect class="w w3" x="200" y="420" width="16" height="14"/>
+<rect class="w2" x="270" y="260" width="16" height="14"/><rect class="w" x="320" y="260" width="16" height="14"/><rect class="w3" x="270" y="330" width="16" height="14"/><rect class="w2" x="320" y="400" width="16" height="14"/><rect class="w" x="270" y="470" width="16" height="14"/>
+</g>
+<g fill="#8ff4ff">
+<rect class="w3" x="60" y="370" width="14" height="12"/><rect class="w" x="90" y="440" width="14" height="12"/><rect class="w2" x="420" y="340" width="14" height="12"/><rect class="w3" x="470" y="420" width="14" height="12"/><rect class="w" x="420" y="480" width="14" height="12"/><rect class="w2" x="385" y="290" width="14" height="12"/>
+</g>
+<path d="M60 560V500M130 560V520" stroke="#ff2fd0" stroke-width="5" opacity=".0"/>
+</svg>

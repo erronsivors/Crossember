@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.tw{animation:tw 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.7s}.t3{animation-delay:1.4s}
+@keyframes tw{0%,100%{transform:scale(.4);opacity:.3}50%{transform:scale(1.2);opacity:1}}
+.ob{animation:ob 4s linear infinite;transform-box:view-box;transform-origin:1150px 48px}
+@keyframes ob{to{transform:rotate(360deg)}}
+</style>
+<g stroke-linejoin="round" stroke-linecap="round">
+<rect x="150" y="50" width="1000" height="300" rx="50" fill="#120c2e" stroke="#0a0620" stroke-width="9"/>
+<path d="M175 330c200 50 600 50 950 -20" fill="none" stroke="#ffb36b" stroke-width="5" stroke-dasharray="4 14" opacity=".8"/>
+<circle cx="1150" cy="48" r="26" fill="#ff9a4a" stroke="#0a0620" stroke-width="7"/>
+<ellipse cx="1150" cy="50" rx="46" ry="10" fill="none" stroke="#ffd9a8" stroke-width="7" transform="rotate(-18 1150 50)"/>
+<path d="M1070 84c18 8 50 8 78-8" fill="none" stroke="#ffc07a" stroke-width="5" opacity="0"/>
+</g>
+<g class="ob"><circle cx="1150" cy="6" r="7" fill="#bfd0f0" stroke="#0a0620" stroke-width="4"/></g>
+<g fill="#fff"><circle cx="220" cy="90" r="3"/><circle cx="480" cy="330" r="2"/><circle cx="900" cy="320" r="3"/><circle cx="1050" cy="300" r="2"/></g>
+<g fill="#ffe0b0" stroke="#0a0620" stroke-width="4" stroke-linejoin="round">
+<path class="tw" d="M200 300l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+<path class="tw t2" d="M1090 290l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+<path class="tw t3" d="M700 78l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

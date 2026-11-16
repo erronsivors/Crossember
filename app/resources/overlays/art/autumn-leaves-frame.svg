@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.lf{animation:fall 3.6s ease-in infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.l2{animation-delay:1.2s}.l3{animation-delay:2.4s}
+@keyframes fall{0%{transform:translate(0,-10px) rotate(0);opacity:0}15%{opacity:1}100%{transform:translate(20px,60px) rotate(180deg);opacity:0}}
+</style>
+<defs><path id="m" d="M0-30l7 12 12-7-2 16 16-5-9 12 12 5-23 4 2 16-12-10v18h-4v-18l-12 10 2-16-23-4 12-5-9-12 16 5-2-16 12 7z"/></defs>
+<g stroke="#3b2412" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M60 200C60 100 160 50 260 55c110 5 160-25 260-10 120 18 190 10 300 0s200 10 270 60c40 30 50 80 30 140-20 60-80 90-150 90-120 0-170 20-290 15s-180-30-290-10S60 330 60 200z" fill="#fff1de"/>
+<path d="M110 200c0-70 60-100 150-102 110-3 160-22 260-8 120 16 190 10 300-4 70 0 110 30 150 70 30 30 25 70 5 100-20 30-60 50-110 50-120 0-170 20-290 12s-180-24-290-6c-90 14-175-10-175-112z" fill="none" stroke="#e8b782" stroke-width="5" stroke-dasharray="2 14"/>
+<path d="M1140 330c-60-10-100 20-110 60M1060 70c40-40 80-40 110-30" fill="none" stroke="#7a4a2a" stroke-width="10"/>
+</g>
+<g stroke="#3b2412" stroke-width="5" stroke-linejoin="round">
+<g transform="translate(1100 350) rotate(20)" fill="#d9631c"><use href="#m"/></g>
+<g transform="translate(70 60) rotate(-30) scale(1.1)" fill="#b8301c"><use href="#m"/></g>
+<g transform="translate(1120 90) rotate(40) scale(.8)" fill="#f2b21f"><use href="#m"/></g>
+<g class="lf" fill="#e8721f"><path d="M900 40c-12-12-3-26 9-21 9 5 5 17-9 21z"/></g>
+<g class="lf l2" fill="#f2b21f"><path d="M600 30c-12-12-3-26 9-21 9 5 5 17-9 21z"/></g>
+<g class="lf l3" fill="#b8301c"><path d="M300 30c-12-12-3-26 9-21 9 5 5 17-9 21z"/></g>
+</g>
+</svg>

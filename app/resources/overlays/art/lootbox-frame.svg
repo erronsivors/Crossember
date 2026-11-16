@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" shape-rendering="crispEdges">
+<style>
+.sp{animation:sp 1.6s steps(2) infinite}.s2{animation-delay:.8s}
+@keyframes sp{0%,100%{opacity:1}50%{opacity:.15}}
+</style>
+<path d="M130 80h940v20h20v240h-20v20H130v-20h-20V100h20z" fill="#14082c"/>
+<path d="M140 90h920v10h10v220h-10v10H140v-10h-10V100h10z" fill="#b06bff"/>
+<path d="M150 100h900v10h10v200h-10v10H150v-10h-10V110h10z" fill="#24104a"/>
+<rect x="160" y="110" width="880" height="200" fill="#1c0c3a"/>
+<g fill="#2a1452"><rect x="160" y="150" width="880" height="4"/><rect x="160" y="230" width="880" height="4"/></g>
+<rect x="80" y="80" width="60" height="30" fill="#ffd23f"/><rect x="80" y="80" width="30" height="60" fill="#ffd23f"/>
+<rect x="1060" y="80" width="60" height="30" fill="#ffd23f"/><rect x="1090" y="80" width="30" height="60" fill="#ffd23f"/>
+<rect x="80" y="340" width="60" height="30" fill="#ffd23f"/><rect x="80" y="310" width="30" height="60" fill="#ffd23f"/>
+<rect x="1060" y="340" width="60" height="30" fill="#ffd23f"/><rect x="1090" y="310" width="30" height="60" fill="#ffd23f"/>
+<g fill="#fff"><rect class="sp" x="1120" y="190" width="20" height="20"/><rect class="sp s2" x="60" y="190" width="20" height="20"/></g>
+<rect x="520" y="60" width="160" height="14" fill="#b06bff"/>
+</svg>

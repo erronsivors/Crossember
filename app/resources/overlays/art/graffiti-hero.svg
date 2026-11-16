@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.cl{animation:pu 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pu{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.dr{animation:pu 1.8s ease-in-out infinite .5s;transform-box:fill-box;transform-origin:center}
+</style>
+<defs><g id="c"><circle cx="330" cy="170" r="85"/><circle cx="420" cy="115" r="65"/><circle cx="500" cy="175" r="70"/><circle cx="440" cy="225" r="70"/><circle cx="370" cy="235" r="50"/></g></defs>
+<ellipse cx="210" cy="568" rx="130" ry="12" fill="#000" opacity=".3"/>
+<g stroke="#0b1f12" stroke-width="9" stroke-linejoin="round" stroke-linecap="round" fill="#3fff8a">
+<path d="M345 270v60c0 25 26 25 26 0v-50zM430 285v95c0 30 30 30 30 0v-85zM510 240v50c0 20 24 20 24 0v-45z"/>
+</g>
+<g class="cl">
+<use href="#c" fill="#0b1f12" stroke="#0b1f12" stroke-width="18" stroke-linejoin="round"/>
+<use href="#c" fill="#3fff8a"/>
+<path d="M370 250c40 30 110 30 150-20-10 50-60 85-130 70z" fill="#1fc96a"/>
+<ellipse cx="305" cy="140" rx="30" ry="16" fill="#c9ffe0" transform="rotate(-30 305 140)"/>
+<ellipse cx="410" cy="88" rx="16" ry="9" fill="#c9ffe0" transform="rotate(-20 410 88)"/>
+</g>
+<g class="dr" fill="#3fff8a" stroke="#0b1f12" stroke-width="5"><circle cx="560" cy="290" r="9"/><circle cx="545" cy="330" r="6"/><circle cx="300" cy="290" r="8"/><circle cx="555" cy="95" r="8"/><circle cx="270" cy="85" r="7"/></g>
+<g fill="#3fff8a" stroke="#0b1f12" stroke-width="4"><circle cx="165" cy="218" r="7"/><circle cx="190" cy="200" r="5"/><circle cx="205" cy="228" r="6"/><circle cx="232" cy="198" r="8"/></g>
+<g transform="translate(250 560) rotate(-28) scale(.85)" stroke="#0d0d12" stroke-width="10" stroke-linejoin="round" stroke-linecap="round">
+<path d="M12 -428h36v14h-36z" fill="#e9e9ef"/>
+<path d="M-62 -290V-20q0 20 20 20h84q20 0 20-20V-290z" fill="#3b4152" stroke="none"/>
+<rect x="-62" y="-225" width="124" height="130" fill="#3fff8a" stroke="none"/>
+<path d="M-40 -150q15-45 25 0t25 0 25 0" fill="none" stroke-width="11"/>
+<rect x="-44" y="-286" width="14" height="255" fill="#fff" opacity=".25" stroke="none"/>
+<path d="M-62 -290V-20q0 20 20 20h84q20 0 20-20V-290z" fill="none"/>
+<path d="M-62 -290q0-40 30-52h64q30 12 30 52z" fill="#4b5368"/>
+<path d="M-38 -338h76v-58q0-14-14-14h-48q-14 0-14 14z" fill="#ff4f6d"/>
+<rect x="-17" y="-436" width="34" height="26" rx="7" fill="#e9e9ef"/>
+</g>
+</svg>

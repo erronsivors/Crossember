@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.wl{animation:wl 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:right center}
+.wr{animation:wr 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:left center}
+@keyframes wl{0%,100%{transform:rotate(0)}50%{transform:rotate(-8deg)}}
+@keyframes wr{0%,100%{transform:rotate(0)}50%{transform:rotate(8deg)}}
+.fl{animation:fl 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center top}
+.f2{animation-delay:.5s}
+@keyframes fl{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.15)}}
+.sk{animation:sk 2.6s ease-out infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+.k2{animation-delay:1.3s}
+@keyframes sk{0%{transform:translateY(20px) scale(.5);opacity:0}30%{opacity:1}100%{transform:translateY(-50px) scale(1);opacity:0}}
+</style>
+<defs><radialGradient id="g"><stop offset="0" stop-color="#ffd25a" stop-opacity=".7"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient></defs>
+<circle cx="300" cy="300" r="270" fill="url(#g)"/>
+<g stroke="#4a1608" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<g class="fl"><path d="M300 360c-70 40-80 120-50 200 20-50 40-60 50-60s30 10 50 60c30-80 20-160-50-200z" fill="#e8441a"/>
+<path d="M300 400c-30 30-30 80-15 120 8-20 12-25 15-25s7 5 15 25c15-40 15-90-15-120z" fill="#ffc83a" stroke="none"/></g>
+<path class="wl" d="M270 250C200 170 90 150 20 190c40 5 70 20 80 40-35-5-65 5-80 25 40 0 70 15 85 35-30 5-50 20-55 40 70-10 140-5 180 40z" fill="#ff7a1f"/>
+<path class="wr" d="M330 250c70-80 180-100 250-60-40 5-70 20-80 40 35-5 65 5 80 25-40 0-70 15-85 35 30 5 50 20 55 40-70-10-140-5-180 40z" fill="#ff7a1f"/>
+<path d="M120 230l100 40M105 275l115 15M120 325l105 -5M480 230l-100 40M495 275l-115 15M480 325l-105-5" fill="none" stroke="#ffd25a" stroke-width="7"/>
+<path d="M300 200c-70 0-80 90-55 170 20 30 90 30 110 0 25-80 15-170-55-170z" fill="#ff9a2e"/>
+<path d="M300 300c-30 10-40 50-25 80 15 15 35 15 50 0 15-30 5-70-25-80z" fill="#ffd25a" stroke="none"/>
+<path d="M300 80l-18 55M300 80l20 50M300 80l-45 45" fill="none" stroke="#e8441a" stroke-width="14"/>
+<path d="M300 85c25 30 45 55 30 75l-30 10-30-10c-15-20 5-45 30-75z" fill="#e8441a"/>
+<circle cx="300" cy="170" r="62" fill="#ff9a2e"/>
+<path d="M300 195l-22 22 22 25 22-25z" fill="#ffd25a"/>
+<path d="M300 195v47" fill="none" stroke-width="5"/>
+<ellipse cx="272" cy="165" rx="12" ry="16" fill="#2b0d05"/><ellipse cx="328" cy="165" rx="12" ry="16" fill="#2b0d05"/>
+<circle cx="276" cy="159" r="4" fill="#fff" stroke="none"/><circle cx="332" cy="159" r="4" fill="#fff" stroke="none"/>
+<path d="M255 142l30 10M345 142l-30 10" fill="none" stroke-width="6"/>
+</g>
+<g fill="#ffe27a" stroke="#4a1608" stroke-width="4" stroke-linejoin="round">
+<path class="sk" d="M80 120l7 15 15 7-15 7-7 15-7-15-15-7 15-7z"/>
+<path class="sk k2" d="M510 110l7 15 15 7-15 7-7 15-7-15-15-7 15-7z"/>
+</g>
+</svg>

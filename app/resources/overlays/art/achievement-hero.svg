@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" shape-rendering="crispEdges">
+<style>
+.sp{animation:sp 1.8s steps(2) infinite}.s2{animation-delay:.6s}.s3{animation-delay:1.2s}
+@keyframes sp{0%,100%{opacity:1}50%{opacity:.1}}
+.sh{animation:sh 2.4s ease-in-out infinite}
+@keyframes sh{0%,100%{opacity:0}50%{opacity:.6}}
+</style>
+<rect x="140" y="540" width="320" height="20" fill="#000" opacity=".25"/>
+<g fill="#3f9b3a"><rect x="100" y="300" width="20" height="120"/><rect x="120" y="260" width="20" height="40"/><rect x="120" y="420" width="20" height="40"/><rect x="140" y="460" width="20" height="40"/><rect x="160" y="480" width="40" height="20"/><rect x="80" y="340" width="20" height="40"/><rect x="140" y="220" width="20" height="40"/>
+<rect x="480" y="300" width="20" height="120"/><rect x="460" y="260" width="20" height="40"/><rect x="460" y="420" width="20" height="40"/><rect x="440" y="460" width="20" height="40"/><rect x="400" y="480" width="40" height="20"/><rect x="500" y="340" width="20" height="40"/><rect x="440" y="220" width="20" height="40"/></g>
+<g fill="#6dd36a"><rect x="100" y="320" width="20" height="40"/><rect x="480" y="320" width="20" height="40"/><rect x="120" y="270" width="20" height="20"/><rect x="460" y="270" width="20" height="20"/></g>
+<rect x="240" y="480" width="120" height="60" fill="#3b2410"/><rect x="220" y="520" width="160" height="40" fill="#3b2410"/>
+<rect x="240" y="500" width="120" height="40" fill="#8a5a2a"/><rect x="220" y="540" width="160" height="20" fill="#b8793a"/>
+<rect x="260" y="440" width="80" height="60" fill="#e0a800"/><rect x="260" y="440" width="20" height="60" fill="#ffd23f"/>
+<rect x="160" y="80" width="280" height="40" fill="#8a5d00"/>
+<rect x="140" y="100" width="320" height="60" fill="#8a5d00"/>
+<rect x="160" y="120" width="280" height="140" fill="#8a5d00"/><rect x="180" y="260" width="240" height="40" fill="#8a5d00"/><rect x="220" y="300" width="160" height="40" fill="#8a5d00"/><rect x="260" y="340" width="80" height="60" fill="#8a5d00"/>
+<rect x="180" y="100" width="240" height="40" fill="#ffc531"/>
+<rect x="160" y="120" width="280" height="140" fill="#ffc531"/><rect x="200" y="260" width="200" height="20" fill="#ffc531"/><rect x="240" y="280" width="120" height="40" fill="#ffc531"/><rect x="280" y="320" width="40" height="60" fill="#ffc531"/>
+<rect x="180" y="120" width="40" height="140" fill="#fff0a0"/><rect x="220" y="120" width="20" height="60" fill="#fff0a0"/>
+<rect x="380" y="140" width="40" height="120" fill="#e09a10"/><rect x="340" y="260" width="40" height="20" fill="#e09a10"/>
+<rect x="100" y="120" width="40" height="20" fill="#8a5d00"/><rect x="80" y="140" width="20" height="60" fill="#8a5d00"/><rect x="100" y="200" width="60" height="20" fill="#8a5d00"/><rect x="140" y="180" width="20" height="20" fill="#8a5d00"/>
+<rect x="460" y="120" width="40" height="20" fill="#8a5d00"/><rect x="500" y="140" width="20" height="60" fill="#8a5d00"/><rect x="440" y="200" width="60" height="20" fill="#8a5d00"/><rect x="440" y="180" width="20" height="20" fill="#8a5d00"/>
+<g fill="#8a5d00"><rect x="280" y="150" width="40" height="20"/><rect x="260" y="170" width="80" height="20"/><rect x="240" y="190" width="120" height="20"/><rect x="260" y="210" width="80" height="20"/><rect x="280" y="230" width="40" height="20"/></g>
+<g fill="#fff6c0"><rect x="290" y="160" width="20" height="20"/><rect x="270" y="180" width="60" height="20"/><rect x="250" y="190" width="100" height="10"/><rect x="270" y="200" width="60" height="20"/><rect x="290" y="220" width="20" height="20"/></g>
+<rect class="sh" x="180" y="300" width="20" height="100" fill="#fff" transform="skewX(0)" opacity="0"/>
+<g fill="#fff"><rect class="sp" x="60" y="80" width="20" height="60"/><rect class="sp" x="40" y="100" width="60" height="20"/>
+<rect class="sp s2" x="500" y="60" width="20" height="60"/><rect class="sp s2" x="480" y="80" width="60" height="20"/>
+<rect class="sp s3" x="450" y="320" width="20" height="20"/><rect class="sp s3" x="130" y="380" width="20" height="20"/></g>
+</svg>

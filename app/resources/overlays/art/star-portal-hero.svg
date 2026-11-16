@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.sp{animation:sp 4s linear infinite;transform-box:view-box;transform-origin:300px 300px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tw{animation:tw 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.7s}.t3{animation-delay:1.4s}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.4}50%{transform:scale(1.2);opacity:1}}
+</style>
+<defs><radialGradient id="c"><stop offset="0" stop-color="#e8d2ff"/><stop offset=".35" stop-color="#6a3cc8"/><stop offset="1" stop-color="#150a3c"/></radialGradient></defs>
+<g stroke="#1a0d3d" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M170 560l15-45h230l15 45z" fill="#5a4a86"/>
+<circle cx="300" cy="300" r="240" fill="#6b5aa6"/>
+<circle cx="300" cy="300" r="190" fill="url(#c)"/>
+</g>
+<g fill="none" stroke="#c38bff" stroke-width="12" stroke-dasharray="46 22" stroke-linecap="round"><circle cx="300" cy="300" r="215"/></g>
+<g class="sp" fill="none" stroke-linecap="round">
+<path d="M300 300c40-5 55 35 25 55-45 28-95-15-75-70 25-65 120-60 150 5 25 65-35 125-105 120" stroke="#ff9ef0" stroke-width="9"/>
+<path d="M300 300c-30 10-30 45 0 50 30 5 50-25 40-50-15-35-70-35-85 5" stroke="#8fe8ff" stroke-width="8"/>
+<path d="M165 300c0-70 50-125 135-125" stroke="#e8d2ff" stroke-width="7"/>
+<path d="M435 300c0 70-50 125-135 125" stroke="#e8d2ff" stroke-width="7"/>
+</g>
+<circle cx="300" cy="300" r="26" fill="#fff"/>
+<g fill="#fff3a0" stroke="#1a0d3d" stroke-width="4" stroke-linejoin="round">
+<path class="tw" d="M300 40l8 18 18 8-18 8-8 18-8-18-18-8 18-8z"/>
+<path class="tw t2" d="M70 250l7 15 15 7-15 7-7 15-7-15-15-7 15-7z"/>
+<path class="tw t3" d="M530 360l7 15 15 7-15 7-7 15-7-15-15-7 15-7z"/>
+</g>
+</svg>

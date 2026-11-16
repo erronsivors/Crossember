@@ -7,6 +7,8 @@ import type { AlertTemplate, Layer, ObsAction } from './templates'
 import type { RulePlan } from './rules'
 import { cleanForSpeech, type WindowsTts } from './tts'
 import { moneyWords, numberWords, numbersToWords, plural } from './ruwords'
+import { artPath } from './art'
+import { packPath } from './alertpack'
 
 /** Кусок текста: обычный текст или сумма (выделяется цветом). */
 export type AlertTitlePart = { t: 'text' | 'amount'; v: string }
@@ -214,7 +216,7 @@ export class AlertEngine extends EventEmitter {
         out.parts = parts(l.text, e)
       } else if (l.type === 'image' || l.type === 'video') {
         if (!l.media) continue
-        out.src = `/m/${l.media.slice(2)}`
+        out.src = artPath(l.media) || packPath(l.media) || `/m/${l.media.slice(2)}`
         out.vol = (l.volume / 100) * master
       } else if (l.type === 'sound') {
         if (l.sound === 'none') continue

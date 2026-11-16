@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.bm{animation:bm 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes bm{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.06) rotate(2deg)}}
+.sp{animation:sp 1.2s steps(2) infinite;transform-box:fill-box;transform-origin:center}.s2{animation-delay:.6s}
+@keyframes sp{0%,100%{opacity:1}50%{opacity:0}}
+</style>
+<defs><pattern id="h" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><circle cx="12" cy="12" r="6" fill="#e8262b"/></pattern></defs>
+<ellipse cx="300" cy="555" rx="190" ry="14" fill="#000" opacity=".2"/>
+<g class="bm" stroke="#111" stroke-width="10" stroke-linejoin="round">
+<path d="M300 30l50 110 100-70-30 120 120 10-95 80 95 80-125 10 35 110-110-60-40 110-50-110-110 70 30-120-120-10 95-80-95-80 125-10-35-110 110 60z" fill="#ffe14a"/>
+<path d="M300 110l36 80 72-40-20 90 80 20-70 50 65 60-90 10 20 80-80-40-40 70-40-70-80 40 20-80-90-10 65-60-70-50 80-20-20-90 72 40z" fill="#e8262b"/>
+<path d="M300 110l36 80 72-40-20 90 80 20-70 50 65 60-90 10 20 80-80-40-40 70-40-70-80 40 20-80-90-10 65-60-70-50 80-20-20-90 72 40z" fill="url(#h)" stroke="none" opacity=".0"/>
+<path d="M180 330l-20-80 72 30zM170 410l10 70 60-40z" fill="url(#h)" stroke="none"/>
+<path d="M300 170l22 60 58-24-18 62 60 14-52 40 48 44-68 8 14 62-62-30-30 50-30-50-62 30 14-62-68-8 48-44-52-40 60-14-18-62 58 24z" fill="#fff" stroke-width="8"/>
+<path d="M300 210l40 60M270 330l-40 50M340 340l40 40" stroke="#111" stroke-width="12" fill="none" stroke-linecap="round"/>
+<path d="M245 290l25 15M355 290l-25 15" stroke-width="12" fill="none" stroke-linecap="round"/>
+<path d="M255 360q45 35 90 0" fill="#e8262b" stroke-width="10"/>
+</g>
+<path class="sp" d="M70 90l20 40 40-20-20 40 40 20-45 8 5 45-30-35-40 25 15-45-40-15 45-10z" fill="#ffe14a" stroke="#111" stroke-width="6" stroke-linejoin="round"/>
+<path class="sp s2" d="M500 440l14 28 28-14-14 28 28 14-31 6 3 31-20-24-28 17 11-31-28-11 31-7z" fill="#ffe14a" stroke="#111" stroke-width="6" stroke-linejoin="round"/>
+</svg>

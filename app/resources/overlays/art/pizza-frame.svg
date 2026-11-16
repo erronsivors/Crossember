@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.st{animation:rise 2.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center bottom;opacity:0}
+.s2{animation-delay:1.4s}
+@keyframes rise{0%{transform:translateY(15px) scaleY(.6);opacity:0}30%{opacity:.8}100%{transform:translateY(-30px) scaleY(1.1);opacity:0}}
+</style>
+<defs><pattern id="ck" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#fff4e0"/><rect width="20" height="20" fill="#f2cdbd"/><rect x="20" y="20" width="20" height="20" fill="#f2cdbd"/></pattern></defs>
+<g stroke="#3a1a0e" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M130 60h1040v280H130z" fill="#c9923f"/>
+<path d="M150 80h1000v240H150z" fill="#fff9ee" stroke-width="6"/>
+<path d="M130 60l20 20M1170 60l-20 20M130 340l20-20M1170 340l-20-20" stroke-width="6" fill="none"/>
+<path d="M1060 80h90v90z" fill="#d8371f" stroke-width="6"/>
+<path d="M150 296h1000v24H150z" fill="url(#ck)" stroke-width="5"/>
+<path d="M150 80h200v22H150z" fill="url(#ck)" stroke-width="5"/>
+<circle cx="1105" cy="125" r="9" fill="#fbe27a" stroke-width="5"/>
+</g>
+<g fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round">
+<path class="st" d="M1050 60c-12-15 12-22 0-40"/>
+<path class="st s2" d="M1100 60c-12-15 12-22 0-40"/>
+</g>
+</svg>

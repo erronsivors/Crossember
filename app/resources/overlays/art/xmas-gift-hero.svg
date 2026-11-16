@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.l{animation:bl 2s ease-in-out infinite}
+.l2{animation-delay:.5s}.l3{animation-delay:1s}.l4{animation-delay:1.5s}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
+.st{animation:sp 3s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes sp{0%,100%{transform:rotate(-8deg) scale(1)}50%{transform:rotate(8deg) scale(1.15)}}
+</style>
+<ellipse cx="300" cy="562" rx="250" ry="14" fill="#000" opacity=".18"/>
+<g stroke="#10281c" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<rect x="268" y="500" width="64" height="60" fill="#7a4a24"/>
+<path d="M300 270L480 520H120z" fill="#1f7a4a"/>
+<path d="M300 180L440 390H160z" fill="#2a9158"/>
+<path d="M300 90L400 250H200z" fill="#35a866"/>
+<path d="M200 330c40 20 80 20 100 0M250 440c50 25 110 25 160 0M170 470c30 15 60 15 80 5" fill="none" stroke="#ffd54a" stroke-width="6"/>
+<path class="st" d="M300 40l14 32 34 4-26 22 8 34-30-18-30 18 8-34-26-22 34-4z" fill="#ffd54a"/>
+<circle class="l" cx="260" cy="338" r="12" fill="#ff4b4b"/>
+<circle class="l l2" cx="330" cy="352" r="12" fill="#4bb6ff"/>
+<circle class="l l3" cx="330" cy="215" r="11" fill="#ff4b4b"/>
+<circle class="l l4" cx="268" cy="212" r="11" fill="#ffd54a"/>
+<circle class="l l2" cx="215" cy="468" r="13" fill="#4bb6ff"/>
+<circle class="l" cx="300" cy="456" r="13" fill="#ffd54a"/>
+<circle class="l l3" cx="385" cy="470" r="13" fill="#ff4b4b"/>
+<rect x="90" y="470" width="130" height="90" rx="8" fill="#3b82d6"/>
+<path d="M155 470v90M90 515h130" stroke="#ffd54a" stroke-width="16"/>
+<rect x="350" y="400" width="190" height="160" rx="10" fill="#d93a3a"/>
+<rect x="340" y="378" width="210" height="48" rx="10" fill="#e84c4c"/>
+<path d="M445 378v182" stroke="#ffd54a" stroke-width="30"/>
+<path d="M445 378c-60-60-100-20-70 0zM445 378c60-60 100-20 70 0z" fill="#ffd54a"/>
+<circle cx="445" cy="378" r="16" fill="#f2b81f"/>
+<path d="M352 440l30 0M540 500l-30 0" stroke="#fff" stroke-width="6" opacity=".6"/>
+</g>
+</svg>

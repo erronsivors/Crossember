@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400">
+<style>
+.dr{animation:dr 3s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 0}
+.d2{animation-delay:1.5s}
+@keyframes dr{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.3)}}
+.tw{animation:tw 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes tw{0%,100%{transform:scale(.5);opacity:.3}50%{transform:scale(1.1);opacity:1}}
+</style>
+<g stroke="#3a2440" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M140 60h1020l10 20v250l-10 20H140z" fill="#fff6e4" transform="translate(0 0)"/>
+<path d="M140 60h1020v26H140z" fill="#ff9ec4"/>
+<path d="M140 86c15 0 15 30 30 30s15-30 30-30 15 36 30 36 15-36 30-36 15 24 30 24 15-24 30-24 15 30 30 30 15-30 30-30" fill="none" stroke-width="0"/>
+<path class="dr" d="M300 86h50v34c0 14-50 14-50 0z" fill="#ff9ec4" stroke-width="7"/>
+<path class="dr d2" d="M900 86h50v44c0 14-50 14-50 0z" fill="#ff9ec4" stroke-width="7"/>
+<path d="M140 330h1030v20l-10 20H140z" fill="#e8b36a" stroke-width="0"/>
+<path d="M140 320h1030v50H140z" fill="#e8b36a"/>
+<path d="M200 320l50 50M300 320l50 50M400 320l50 50M500 320l50 50M600 320l50 50M700 320l50 50M800 320l50 50M900 320l50 50M1000 320l50 50M1100 320l50 50M250 320l-50 50M350 320l-50 50M450 320l-50 50M550 320l-50 50M650 320l-50 50M750 320l-50 50M850 320l-50 50M950 320l-50 50M1050 320l-50 50M1150 320l-50 50" stroke="#c2873a" stroke-width="4" fill="none"/>
+<path d="M140 320h1030" stroke-width="9" fill="none"/>
+<circle cx="1120" cy="200" r="22" fill="#d8223a"/>
+<path d="M1120 178c-5-20 5-30 20-34" fill="none" stroke="#3f8a3a" stroke-width="6"/>
+</g>
+<g fill="#fff3a0" stroke="#3a2440" stroke-width="5" stroke-linejoin="round">
+<path class="tw" d="M1100 130l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+<path class="tw" style="animation-delay:1.2s" d="M1130 290l5 11 11 5-11 5-5 11-5-11-11-5 11-5z"/>
+</g>
+</svg>

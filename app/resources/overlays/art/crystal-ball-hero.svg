@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+<style>
+.fg{animation:dr 4s ease-in-out infinite}
+@keyframes dr{0%,100%{transform:translateX(-14px)}50%{transform:translateX(14px)}}
+.tw{animation:tw 2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.t2{animation-delay:.6s}.t3{animation-delay:1.2s}
+@keyframes tw{0%,100%{transform:scale(.3);opacity:.3}50%{transform:scale(1.2);opacity:1}}
+</style>
+<defs>
+<radialGradient id="b" cx=".4" cy=".35"><stop offset="0" stop-color="#b79cff"/><stop offset=".6" stop-color="#5a3ea8"/><stop offset="1" stop-color="#24134f"/></radialGradient>
+<clipPath id="k"><circle cx="300" cy="300" r="190"/></clipPath>
+</defs>
+<g stroke="#1d0f3f" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+<path d="M130 560c10-40 20-60 60-80h220c40 20 50 40 60 80z" fill="#e0a82e"/>
+<path d="M170 520h260" fill="none" stroke="#b07a14" stroke-width="7"/>
+<path d="M190 480c0-25 40-40 110-40s110 15 110 40z" fill="#f3c24a"/>
+<circle cx="300" cy="300" r="190" fill="url(#b)"/>
+<g clip-path="url(#k)" stroke="none">
+<g class="fg"><path d="M60 360c60-40 100 20 160-10s90 30 160 0 100 20 160-10v200H60z" fill="#ffd1f4" opacity=".55"/></g>
+<path d="M60 430c70-30 110 10 170-5s100 25 170 0 90 10 140-5v180H60z" fill="#ff9ef0" opacity=".5"/>
+</g>
+<circle cx="300" cy="300" r="190" fill="none"/>
+</g>
+<ellipse cx="225" cy="200" rx="40" ry="22" fill="#fff" opacity=".6" transform="rotate(-35 225 200)"/>
+<g fill="#fff6b0" stroke="#1d0f3f" stroke-width="4" stroke-linejoin="round">
+<path class="tw" d="M300 230l9 20 20 9-20 9-9 20-9-20-20-9 20-9z"/>
+<path class="tw t2" d="M380 330l7 15 15 7-15 7-7 15-7-15-15-7 15-7z"/>
+<path class="tw t3" d="M215 320l6 13 13 6-13 6-6 13-6-13-13-6 13-6z"/>
+</g>
+<path d="M455 110l6 13 13 6-13 6-6 13-6-13-13-6 13-6z" fill="#fff6b0" class="tw t2"/>
+<path d="M120 120l5 11 11 5-11 5-5 11-5-11-11-5 11-5z" fill="#fff6b0" class="tw t3"/>
+</svg>
