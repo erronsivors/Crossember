@@ -45,15 +45,18 @@ export class Silero {
   private dir: string
   private status: SileroStatus = { state: 'none', step: '', progress: -1, error: '' }
   private proc: ChildProcessWithoutNullStreams | null = null
-  private buf = ''
   private waiting: ((r: Record<string, unknown>) => void)[] = []
   private chain: Promise<unknown> = Promise.resolve()
   private idle: NodeJS.Timeout | null = null
+  /** Растёт при cancel(): задания из очереди, поставленные раньше, не запускаются. */
+  private gen = 0
+  private closed = false
 
   constructor(root: string, private resourcesDir: string, private hub: Hub) {
     this.dir = join(root, 'silero')
     void readFile(join(this.dir, 'ready.json'), 'utf8')
-      .then((t) => { if ((JSON.parse(t) as { version?: string }).version === VERSION) this.status = { state: 'ready', step: '', progress: -1, error: '' } })
+      // Чтение может закончиться уже после нажатия «Установить» — тогда не перетирать статус установки.
+      .then((t) => { if (this.status.state === 'none' && (JSON.parse(t) as { version?: string }).version === VERSION) this.status = { state: 'ready', step: '', progress: -1, error: '' } })
       .catch(() => undefined)
   }
 
@@ -101,33 +104,38 @@ export class Silero {
     this.set({ state: 'installing', error: '', step: 'Подготовка', progress: -1 })
     this.hub.log('hub', 'info', 'Silero: установка началась')
     try {
+      // Прежний процесс держит файлы Python, а старая метка готовности пережила бы прерванную переустановку.
+      this.cancel()
+      await unlink(join(this.dir, 'ready.json')).catch(() => undefined)
       const dl = join(this.dir, 'download')
       await mkdir(dl, { recursive: true })
       await this.download(PY, join(dl, 'python.zip'), 'Скачиваю Python (11 МБ)')
       const py = join(this.dir, 'python')
-      await rm(py, { recursive: true, force: true })
+      await rm(py, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
       await mkdir(py, { recursive: true })
       await this.run(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe'), ['-xf', join(dl, 'python.zip'), '-C', py], 'Распаковываю Python')
       // Embeddable Python видит только свои файлы и папку site рядом.
       await writeFile(join(py, 'python313._pth'), 'python313.zip\r\n.\r\n..\\site\r\n')
       await this.download(PIP, join(dl, 'pip.pyz'), 'Скачиваю установщик пакетов')
       const site = join(this.dir, 'site')
-      if (!existsSync(join(site, 'torch'))) {
+      // Метка пишется только после успешного pip: после прерванной установки папка torch может быть неполной.
+      const torchOk = join(site, '.crossember-ok')
+      if (!existsSync(torchOk) || (await readFile(torchOk, 'utf8')) !== TORCH) {
         await rm(site, { recursive: true, force: true })
         let n = 0
         await this.run(join(py, 'python.exe'), ['-I', join(dl, 'pip.pyz'), 'install', '--disable-pip-version-check', '--no-cache-dir', '--progress-bar', 'off',
           '--only-binary=:all:', '--target', site, '--index-url', TORCH_INDEX, TORCH], 'Скачиваю и ставлю PyTorch (около 250 МБ, несколько минут)',
         (l) => { if (/^(Downloading|Collecting)/.test(l)) this.set({ progress: Math.min(0.95, ++n / 22) }) })
+        await writeFile(torchOk, TORCH)
       }
       await this.download(MODEL, join(this.dir, MODEL.file), 'Скачиваю модель Silero (148 МБ)')
       this.set({ step: 'Проверяю озвучку', progress: -1 })
       await rm(dl, { recursive: true, force: true })
-      this.set({ state: 'ready' })
       const test = join(this.dir, 'test.wav')
-      await this.speak('Проверка.', 'xenia', 2, test)
+      await this.synth('Проверка.', 'xenia', 2, test)
       await unlink(test).catch(() => undefined)
       await writeFile(join(this.dir, 'ready.json'), JSON.stringify({ version: VERSION, at: new Date().toISOString() }))
-      this.set({ step: '', progress: -1 })
+      this.set({ state: 'ready', step: '', progress: -1 })
       this.hub.log('hub', 'info', 'Silero: установлен')
     } catch (e) {
       const msg = (e as Error).message
@@ -138,7 +146,7 @@ export class Silero {
 
   async remove(): Promise<void> {
     if (this.status.state === 'installing') throw new Error('Дождитесь конца установки')
-    this.stop()
+    this.cancel()
     await rm(this.dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 })
     this.status = { state: 'none', step: '', progress: -1, error: '' }
   }
@@ -146,13 +154,16 @@ export class Silero {
   private start(): ChildProcessWithoutNullStreams {
     if (this.proc) return this.proc
     const p = spawn(join(this.dir, 'python', 'python.exe'), ['-I', '-W', 'ignore', join(this.resourcesDir, 'tts', 'silero_worker.py')], { windowsHide: true, cwd: this.dir })
+    // Ответы и завершение старого процесса (после stop() или тайм-аута) не должны трогать очередь нового.
+    let buf = ''
     p.stdout.setEncoding('utf8')
     p.stdout.on('data', (d: string) => {
-      this.buf += d
+      if (this.proc !== p) return
+      buf += d
       let i: number
-      while ((i = this.buf.indexOf('\n')) >= 0) {
-        const line = this.buf.slice(0, i).trim()
-        this.buf = this.buf.slice(i + 1)
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, i).trim()
+        buf = buf.slice(i + 1)
         if (!line.startsWith('{')) continue
         let r: Record<string, unknown>
         try { r = JSON.parse(line) } catch { r = { ok: false, error: 'bad reply' } }
@@ -160,12 +171,16 @@ export class Silero {
       }
     })
     p.stderr.on('data', () => undefined)
-    p.on('exit', () => {
+    // Запись в уже завершившийся процесс даёт ошибку потока; ответ ожидающим придёт из gone().
+    p.stdin.on('error', () => undefined)
+    const gone = (error: string): void => {
+      if (this.proc !== p) return
       this.proc = null
-      this.buf = ''
-      for (const w of this.waiting.splice(0)) w({ ok: false, error: 'Процесс Silero завершился' })
-    })
-    p.on('error', (e) => this.hub.log('hub', 'error', `Silero не запустился: ${e.message}`))
+      for (const w of this.waiting.splice(0)) w({ ok: false, error })
+    }
+    p.on('exit', () => gone('Процесс Silero завершился'))
+    // При неудачном запуске exit может не прийти, и запросы висели бы до тайм-аута.
+    p.on('error', (e) => { this.hub.log('hub', 'error', `Silero не запустился: ${e.message}`); gone(`Silero не запустился: ${e.message}`) })
     this.proc = p
     return p
   }
@@ -173,17 +188,32 @@ export class Silero {
   private stop(): void {
     if (this.idle) clearTimeout(this.idle)
     this.idle = null
-    this.proc?.kill()
+    const p = this.proc
     this.proc = null
+    for (const w of this.waiting.splice(0)) w({ ok: false, error: 'Процесс Silero остановлен' })
+    p?.kill()
+  }
+
+  /** Остановить процесс и отменить всю очередь (удаление, переустановка, выход). После тайм-аута — только stop(). */
+  private cancel(): void {
+    this.gen++
+    this.stop()
   }
 
   private request(cmd: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>> {
+    const g = this.gen
     const run = (): Promise<Record<string, unknown>> => new Promise((resolve) => {
+      if (g !== this.gen || this.closed) { resolve({ ok: false, error: 'Silero остановлен' }); return }
+      // Старый таймер простоя не должен выгрузить модель посреди этой озвучки.
+      if (this.idle) clearTimeout(this.idle)
+      this.idle = null
       const p = this.start()
       const timer = setTimeout(() => {
         const i = this.waiting.indexOf(done)
         if (i >= 0) this.waiting.splice(i, 1)
-        p.kill()
+        // stop(), а не просто kill: следующий запрос должен запустить новый процесс, а не писать в умирающий.
+        if (this.proc === p) this.stop()
+        else p.kill()
         resolve({ ok: false, error: 'Silero не ответил вовремя' })
       }, timeoutMs)
       const done = (r: Record<string, unknown>): void => { clearTimeout(timer); resolve(r) }
@@ -193,6 +223,7 @@ export class Silero {
     const next = this.chain.then(run, run)
     this.chain = next
     void next.finally(() => {
+      if (this.chain !== next || this.closed) return // в очереди есть ещё задания — таймер поставит последнее
       if (this.idle) clearTimeout(this.idle)
       this.idle = setTimeout(() => this.stop(), IDLE_MS)
     })
@@ -207,12 +238,20 @@ export class Silero {
   /** rate5: 0 — очень медленно … 2 — обычно … 4 — очень быстро. */
   async speak(text: string, speaker: string, rate5: number, path: string): Promise<void> {
     if (!this.ready()) throw new Error('Silero не установлен (Настройки → Озвучка)')
+    await this.synth(text, speaker, rate5, path)
+  }
+
+  /** Без проверки готовности: install() вызывает её до того, как установка признана готовой. */
+  private async synth(text: string, speaker: string, rate5: number, path: string): Promise<void> {
     if (!SILERO_SPEAKERS.some((s) => s.id === speaker)) throw new Error('Неизвестный голос Silero')
     const r = await this.request({ cmd: 'speak', model: join(this.dir, MODEL.file), text, speaker, rate: rate5, path }, 120_000)
     if (!r.ok) throw new Error(String(r.error ?? 'Ошибка озвучки Silero'))
   }
 
-  dispose(): void { this.stop() }
+  dispose(): void {
+    this.closed = true
+    this.cancel()
+  }
 }
 
 function sha256(path: string): Promise<string> {
