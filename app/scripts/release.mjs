@@ -23,4 +23,4 @@ run('npm', ['run', 'dist'])
 const exe = `Crossember-Setup-${version}.exe`
 const files = [exe, `${exe}.blockmap`, `${exe}.sha256`, 'latest.yml'].map((f) => join(app, 'dist', f))
 for (const f of files) if (!existsSync(f)) throw new Error(`Нет файла ${f}`)
-run('gh', ['release', 'create', `v${version}`, ...files, '--repo', 'erronsivors/erron-streamhub', '--target', sha, '--title', `Crossember ${version}`, '--notes-file', notes])
+run('gh', ['release', 'create', `v${version}`, ...files, '--repo', 'erronsivors/Crossember', '--target', sha, '--title', `Crossember ${version}`, '--notes-file', notes])

@@ -39,5 +39,5 @@ nsis:
 publish:
   provider: github
   owner: erronsivors
-  repo: erron-streamhub
+  repo: Crossember
   releaseType: release
