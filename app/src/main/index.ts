@@ -1,6 +1,7 @@
 import { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, powerMonitor, session, shell, clipboard, type IpcMainInvokeEvent } from 'electron'
 import type { VizRun } from './core/viz'
 import { basename, join } from 'node:path'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { release } from 'node:os'
 import { Logger } from './core/logger'
 import { FEEDBACK_EMAIL, bundleText, composeUrls, sanitizeForm, writeBundle, type LogBundle, type SystemInfo } from './core/feedback'
@@ -60,6 +61,12 @@ import { BoostyConnector } from './core/donations/boosty'
 import { clearSite, isSiteId, openSite } from './core/sitewindow'
 import type { StatsPeriod } from './core/settings'
 import type { HubEvent, HubSnapshot, Platform } from './core/types'
+
+// Ускорение графики — по выбору в Настройках (файл-метка, потому что решить нужно до запуска окна и базы).
+// Без него процесс графики занимает ~15 МБ вместо ~140 МБ; интерфейс в основном статичный, разницы не видно.
+const GPU_FLAG = join(app.getPath('userData'), 'gpu-on')
+const gpuAtStart = existsSync(GPU_FLAG)
+if (!gpuAtStart) app.disableHardwareAcceleration()
 
 // Один экземпляр приложения: второй запуск просто показывает окно.
 const firstInstance = app.requestSingleInstanceLock()
@@ -139,6 +146,8 @@ let keys: KeyCapture
 let keyHelper: KeyHelper
 /** Что сейчас слушает визуализатор (null — ничего). */
 let vizOn: VizRun | null = null
+/** Какой раздел сейчас открыт в окне (для «что играет»). */
+let uiPage = 'home'
 let vizStatus: { state: 'off' | 'on' | 'error'; error: string | null } = { state: 'off', error: null }
 let profiles: Profiles
 let kickAuth: KickAuth
@@ -198,6 +207,7 @@ function snapshot(): HubSnapshot {
     feedback: { email: FEEDBACK_EMAIL, crash: logger?.crash() ?? null },
     alertOverlays: server ? server.openCount('alert') : 0,
     keyHelper: keyHelper.state(),
+    gpuAtStart,
     viz: vizStatus,
     float: { open: floatChat?.isOpen ?? false, editing: floatChat?.isEditing ?? false, hotkey: FLOAT_HOTKEY.replace('CommandOrControl', 'Ctrl') }
   }
@@ -257,6 +267,11 @@ function createWindow(): void {
     minHeight: 700,
     backgroundColor: '#0f0b0a',
     title: 'Crossember',
+    // Свой значок вместо значка Electron (в заголовке, на панели задач и в Alt+Tab).
+    icon: join(resourcesDir, 'app', 'icon.png'),
+    // Рамку Windows рисуем сами (TitleBar.tsx) в цветах темы; кнопки окна остаются системными, цвет — от интерфейса.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#1a1210', symbolColor: '#e8dcd4', height: 34 },
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -669,6 +684,20 @@ app.whenReady().then(async () => {
   // Интерфейс перезагрузился — заново сообщить, что слушать.
   handle('hub:vizGet', () => vizOn)
   server.onClients = () => { syncKeys(); syncViz(); pushUpdate() }
+  // «Что играет» опрашиваем, только когда это кому-то видно.
+  music.wanted = () => {
+    if (server.openCount('music') > 0 || server.controlClients() > 0) return true
+    if (!win || !win.isVisible() || win.isMinimized()) return false
+    return uiPage === 'music' || (uiPage === 'home' && settings.get().home.some((i) => i.id === 'music'))
+  }
+  handle('hub:view', (page) => { uiPage = str(page, 40) })
+  handle('hub:titleBar', (color, symbol) => {
+    const hex = (v: unknown): string | null => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : null)
+    const c = hex(color)
+    const s = hex(symbol)
+    if (c && s) win?.setTitleBarOverlay({ color: c, symbolColor: s, height: 34 })
+  })
+  handle('hub:relaunch', () => { app.relaunch(); app.quit() })
   floatChat = new FloatChat(settings, hub, () => server.overlayUrl('float'))
   floatChat.onChange = pushUpdate
   twitch.onChange = pushUpdate
@@ -680,6 +709,9 @@ app.whenReady().then(async () => {
     floatChat.apply()
     syncKeys()
     syncViz()
+    if (s.perf.gpu !== prev.perf.gpu) {
+      try { if (s.perf.gpu) writeFileSync(GPU_FLAG, '1'); else rmSync(GPU_FLAG, { force: true }) } catch { /* применится при следующей смене */ }
+    }
     if (s.goodgame.channel !== prev.goodgame.channel) void goodgame.restart()
     if (s.kick.channel !== prev.kick.channel) void kick.restart()
     if (s.youtube.customClientId !== prev.youtube.customClientId) void youtube.logout()

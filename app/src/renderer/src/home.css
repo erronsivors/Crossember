@@ -60,6 +60,17 @@
 .preset-del.ask { border-color: var(--danger-ink); color: var(--danger-ink); }
 
 /* Режим «Помощник» на игровом ПК */
-.helper-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.helper-page { min-height: 100%; display: grid; place-items: center; padding: 24px; }
 .helper-card { width: min(640px, 100%); padding: 28px 30px; }
 .helper-status { display: flex; align-items: center; gap: 10px; margin: 14px 0; padding: 12px 14px; border-radius: 12px; background: var(--coal-2); border: 1px solid var(--line-2); font-weight: 600; }
+
+/* Версия программы в правом нижнем углу окна */
+.app-ver { position: fixed; right: 12px; bottom: 6px; z-index: 5; padding: 2px 7px; border: 0; border-radius: 6px; background: none;
+  color: var(--muted-2); font: 500 11px var(--f-mono); opacity: .75; cursor: pointer; }
+.app-ver:hover { opacity: 1; color: var(--ink); background: var(--coal-2); }
+
+/* Верхняя панель окна */
+.titlebar { height: var(--tb); display: flex; align-items: center; gap: 8px; padding: 0 12px; -webkit-app-region: drag;
+  background: color-mix(in srgb, var(--accent) 22%, var(--side-bg)); color: var(--ink); box-sizing: border-box;
+  font: 700 12.5px var(--f-text); letter-spacing: .02em; }
+.titlebar img { width: 16px; height: 16px; }

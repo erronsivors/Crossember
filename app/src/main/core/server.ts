@@ -702,6 +702,13 @@ export class OverlayServer {
     for (const [sock, ov] of this.socketOverlay) if (ov === 'keys' && sock.readyState === sock.OPEN) sock.send(data)
   }
 
+  /** Подключены ли док, пульт второго ПК или модератора (им может понадобиться «что играет»). */
+  controlClients(): number {
+    let n = 0
+    for (const k of this.sockets.values()) if (k !== 'local') n++
+    return n
+  }
+
   /** Сколько копий оверлея открыто (в OBS, браузере). */
   openCount(id: string): number {
     let n = 0

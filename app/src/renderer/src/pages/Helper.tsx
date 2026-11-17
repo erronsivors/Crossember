@@ -25,7 +25,7 @@ export function Helper({ snap }: { snap: HubSnapshot }) {
           <img src={mark} alt="" />
           <div>
             <b>Crossember</b>
-            <small>помощник для игрового ПК</small>
+            <small>помощник для игрового ПК · версия {snap.update.current}</small>
           </div>
         </div>
         <h2 style={{ marginTop: 0 }}>Этот ПК — игровой</h2>

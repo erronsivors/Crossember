@@ -147,6 +147,8 @@ export class WindowsTts {
   private cbWarm = false
   private dir: string
   private cleanTimer: NodeJS.Timeout
+  /** Процесс PowerShell (~80 МБ) закрываем после 10 минут без озвучки; следующая фраза запустит его снова (~1 с). */
+  private idle: NodeJS.Timeout | null = null
 
   constructor(root: string, private hub: Hub, private cfg: () => TtsConfig, private silero: Silero) {
     this.dir = join(root, 'tts')
@@ -208,6 +210,8 @@ export class WindowsTts {
       }, timeoutMs)
       const done = (r: Record<string, unknown>): void => { clearTimeout(timer); resolve(r) }
       this.waiting.push(done)
+      if (this.idle) clearTimeout(this.idle)
+      this.idle = setTimeout(() => { if (!this.waiting.length) this.proc?.kill() }, 10 * 60_000)
       p.stdin.write(Buffer.from(JSON.stringify(cmd), 'utf8').toString('base64') + '\n')
     })
     const next = this.chain.then(run, run)
@@ -335,6 +339,7 @@ export class WindowsTts {
 
   dispose(): void {
     clearInterval(this.cleanTimer)
+    if (this.idle) clearTimeout(this.idle)
     this.proc?.kill()
   }
 }

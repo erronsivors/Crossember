@@ -62,6 +62,7 @@ export function App() {
   const go = (p: Page, sel?: Platform): void => {
     setConnSel(sel)
     setPage(p)
+    void window.hub.view(p).catch(() => undefined)
   }
   const now = useNow()
 
@@ -181,6 +182,7 @@ export function App() {
           {page === 'analytics' && <Analytics snap={snap} />}
           {page === 'feedback' && <Feedback snap={snap} />}
           <UpdateModal u={snap.update} />
+          <button className="app-ver" title="Версия программы — обновления в Настройках" onClick={() => go('settings')}>Crossember {snap.update.current}</button>
         </main>
       </div>
       {snap.settings.setupMode === null && <Wizard />}

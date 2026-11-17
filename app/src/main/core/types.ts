@@ -155,6 +155,8 @@ export interface HubSnapshot {
   pinned: HubEvent | null
   server: ServerInfo | null
   keyHelper: KeyHelperState
+  /** Ускорение графики было включено при запуске (смена — после перезапуска). */
+  gpuAtStart: boolean
   viz: { state: 'off' | 'on' | 'error'; error: string | null }
   obsConfig: { url: string; hasPassword: boolean }
   settings: AppSettings

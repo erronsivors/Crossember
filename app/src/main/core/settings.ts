@@ -167,6 +167,8 @@ export interface AppSettings extends ExtSettings {
   analytics: AnalyticsSettings
   /** Проверять обновления в GitHub Releases при запуске и раз в 6 часов. */
   updates: { check: boolean }
+  /** Ускорение графики окна Crossember (видеокарта). Выключено — около 130 МБ памяти меньше; применяется после перезапуска. */
+  perf: { gpu: boolean }
 }
 
 /** Локальная аналитика (данные — в таблицах viewers и streams). */
@@ -351,6 +353,7 @@ export const DEFAULTS: AppSettings = {
   },
   ...EXT_DEFAULTS,
   updates: { check: true },
+  perf: { gpu: false },
   analytics: { chat: true, online: true, coreMin: 3, ignore: 'nightbot, streamelements, streamlabs, moobot, fossabot, wizebot, botrix, kicklet, kickbot' }
 }
 
@@ -611,6 +614,7 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
       }
     })(),
     updates: { check: bool(obj(i.updates).check, (base.updates ?? DEFAULTS.updates).check) },
+    perf: { gpu: bool(obj(i.perf).gpu, (base.perf ?? DEFAULTS.perf).gpu) },
     analytics: (() => {
       const o = obj(i.analytics)
       const b = base.analytics ?? DEFAULTS.analytics

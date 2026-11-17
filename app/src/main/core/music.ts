@@ -126,6 +126,14 @@ export class Music extends EventEmitter {
     }
   }
 
+  /**
+   * Кому-то нужен «что играет» прямо сейчас (оверлей, док, раздел «Музыка» или блок на главной на экране).
+   * Иначе плеер Windows не опрашиваем — фоновый PowerShell закрывается и не держит память.
+   */
+  wanted: () => boolean = () => true
+  /** До этого времени опрашивать в любом случае (после команды в чате). */
+  private demandUntil = 0
+
   private async poll(): Promise<void> {
     const cfg = this.cfg()
     if (this.spotify.connected && Date.now() >= this.spBackoffUntil) {
@@ -141,7 +149,9 @@ export class Music extends EventEmitter {
         this.spBackoffUntil = Date.now() + 15_000
       }
     } else if (!this.spotify.connected) this.nowSp = null
-    if (cfg.smtc) {
+    if (cfg.smtc && !this.wanted() && Date.now() >= this.demandUntil) {
+      // Никто не смотрит: прошлое значение оставляем, процесс сам закроется через минуту.
+    } else if (cfg.smtc) {
       const w = await this.smtc.poll()
       this.smtcOk = !!w || this.smtcOk
       // Spotify уже читается напрямую — его копию из SMTC не дублируем (там нет обложки).
@@ -251,6 +261,11 @@ export class Music extends EventEmitter {
     const low = text.toLowerCase()
     const is = (c: string): boolean => !!c && (low === c || low.startsWith(c + ' '))
     if (is(cfg.nowCmd)) {
+      // Плеер давно не спрашивали — спросить сейчас, чтобы не ответить устаревшим треком.
+      if (cfg.smtc && !this.wanted() && Date.now() >= this.demandUntil) {
+        this.demandUntil = Date.now() + 60_000
+        await this.poll()
+      }
       this.reply(e.platform, this.nowText())
       return
     }

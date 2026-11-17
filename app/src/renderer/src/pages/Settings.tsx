@@ -121,6 +121,10 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
             {snap.update.status === 'checking' ? 'Проверяю…' : 'Проверить сейчас'}
           </button>
           {snap.update.latest && snap.update.status === 'idle' && <p className="small muted" style={{ marginTop: 8 }}>Установлена последняя версия.</p>}
+          <h3 style={{ marginTop: 18 }}>Память</h3>
+          <Toggle on={snap.settings.perf.gpu} onChange={(v) => void window.hub.setSettings({ perf: { gpu: v } })} label="Ускорение графики (видеокарта)" />
+          <p className="small muted">Выключено — Crossember занимает примерно на 130 МБ памяти меньше. Включите, если окно программы подтормаживает. На оверлеи в OBS не влияет.</p>
+          {snap.settings.perf.gpu !== snap.gpuAtStart && <button className="btn sm primary" onClick={() => void window.hub.relaunch()}>Перезапустить, чтобы применить</button>}
         </div>
 
         <div className="card">

@@ -83,10 +83,10 @@ textarea.input { resize: vertical; font: inherit; }
 .ed-sec { font: 700 14px var(--f-display); margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
 .ed-sub { font: 700 12px var(--f-display); color: var(--ink-2); margin: 16px 0 8px; display: flex; gap: 8px; align-items: center; letter-spacing: .03em; }
 .ed-layers, .ed-props { background: var(--coal); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
-.ed-props { max-height: calc(100vh - 330px); min-height: 420px; overflow-y: auto; }
+.ed-props { max-height: calc(100vh - 330px - var(--tb)); min-height: 420px; overflow-y: auto; }
 .ed-add { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
 .ed-add .btn { padding: 4px 8px; font-size: 12px; }
-.ed-llist { display: flex; flex-direction: column; gap: 3px; max-height: calc(100vh - 470px); min-height: 200px; overflow-y: auto; }
+.ed-llist { display: flex; flex-direction: column; gap: 3px; max-height: calc(100vh - 470px - var(--tb)); min-height: 200px; overflow-y: auto; }
 .ed-lrow { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 10px; border: 1px solid transparent; background: none; cursor: pointer; text-align: left; color: var(--ink-2); font-weight: 600; font-size: 13px; }
 .ed-lrow:hover { background: var(--coal-2); }
 .ed-lrow.on { background: var(--coal-3); border-color: var(--line-2); color: #fff; }

@@ -59,6 +59,8 @@ export class Smtc {
   private buf = ''
   private waiting: ((r: Reply) => void)[] = []
   private failures = 0
+  /** Процесс PowerShell (~80 МБ) живёт, только пока его спрашивают: минута тишины — закрываем. */
+  private idle: NodeJS.Timeout | null = null
 
   private start(): ChildProcessWithoutNullStreams {
     if (this.proc) return this.proc
@@ -102,6 +104,8 @@ export class Smtc {
       const done = (r: Reply): void => { clearTimeout(timer); if (r.ok) this.failures = 0; resolve(r) }
       this.waiting.push(done)
       this.start().stdin.write(`${cmd}\n`)
+      if (this.idle) clearTimeout(this.idle)
+      this.idle = setTimeout(() => this.stop(), 60_000)
     })
   }
 
@@ -122,6 +126,8 @@ export class Smtc {
   }
 
   stop(): void {
+    if (this.idle) clearTimeout(this.idle)
+    this.idle = null
     this.proc?.kill()
     this.proc = null
   }

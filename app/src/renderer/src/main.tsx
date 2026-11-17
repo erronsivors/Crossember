@@ -12,6 +12,7 @@ import './home.css'
 import './editor.css'
 import { App } from './App'
 import { initAudioViz } from './audioviz'
+import { TitleBar } from './TitleBar'
 
 // Ошибки интерфейса — в журнал Crossember (для разбора у друзей).
 window.addEventListener('error', (e) => {
@@ -23,6 +24,7 @@ window.addEventListener('unhandledrejection', (e) => {
 })
 
 initAudioViz()
+createRoot(document.getElementById('titlebar')!).render(<TitleBar />)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
