@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react'
-import mark from './assets/mark.svg'
+import { useEffect, useRef, useState } from 'react'
 
 /** Цвет из CSS (rgb(), color(srgb …) после color-mix) → #rrggbb для кнопок окна Windows. */
 function toHex(css: string): string {
@@ -12,9 +11,17 @@ function toHex(css: string): string {
   return `#${[r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('')}`
 }
 
-/** Верхняя панель окна в цветах темы; за неё окно перетаскивается, справа — кнопки Windows того же цвета. */
-export function TitleBar() {
+export type MenuItem = { label: string; hint?: string; on: () => void; disabled?: boolean } | 'sep'
+export interface MenuDef { label: string; items?: MenuItem[]; on?: () => void }
+
+/**
+ * Верхняя панель окна в цвете темы: «назад / вперёд», меню (как в настольных программах), за пустое место окно
+ * перетаскивается; справа — системные кнопки Windows, их цвет подстраивается под панель.
+ */
+export function TitleBar({ menus, canBack, canFwd, onBack, onFwd }: { menus: MenuDef[]; canBack: boolean; canFwd: boolean; onBack: () => void; onFwd: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState<number | null>(null)
+
   useEffect(() => {
     let last = ''
     const sync = (): void => {
@@ -32,10 +39,44 @@ export function TitleBar() {
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-look', 'data-palette'] })
     return () => mo.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (open === null) return
+    const close = (e: MouseEvent | KeyboardEvent): void => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+      if (e instanceof MouseEvent && ref.current?.contains(e.target as Node)) return
+      e.stopPropagation()
+      setOpen(null)
+    }
+    window.addEventListener('mousedown', close, true)
+    window.addEventListener('keydown', close, true)
+    return () => { window.removeEventListener('mousedown', close, true); window.removeEventListener('keydown', close, true) }
+  }, [open])
+
   return (
     <div className="titlebar" ref={ref}>
-      <img src={mark} alt="" />
-      <span>Crossember</span>
+      <button className="tb-btn tb-arrow" disabled={!canBack} title="Назад (Esc, Ctrl+[, боковая кнопка мыши)" onClick={onBack}>←</button>
+      <button className="tb-btn tb-arrow" disabled={!canFwd} title="Вперёд (Ctrl+], боковая кнопка мыши)" onClick={onFwd}>→</button>
+      <nav className="tb-menus">
+        {menus.map((m, i) => (
+          <div key={m.label} className="tb-menu">
+            <button
+              className={`tb-btn ${open === i ? 'on' : ''}`}
+              onClick={() => (m.items ? setOpen(open === i ? null : i) : (setOpen(null), m.on?.()))}
+              onMouseEnter={() => { if (open !== null && m.items) setOpen(i) }}
+            >{m.label}</button>
+            {open === i && m.items && (
+              <div className="tb-drop">
+                {m.items.map((it, j) => it === 'sep' ? <div key={j} className="tb-sep" /> : (
+                  <button key={j} className="tb-item" disabled={it.disabled} onClick={() => { setOpen(null); it.on() }}>
+                    <span>{it.label}</span>{it.hint && <span className="tb-hint">{it.hint}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </nav>
     </div>
   )
 }

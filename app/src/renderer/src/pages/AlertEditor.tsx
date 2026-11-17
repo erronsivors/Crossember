@@ -109,6 +109,12 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
   const [leaving, setLeaving] = useState<false | 'close' | 'back'>(false)
   const exists = snap.templates.some((x) => x.id === t.id)
   const dirty = JSON.stringify(t) !== saved || !exists
+  // «Назад» (Esc, боковая кнопка мыши, Ctrl+[) в редакторе — как «← К алертам»: с вопросом про несохранённое.
+  useEffect(() => {
+    const back = (e: Event): void => { e.preventDefault(); if (dirty) setLeaving('close'); else onClose() }
+    window.addEventListener('cb:back', back)
+    return () => window.removeEventListener('cb:back', back)
+  }, [dirty, onClose])
   const total = totalMs(t, kind)
   const layer = t.layers.find((l) => l.id === sel) ?? null
   const volume = snap.settings.alerts.volume / 100

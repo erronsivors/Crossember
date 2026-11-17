@@ -11,6 +11,8 @@ const app = fileURLToPath(new URL('..', import.meta.url))
 const { version } = JSON.parse(readFileSync(join(app, 'package.json'), 'utf8'))
 const notes = join(app, 'release-notes.md')
 if (!existsSync(notes) || !/^\s*[-*]\s+\S/m.test(readFileSync(notes, 'utf8'))) throw new Error('Нужен release-notes.md с пунктами «- что изменилось»')
+// «Справка → Что нового» в самой программе должна знать про эту версию.
+if (!readFileSync(join(app, 'src/renderer/src/changelog.ts'), 'utf8').includes(`version: '${version}'`)) throw new Error(`Нет записи о версии ${version} в src/renderer/src/changelog.ts`)
 if (!existsSync(join(app, 'resources/youtube/oauth-client.json'))) throw new Error('Нет resources/youtube/oauth-client.json — у друзей не будет входа в YouTube')
 // Ключ подписи обновлений (scripts/keygen.mjs). Без него не выпускаем: программа друзей не поставит неподписанное.
 const keyPath = process.env.CROSSEMBER_SIGN_KEY || join(homedir(), '.crossember', 'update-signing.pem')

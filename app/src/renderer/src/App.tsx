@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { HubSnapshot, Platform } from '../../main/core/types'
 import mark from './assets/mark.svg'
 import { Home } from './pages/Home'
@@ -30,8 +31,10 @@ import { ModeContext } from './components'
 import { useNow, fmtDuration } from './ui'
 import { UpdateModal, UpdateNav } from './Update'
 import { PALETTES } from './palettes'
+import { TitleBar, type MenuDef } from './TitleBar'
+import { AboutModal, ProfilesModal, UpdatesModal, WhatsNew } from './Help'
 
-export type Page = 'home' | 'chat' | 'events' | 'alerts' | 'rules' | 'interactive' | 'auction' | 'wheel' | 'goal' | 'giveaway' | 'vote' | 'bets' | 'subathon' | 'rewards' | 'bot' | 'music' | 'channel' | 'analytics' | 'overlays' | 'chatstyle' | 'connections' | 'settings' | 'feedback'
+export type Page = 'home' | 'chat' | 'events' | 'alerts' | 'rules' | 'interactive' | 'auction' | 'wheel' | 'goal' | 'giveaway' | 'vote' | 'bets' | 'subathon' | 'rewards' | 'bot' | 'music' | 'channel' | 'analytics' | 'overlays' | 'chatstyle' | 'connections' | 'settings' | 'feedback' | 'whatsnew'
 
 /** Пункт меню и страницы, при которых он подсвечен (вложенные разделы). */
 const NAV: { id: Page; label: string; ico: string; also?: Page[] }[] = [
@@ -57,13 +60,74 @@ const LATER: string[] = []
 
 export function App() {
   const [snap, setSnap] = useState<HubSnapshot | null>(null)
-  const [page, setPage] = useState<Page>('home')
+  // История разделов, как в браузере: «назад» — Esc, боковая кнопка мыши, Ctrl+[; «вперёд» — Ctrl+].
+  const [nav, setNav] = useState<{ list: Page[]; i: number }>({ list: ['home'], i: 0 })
+  const page = nav.list[nav.i]
   const [connSel, setConnSel] = useState<Platform | undefined>(undefined)
+  const [modal, setModal] = useState<'about' | 'updates' | 'profiles' | null>(null)
   const go = (p: Page, sel?: Platform): void => {
     setConnSel(sel)
-    setPage(p)
-    void window.hub.view(p).catch(() => undefined)
+    setNav((n) => {
+      if (n.list[n.i] === p) return n
+      const list = [...n.list.slice(0, n.i + 1), p].slice(-50)
+      return { list, i: list.length - 1 }
+    })
   }
+  const step = (d: -1 | 1): void => {
+    // Раздел может сам решить, что «назад» — это закрыть редактор (и спросить про несохранённое).
+    if (d === -1 && !window.dispatchEvent(new CustomEvent('cb:back', { cancelable: true }))) return
+    setConnSel(undefined)
+    setNav((n) => (n.i + d < 0 || n.i + d >= n.list.length ? n : { ...n, i: n.i + d }))
+  }
+  const stepRef = useRef(step)
+  stepRef.current = step
+  useEffect(() => { void window.hub.view(page).catch(() => undefined) }, [page])
+  useEffect(() => {
+    const field = (el: Element | null): boolean => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || (el as HTMLElement).isContentEditable)
+    const key = (e: KeyboardEvent): void => {
+      if (e.defaultPrevented) return
+      // По коду клавиши: при русской раскладке [ и ] — это Х и Ъ.
+      if (e.ctrlKey && e.code === 'BracketLeft') { e.preventDefault(); stepRef.current(-1) }
+      else if (e.ctrlKey && e.code === 'BracketRight') { e.preventDefault(); stepRef.current(1) }
+      else if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !field(document.activeElement) && !document.querySelector('.modal-back')) stepRef.current(-1)
+    }
+    const mouse = (e: MouseEvent): void => {
+      if (e.button === 3) { e.preventDefault(); stepRef.current(-1) }
+      else if (e.button === 4) { e.preventDefault(); stepRef.current(1) }
+    }
+    window.addEventListener('keydown', key)
+    window.addEventListener('mouseup', mouse)
+    return () => { window.removeEventListener('keydown', key); window.removeEventListener('mouseup', mouse) }
+  }, [])
+  const menus: MenuDef[] = [
+    { label: 'Файл', items: [
+      { label: 'Профили…', hint: 'как в OBS', on: () => setModal('profiles') },
+      { label: 'Экспорт и импорт профиля', on: () => go('settings') },
+      'sep',
+      { label: 'Выход', on: () => void window.hub.quit() }
+    ] },
+    { label: 'Вид', items: [
+      { label: 'Главная', on: () => go('home') },
+      { label: 'Мультичат', on: () => go('chat') },
+      { label: 'События', on: () => go('events') },
+      { label: 'Алерты и правила', on: () => go('alerts') },
+      { label: 'Оверлеи', on: () => go('overlays') },
+      { label: 'Подключения', on: () => go('connections') },
+      'sep',
+      { label: 'Оформление и цвета', on: () => go('settings') }
+    ] },
+    { label: 'Настройки', on: () => go('settings') },
+    { label: 'Справка', items: [
+      { label: 'Что нового', on: () => go('whatsnew') },
+      { label: 'Проверить обновления', on: () => setModal('updates') },
+      { label: 'Руководство по программе', on: () => void window.hub.openGuide() },
+      { label: 'Обратная связь', on: () => go('feedback') },
+      'sep',
+      { label: 'О программе', on: () => setModal('about') }
+    ] }
+  ]
+  const host = document.getElementById('titlebar')
+  const bar = host ? createPortal(<TitleBar menus={snap?.settings.role === 'helper' ? [] : menus} canBack={nav.i > 0} canFwd={nav.i < nav.list.length - 1} onBack={() => step(-1)} onFwd={() => step(1)} />, host) : null
   const now = useNow()
 
   useEffect(() => {
@@ -79,8 +143,8 @@ export function App() {
     document.documentElement.dataset.palette = PALETTES.some((p) => p.id === ui.palette) ? ui.palette : 'classic'
   }, [ui?.look, ui?.palette])
 
-  if (!snap) return <div className="empty">Запуск…</div>
-  if (snap.settings.role === 'helper') return <Helper snap={snap} />
+  if (!snap) return <>{bar}<div className="empty">Запуск…</div></>
+  if (snap.settings.role === 'helper') return <>{bar}<Helper snap={snap} /></>
   const { obs, twitch } = snap
   const okCount = snap.connections.filter((c) => c.state === 'ok').length
   const live = obs.streaming || snap.platforms.some((p) => p.live)
@@ -90,6 +154,7 @@ export function App() {
 
   return (
     <ModeContext.Provider value={snap.settings.setupMode}>
+      {bar}
       <div className="layout">
         <aside className="side">
           <div className="brand">
@@ -120,10 +185,6 @@ export function App() {
               {l}
             </div>
           ))}
-          <button className={`nav nav-feedback ${page === 'feedback' ? 'on' : ''}`} onClick={() => go('feedback')}>
-            <span className="ico">✉</span>
-            Обратная связь
-          </button>
           <UpdateNav u={snap.update} />
           <div className="side-foot">
             <span className={`dot ${snap.server ? 'ok' : 'error'}`} /> {snap.settings.setupMode === 'two' ? 'Режим: 2 ПК' : snap.settings.setupMode === 'one' ? 'Режим: 1 ПК' : 'Режим не выбран'} · всё локально
@@ -181,7 +242,11 @@ export function App() {
           {page === 'channel' && <Channel snap={snap} />}
           {page === 'analytics' && <Analytics snap={snap} />}
           {page === 'feedback' && <Feedback snap={snap} />}
+          {page === 'whatsnew' && <WhatsNew current={snap.update.current} />}
           <UpdateModal u={snap.update} />
+          {modal === 'about' && <AboutModal snap={snap} onClose={() => setModal(null)} />}
+          {modal === 'updates' && <UpdatesModal snap={snap} onClose={() => setModal(null)} />}
+          {modal === 'profiles' && <ProfilesModal snap={snap} onClose={() => setModal(null)} />}
           <button className="app-ver" title="Версия программы — обновления в Настройках" onClick={() => go('settings')}>Crossember {snap.update.current}</button>
         </main>
       </div>

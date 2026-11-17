@@ -67,6 +67,16 @@ export interface ProfileSummary {
 export interface ProfileState {
   /** Последняя резервная копия (до загрузки профиля): когда сделана. */
   lastBackup: number | null
+  /** Сохранённые профили (как в OBS): имя и когда сохранён. */
+  named: { name: string; savedAt: number }[]
+  /** Какой профиль сейчас выбран (null — ещё ни разу не сохраняли). */
+  current: string | null
+}
+
+/** Имя профиля: буквы, цифры, пробел, - _ . ( ) — до 40 символов. */
+export function cleanProfileName(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : ''
+  return /^[\p{L}\p{N} _.()-]{1,40}$/u.test(s) ? s : null
 }
 
 type Json = Record<string, unknown>
@@ -90,11 +100,55 @@ export class Profiles {
     this.mediaDir = join(root, 'media')
     this.soundDir = join(root, 'sounds')
     this.backupDir = join(root, 'backups')
+    this.namedDir = join(root, 'profiles')
+  }
+
+  private namedDir: string
+
+  /** Файл профиля по имени: имя хранится в таблице, файл — по хэшу имени (без проблем с символами). */
+  private namedFile(name: string): string {
+    return join(this.namedDir, `${createHash('sha1').update(name.toLowerCase()).digest('hex').slice(0, 16)}.crossember`)
+  }
+
+  private namedList(): { name: string; savedAt: number }[] {
+    return this.store.get<{ name: string; savedAt: number }[]>('profiles.named', []).filter((p) => existsSync(this.namedFile(p.name)))
+  }
+
+  /** Сохранить текущие настройки, правила и шаблоны под именем (существующий — перезаписать). */
+  async saveNamed(raw: unknown): Promise<void> {
+    const name = cleanProfileName(raw)
+    if (!name) throw new Error('Имя профиля: буквы, цифры, пробел, - _ . ( ) — до 40 символов')
+    const list = this.namedList().filter((p) => p.name.toLowerCase() !== name.toLowerCase())
+    if (list.length >= 30) throw new Error('Профилей уже 30 — удалите ненужные')
+    mkdirSync(this.namedDir, { recursive: true })
+    await writeFile(this.namedFile(name), await this.encode(this.build(false)))
+    this.store.set('profiles.named', [...list, { name, savedAt: Date.now() }])
+    this.store.set('profiles.current', name)
+  }
+
+  /** Переключиться на профиль: сначала сохранить текущий (как OBS), потом загрузить выбранный (с резервной копией). */
+  async switchNamed(raw: unknown): Promise<void> {
+    const name = cleanProfileName(raw)
+    const target = name ? this.namedList().find((p) => p.name.toLowerCase() === name.toLowerCase()) : undefined
+    if (!target) throw new Error('Такого профиля нет')
+    const cur = this.store.get<string | null>('profiles.current', null)
+    if (cur && cur.toLowerCase() !== target.name.toLowerCase() && this.namedList().some((p) => p.name === cur)) await this.saveNamed(cur)
+    await this.inspect(this.namedFile(target.name))
+    await this.apply(['settings', 'rules', 'templates'])
+    this.store.set('profiles.current', target.name)
+  }
+
+  removeNamed(raw: unknown): void {
+    const name = cleanProfileName(raw)
+    if (!name) return
+    try { unlinkSync(this.namedFile(name)) } catch { /* уже нет */ }
+    this.store.set('profiles.named', this.namedList().filter((p) => p.name.toLowerCase() !== name.toLowerCase()))
+    if ((this.store.get<string | null>('profiles.current', null) ?? '').toLowerCase() === name.toLowerCase()) this.store.set('profiles.current', null)
   }
 
   state(): ProfileState {
     const last = this.backups()[0]
-    return { lastBackup: last ? last.ts : null }
+    return { lastBackup: last ? last.ts : null, named: this.namedList().sort((a, b) => a.name.localeCompare(b.name, 'ru')), current: this.store.get<string | null>('profiles.current', null) }
   }
 
   /** Резервные копии — новые первыми. */
@@ -305,7 +359,11 @@ export class Profiles {
     }
     if (p.settings) {
       const cur = this.settings.get()
-      this.settings.replaceAll({ ...(obj(p.settings) as unknown as AppSettings), lan: cur.lan, float: { ...obj(obj(p.settings).float), bounds: cur.float.bounds } as AppSettings['float'] })
+      // Что относится к этому ПК, профиль не меняет: сеть, место окна чата, роль ПК, обновления, ускорение графики.
+      this.settings.replaceAll({
+        ...(obj(p.settings) as unknown as AppSettings), lan: cur.lan, role: cur.role, helper: cur.helper, updates: cur.updates, perf: cur.perf,
+        float: { ...obj(obj(p.settings).float), bounds: cur.float.bounds } as AppSettings['float']
+      })
     }
   }
 

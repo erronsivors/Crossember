@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import type { ConnStatus, HubSnapshot, Platform } from '../../../main/core/types'
 import { DEFAULT_HOME, HOME_BLOCKS, HOME_BLOCK_INFO, HOME_COLS, HOME_ROWS, overlaps, type HomeBlock, type HomeItem } from '../../../main/core/home'
 import type { Page } from '../App'
@@ -87,6 +87,9 @@ export function Home({ snap, go }: { snap: HubSnapshot; go: Go }) {
 
 // ---------- Сетка ----------
 
+/** Блок сообщает сетке, сколько ему нужно высоты (px). */
+const NeedCtx = createContext<(px: number) => void>(() => undefined)
+
 function Board({ items, edit, onMove, onDrop, onRemove, children }: {
   items: HomeItem[]
   edit: boolean
@@ -96,13 +99,36 @@ function Board({ items, edit, onMove, onDrop, onRemove, children }: {
   children: (id: HomeBlock) => ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [height, setHeight] = useState(600)
-  // Сетка занимает всё место до низа окна: блоки подстраиваются под него, страница не прокручивается.
+  const [fitH, setFitH] = useState(600)
+  // Сколько высоты нужно каждому блоку (сообщает сам блок). Строка сетки — такая, чтобы всем хватило:
+  // влезает в окно — главная без прокрутки, не влезает — прокручивается вся страница, а блоки не обрезаются.
+  const [needs, setNeeds] = useState<Partial<Record<HomeBlock, number>>>({})
+  // У каждой строки своя высота: тесному блоку добавляем высоту только в его строках, остальные не раздуваются.
+  const tops = useMemo(() => {
+    const rows = new Array<number>(HOME_ROWS).fill(fitH / HOME_ROWS)
+    for (let pass = 0; pass < 3; pass++) {
+      for (const it of items) {
+        let sum = 0
+        for (let k = it.y; k < it.y + it.h; k++) sum += rows[k]
+        const lack = (needs[it.id] ?? 0) - sum
+        if (lack > 0.5) for (let k = it.y; k < it.y + it.h; k++) rows[k] += lack / it.h
+      }
+    }
+    const t = [0]
+    for (const r of rows) t.push(t[t.length - 1] + r)
+    return t
+  }, [items, needs, fitH])
+  const height = Math.ceil(tops[HOME_ROWS])
+  const reporters = useMemo(() => {
+    const m = {} as Record<HomeBlock, (px: number) => void>
+    for (const id of HOME_BLOCKS) m[id] = (px) => setNeeds((n) => (Math.abs((n[id] ?? 0) - px) < 2 ? n : { ...n, [id]: px }))
+    return m
+  }, [])
   useLayoutEffect(() => {
     const fit = (): void => {
       const top = ref.current?.getBoundingClientRect().top ?? 0
-      // 46 — нижний отступ основной части окна, чтобы не появлялась прокрутка.
-      setHeight(Math.max(420, window.innerHeight - top - 46))
+      // 46 — нижний отступ основной части окна.
+      setFitH(Math.max(420, window.innerHeight - top - 46))
     }
     fit()
     window.addEventListener('resize', fit)
@@ -144,8 +170,8 @@ function Board({ items, edit, onMove, onDrop, onRemove, children }: {
       {edit && <div className="dash-grid" style={{ backgroundSize: `${100 / HOME_COLS}% ${100 / HOME_ROWS}%` }} />}
       {items.map((it) => (
         <div key={it.id} className={`dash-cell dash-${it.id}`}
-          style={{ left: `${(it.x / HOME_COLS) * 100}%`, top: `${(it.y / HOME_ROWS) * 100}%`, width: `${(it.w / HOME_COLS) * 100}%`, height: `${(it.h / HOME_ROWS) * 100}%` }}>
-          {children(it.id)}
+          style={{ left: `${(it.x / HOME_COLS) * 100}%`, top: tops[it.y], width: `${(it.w / HOME_COLS) * 100}%`, height: tops[it.y + it.h] - tops[it.y] }}>
+          <NeedCtx.Provider value={reporters[it.id]}>{children(it.id)}</NeedCtx.Provider>
           {edit && <>
             <div className="dash-bar" onPointerDown={(e) => down(e, it, 'move')}>
               <span>⠿ {HOME_BLOCK_INFO[it.id].name}</span>
@@ -160,23 +186,23 @@ function Board({ items, edit, onMove, onDrop, onRemove, children }: {
 }
 
 /**
- * Карточка блока, содержимое которой уменьшается целиком, если не помещается (не мельче 75 %, иначе текст не читается).
- * Списки (dash-fill) не растягивают блок: в них просто видно столько строк, сколько влезло.
+ * Карточка блока: содержимое не уменьшается и не обрезается — сетка растягивается под самый «высокий» блок.
+ * Списки (dash-fill) не растягивают блок: в них видно столько строк, сколько влезло (не меньше трёх).
  */
 function Card({ children }: { children: ReactNode }) {
   const outer = useRef<HTMLDivElement>(null)
   const inner = useRef<HTMLDivElement>(null)
+  const report = useContext(NeedCtx)
+  // Меряем, сколько содержимому нужно по высоте (списки — минимум в три строки), сообщаем сетке и заполняем блок.
   const fit = (): void => {
     const o = outer.current
     const i = inner.current
     if (!o || !i) return
-    i.style.zoom = '1'
     i.style.width = `${o.clientWidth}px`
+    i.style.height = ''
+    const cell = o.closest('.dash-cell') as HTMLElement | null
+    if (cell) report(Math.ceil(i.scrollHeight + (cell.clientHeight - o.clientHeight)))
     i.style.height = `${o.clientHeight}px`
-    const z = Math.max(0.75, Math.min(1, o.clientHeight / Math.max(1, i.scrollHeight), o.clientWidth / Math.max(1, i.scrollWidth)))
-    i.style.zoom = String(z)
-    i.style.width = `${o.clientWidth / z}px`
-    i.style.height = `${o.clientHeight / z}px`
   }
   useLayoutEffect(fit)
   useEffect(() => {

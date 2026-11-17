@@ -697,6 +697,24 @@ app.whenReady().then(async () => {
     const s = hex(symbol)
     if (c && s) win?.setTitleBarOverlay({ color: c, symbolColor: s, height: 34 })
   })
+  handle('hub:quit', () => app.quit())
+  // Руководство — отдельное окно с тем же интерфейсом (страница #guide), без доступа к функциям программы.
+  let guideWin: BrowserWindow | null = null
+  handle('hub:openGuide', () => {
+    if (guideWin && !guideWin.isDestroyed()) { guideWin.show(); guideWin.focus(); return }
+    const ui = settings.get().ui
+    guideWin = new BrowserWindow({
+      width: 1100, height: 760, minWidth: 760, minHeight: 520, title: 'Руководство Crossember', backgroundColor: '#0f0b0a',
+      icon: join(resourcesDir, 'app', 'icon.png'), autoHideMenuBar: true,
+      webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true, spellcheck: false }
+    })
+    guideWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    guideWin.webContents.on('will-navigate', (e) => e.preventDefault())
+    guideWin.on('closed', () => { guideWin = null })
+    const hash = `guide&look=${ui.look}&palette=${encodeURIComponent(ui.palette)}`
+    if (isDev) void guideWin.loadURL(`${process.env.ELECTRON_RENDERER_URL}#${hash}`)
+    else void guideWin.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+  })
   handle('hub:relaunch', () => { app.relaunch(); app.quit() })
   floatChat = new FloatChat(settings, hub, () => server.overlayUrl('float'))
   floatChat.onChange = pushUpdate
@@ -830,6 +848,9 @@ app.whenReady().then(async () => {
     pushUpdate()
   })
   handle('hub:profileCancel', () => profiles.cancel())
+  handle('hub:profileSave', async (name) => { await profiles.saveNamed(name); pushUpdate() })
+  handle('hub:profileSwitch', async (name) => { await profiles.switchNamed(name); pushUpdate() })
+  handle('hub:profileRemove', (name) => { profiles.removeNamed(name); pushUpdate() })
   handle('hub:profileUndo', async () => {
     await profiles.undo()
     pushUpdate()
