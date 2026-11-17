@@ -58,3 +58,8 @@
 .preset-own > .preset { flex: 1; min-width: 0; }
 .preset-del { position: absolute; top: 10px; right: 10px; z-index: 2; padding: 4px 9px; background: var(--coal); }
 .preset-del.ask { border-color: var(--danger-ink); color: var(--danger-ink); }
+
+/* Режим «Помощник» на игровом ПК */
+.helper-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.helper-card { width: min(640px, 100%); padding: 28px 30px; }
+.helper-status { display: flex; align-items: center; gap: 10px; margin: 14px 0; padding: 12px 14px; border-radius: 12px; background: var(--coal-2); border: 1px solid var(--line-2); font-weight: 600; }

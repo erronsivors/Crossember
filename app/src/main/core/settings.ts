@@ -2,6 +2,7 @@ import type { Store } from './db'
 import { DOCK_PRESETS, sanitizeBlocks, type DockBlock } from './dock'
 import { lookDefaults, sanitizeLook, textDefaults, type ChatLook } from './chatstyle'
 import { DEFAULT_HOME, sanitizeHome, type HomeItem } from './home'
+import { parseHelperUrl } from './keyslayout'
 import { EXT_DEFAULTS, EXT_OVERLAY_DEFAULTS, sanitizeExt, sanitizeExtOverlays, type ExtOverlays, type ExtSettings } from './extsettings'
 
 /**
@@ -99,6 +100,9 @@ export type StatsPeriod = 'stream' | 'today' | 'week' | 'month' | 'all'
 
 export interface AppSettings extends ExtSettings {
   setupMode: SetupMode | null
+  /** helper — игровой ПК при двух ПК: только передаёт нажатия на стрим-ПК по ссылке helper.url. */
+  role: 'main' | 'helper'
+  helper: { url: string }
   defaultTheme: Theme
   /** Оформление самого приложения: стандартное с цветовой схемой или «У костра» (BETA). На оверлеи не влияет. */
   ui: { look: 'standard' | 'campfire'; palette: string }
@@ -301,6 +305,8 @@ export const ALERT_DEFAULTS: AlertSettings = {
 
 export const DEFAULTS: AppSettings = {
   setupMode: null,
+  role: 'main',
+  helper: { url: '' },
   defaultTheme: 'general',
   ui: { look: 'standard', palette: 'classic' },
   home: DEFAULT_HOME.map((i) => ({ ...i })),
@@ -450,6 +456,12 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
   return {
     ...sanitizeExt(i, base),
     setupMode: i.setupMode === 'one' || i.setupMode === 'two' ? i.setupMode : i.setupMode === null ? null : base.setupMode,
+    role: i.role === 'helper' || i.role === 'main' ? i.role : base.role ?? 'main',
+    helper: (() => {
+      const o = obj(i.helper)
+      const url = typeof o.url === 'string' ? o.url.trim() : base.helper?.url ?? ''
+      return { url: url === '' || parseHelperUrl(url) ? url : base.helper?.url ?? '' }
+    })(),
     defaultTheme: theme(i.defaultTheme, base.defaultTheme),
     home: i.home === undefined ? base.home ?? DEFAULT_HOME.map((x) => ({ ...x })) : sanitizeHome(i.home),
     ui: (() => {

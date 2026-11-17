@@ -29,6 +29,8 @@ import type { Rewards } from './rewards'
 import type { Points } from './points'
 import { MOD_ACTIONS, MOD_BLOCKS, dockView, parseAction, runAction, type DockActionTable } from './dock'
 import { chatCss, eventView, sampleChat } from './chatstyle'
+import type { KeyCapture } from './keys'
+import { keysAllowed, keysView } from './keyslayout'
 
 /** Оверлеи для OBS. id = имя файла в resources/overlays, key = ключ настроек. */
 const OVERLAYS = [
@@ -47,6 +49,7 @@ const OVERLAYS = [
   { id: 'bets', key: 'bets', name: 'Ставки', size: '700 × 500' },
   { id: 'music', key: 'music', name: 'Сейчас играет', size: '700 × 160' },
   { id: 'subathon', key: 'subathon', name: 'Сабатон', size: '800 × 260' },
+  { id: 'keys', key: 'keys', name: 'Клавиатура и мышь', size: '600 × 300' },
   // Окно «чат поверх игры» — открывается самим Crossember, в списке для OBS не показывается.
   { id: 'float', key: 'float', name: 'Чат поверх игры', size: '', hidden: true }
 ] as { id: string; key: string; name: string; size: string; hidden?: boolean }[]
@@ -72,6 +75,7 @@ const ASSETS: Record<string, string> = {
   'bets.js': 'text/javascript; charset=utf-8',
   'music.js': 'text/javascript; charset=utf-8',
   'subathon.js': 'text/javascript; charset=utf-8',
+  'keys.js': 'text/javascript; charset=utf-8',
   'sounds.js': 'text/javascript; charset=utf-8'
 }
 
@@ -138,6 +142,7 @@ export interface OverlayExtras {
   subathon: Subathon
   rewards: Rewards
   points: Points
+  keys: KeyCapture
   /** Свои аккаунты (каналы, бот) — для выделения обращений к стримеру в чате. */
   own?: () => string[]
 }
@@ -179,6 +184,12 @@ export class OverlayServer {
   private remoteKey: string
   private dockKey: string
   private modKey: string
+  /** Ключ помощника на игровом ПК (нажатия клавиш по домашней сети). */
+  private keysKey: string
+  /** Кто держит клавишу: 'local' — этот ПК, 'h1', 'h2'… — помощники. Оверлей видит объединение. */
+  private keySrc = new Map<string, Set<string>>()
+  private helpers = new Map<WebSocket, string>()
+  private helperSeq = 0
   private dockTimer: NodeJS.Timeout | null = null
   private lanError: string | null = null
   private lanUrl: string | null = null
@@ -201,6 +212,7 @@ export class OverlayServer {
     this.remoteKey = store.get('server.remoteKey', '') || this.rotate('remote')
     this.dockKey = store.get('server.dockKey', '') || this.rotate('dock')
     this.modKey = store.get('server.modKey', '') || this.rotate('mod')
+    this.keysKey = store.get('server.keysKey', '') || this.rotate('keys')
     hub.on('event', (e: HubEvent) => this.broadcast({ kind: 'event', event: e, view: eventView(e) }))
     hub.on('delete', (d: unknown) => this.broadcast({ kind: 'delete', ...(d as object) }))
     hub.on('pinned', (m: HubEvent | null) => this.broadcast({ kind: 'pinned', event: m }))
@@ -217,6 +229,8 @@ export class OverlayServer {
     extras.music.on('change', () => this.broadcast({ kind: 'music', music: extras.music.overlay() }, 'local'))
     extras.subathon.on('change', () => this.broadcast({ kind: 'subathon', subathon: extras.subathon.state() }, 'local'))
     extras.subathon.on('added', (a: unknown) => this.broadcast({ kind: 'subathon-add', add: a }, 'local'))
+    // Нажатия — только копиям оверлея «Клавиатура», никому больше (ни доку, ни второму ПК).
+    extras.keys.on('key', (id: string, down: boolean) => this.pressKey('local', id, down))
     // Док: любое изменение — одно обновление состояния (не чаще раза в 100 мс).
     for (const src of [extras.alerts, extras.auction, extras.goal, extras.giveaway, extras.wheel, extras.counters, extras.vote, extras.bets, extras.music, extras.subathon, extras.rewards]) src.on('change', () => this.scheduleDock())
     hub.on('event', (e: HubEvent) => {
@@ -234,8 +248,14 @@ export class OverlayServer {
     this.broadcast({ kind: 'stats', stats: this.statsData() }, 'local')
   }
 
-  rotate(which: 'overlay' | 'remote' | 'dock' | 'mod'): string {
+  rotate(which: 'overlay' | 'remote' | 'dock' | 'mod' | 'keys'): string {
     const k = newKey()
+    if (which === 'keys') {
+      this.keysKey = k
+      this.store.set('server.keysKey', k)
+      for (const sock of this.helpers.keys()) sock.close(4001, 'key rotated')
+      return k
+    }
     if (which === 'overlay') this.overlayKey = k
     else if (which === 'dock') this.dockKey = k
     else if (which === 'mod') this.modKey = k
@@ -279,7 +299,7 @@ export class OverlayServer {
   /** Сообщить оверлеям о новых настройках (тема, размер шрифта…). */
   pushConfig(): void {
     const s = this.settings.get()
-    this.broadcast({ kind: 'config', overlays: { ...s.overlays, float: s.float }, chatStyle: this.chatStyle(), dockBlocks: s.dock.blocks, lanControl: s.lan.control })
+    this.broadcast({ kind: 'config', overlays: { ...s.overlays, float: s.float }, chatStyle: this.chatStyle(), dockBlocks: s.dock.blocks, lanControl: s.lan.control, keysLayout: keysView(s.overlays.keys) })
     this.pushStats()
     this.pushDock()
   }
@@ -312,7 +332,11 @@ export class OverlayServer {
       overlays: OVERLAYS.filter((o) => !o.hidden).map((o) => ({ id: o.id, name: o.name, size: o.size, url: `${baseUrl}/o/${o.id}?k=${this.overlayKey}` })),
       dockUrl: `${baseUrl}/dock?k=${this.dockKey}`,
       lan: { running: !!this.lan, url: this.lanUrl, error: this.lanError, addresses: lanAddresses() },
-      modUrl: this.lan && this.lanUrl ? this.lanUrl.replace(/\/remote\?k=.*$/, `/mod?k=${this.modKey}`) : null
+      modUrl: this.lan && this.lanUrl ? this.lanUrl.replace(/\/remote\?k=.*$/, `/mod?k=${this.modKey}`) : null,
+      keysHelper: {
+        url: this.lan && this.lanUrl ? this.lanUrl.replace(/\/remote\?k=.*$/, `/kws?k=${this.keysKey}`) : null,
+        connected: this.helpers.size
+      }
     }
   }
 
@@ -359,7 +383,8 @@ export class OverlayServer {
       ...(kind === 'dock' || isMod || (kind === 'lan' && s.lan.control) ? { dock: this.dockData() } : {}),
       ...(kind === 'local' ? { stats: this.statsData(), counters: this.extras.counters.list(), auction: this.extras.auction.overlay(), wheel: this.extras.wheel.overlay(), goal: this.extras.goal.overlay(), giveaway: this.extras.giveaway.overlay(), vote: this.extras.vote.overlay(), bets: this.extras.bets.overlay(), music: this.extras.music.overlay(), subathon: this.extras.subathon.state() } : {}),
       // Снимок для оверлея алертов после (пере)подключения: что идёт сейчас и с какого момента.
-      ...(ov === 'alert' ? { alert: this.extras.alerts.nowPlaying() } : {})
+      ...(ov === 'alert' ? { alert: this.extras.alerts.nowPlaying() } : {}),
+      ...(ov === 'keys' && kind === 'local' ? { pressed: [...this.keySrc.keys()], keysLayout: keysView(s.overlays.keys) } : {})
     })
   }
 
@@ -399,6 +424,47 @@ export class OverlayServer {
         if (!modOn()) return reply.code(403).type('text/plain; charset=utf-8').send('Пульт модератора выключен: Crossember → Бот и модераторы → Модераторы.')
         if (!sameKey(req.query.k, this.modKey)) return reply.code(403).type('text/plain; charset=utf-8').send('Нет доступа: неверный ключ. Попросите стримера прислать новую ссылку.')
         return reply.header('Content-Security-Policy', PAGE_CSP).type('text/html; charset=utf-8').send(await asset('dock.html'))
+      })
+      // Помощник на игровом ПК: присылает нажатия клавиш. Это программа, не страница: запрос с Origin
+      // (любой браузер) отклоняется, чтобы чужой сайт на игровом ПК не мог ни слать, ни читать нажатия.
+      app.get<{ Querystring: { k?: string } }>('/kws', { websocket: true }, (socket, req) => {
+        if (req.headers.origin || !sameKey(req.query.k, this.keysKey)) {
+          socket.close(4003, 'forbidden')
+          return
+        }
+        const src = `h${++this.helperSeq}`
+        this.helpers.set(socket, src)
+        socket.send(JSON.stringify({ kind: 'allow', ids: this.keysWanted() }))
+        this.onClients()
+        let count = 0
+        const reset = setInterval(() => { count = 0 }, 1000)
+        // Связь жива? Раз в 10 с ping; не ответил — рвём соединение, его клавиши отпускаются в close.
+        let alive = true
+        socket.on('pong', () => { alive = true })
+        const beat = setInterval(() => {
+          if (!alive) { socket.terminate(); return }
+          alive = false
+          socket.ping()
+          if (socket.readyState === socket.OPEN) socket.send('{"kind":"hb"}')
+        }, 10_000)
+        socket.on('message', (raw: Buffer) => {
+          // Слишком часто — отключаем целиком: так не теряется отпускание уже зажатой клавиши.
+          if (++count > 120 || raw.length > 100) { socket.close(4008, 'too many'); return }
+          let m: { kind?: unknown; id?: unknown; down?: unknown }
+          try { m = JSON.parse(raw.toString('utf8')) } catch { return }
+          if (!m || typeof m !== 'object' || Array.isArray(m)) return
+          if (m.kind !== 'key' || typeof m.id !== 'string' || typeof m.down !== 'boolean') return
+          // Разрешено ровно то, что сейчас нарисовано на открытом оверлее; отпускание — всегда.
+          if (m.down && !this.keysWanted().includes(m.id)) return
+          this.pressKey(src, m.id, m.down)
+        })
+        socket.on('close', () => {
+          clearInterval(reset)
+          clearInterval(beat)
+          this.helpers.delete(socket)
+          for (const id of [...this.keySrc.keys()]) this.pressKey(src, id, false)
+          this.onClients()
+        })
       })
     }
 
@@ -589,6 +655,35 @@ export class OverlayServer {
     this.local = await this.build('local', '127.0.0.1', this.port)
     this.hub.setStatus('hub', 'ok', `Сервер оверлеев: 127.0.0.1:${this.port}`)
     await this.applyLan()
+  }
+
+  /** Какие нажатия нужны прямо сейчас: показ включён и оверлей «Клавиатура» открыт. */
+  private keysWanted(): string[] {
+    const k = this.settings.get().overlays.keys
+    return k.capture && this.openCount('keys') > 0 ? [...keysAllowed(k)] : []
+  }
+
+  /** Сообщить помощникам, какие клавиши присылать (пустой список — выключить перехват на игровом ПК). */
+  pushHelpers(): void {
+    const ids = this.keysWanted()
+    const data = JSON.stringify({ kind: 'allow', ids })
+    for (const sock of this.helpers.keys()) if (sock.readyState === sock.OPEN) sock.send(data)
+    // Клавиши, которых больше нет в списке, у помощников отпускаем сразу (раскладку сменили или показ выключен).
+    const keep = new Set(ids)
+    for (const id of [...this.keySrc.keys()]) if (!keep.has(id)) for (const src of this.helpers.values()) this.pressKey(src, id, false)
+  }
+
+  /** Нажатие от этого ПК или помощника: в оверлей уходит только смена общего состояния клавиши. */
+  private pressKey(src: string, id: string, down: boolean): void {
+    const set = this.keySrc.get(id) ?? new Set<string>()
+    const was = set.size > 0
+    if (down) set.add(src)
+    else set.delete(src)
+    if (set.size) this.keySrc.set(id, set)
+    else this.keySrc.delete(id)
+    if (was === set.size > 0) return
+    const data = JSON.stringify({ kind: 'key', id, down: set.size > 0 })
+    for (const [sock, ov] of this.socketOverlay) if (ov === 'keys' && sock.readyState === sock.OPEN) sock.send(data)
   }
 
   /** Сколько копий оверлея открыто (в OBS, браузере). */

@@ -48,9 +48,9 @@ export function previewSound(snap: HubSnapshot, sound: string, volume: number): 
   } else playBuiltin(sound, volume)
 }
 
-/** Послушать озвучку текста текущим голосом из настроек. */
-export async function previewTts(snap: HubSnapshot, text: string): Promise<void> {
-  const src = await window.hub.ttsTest(text)
+/** Послушать озвучку текста: голосом voice, а если он пустой — голосом из настроек озвучки. */
+export async function previewTts(snap: HubSnapshot, text: string, voice = ''): Promise<void> {
+  const src = await window.hub.ttsTest(text, voice)
   previewAudio?.pause()
   previewAudio = new Audio(serverUrl(snap, src))
   previewAudio.volume = snap.settings.tts.volume / 100

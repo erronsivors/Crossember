@@ -8,6 +8,9 @@ import { Secrets } from './core/secrets'
 import { Hub } from './core/hub'
 import { Settings, type AppSettings } from './core/settings'
 import { OverlayServer } from './core/server'
+import { KeyCapture } from './core/keys'
+import { keysAllowed } from './core/keyslayout'
+import { KeyHelper } from './core/keyhelper'
 import { ObsConnector } from './core/obs'
 import { TwitchConnector } from './core/twitch'
 import { ImageCache } from './core/imgcache'
@@ -131,6 +134,8 @@ let subathon: Subathon
 let memealerts: Memealerts
 let updater: Updater
 let analytics: Analytics
+let keys: KeyCapture
+let keyHelper: KeyHelper
 let profiles: Profiles
 let kickAuth: KickAuth
 let streamInfo: StreamInfo
@@ -188,6 +193,7 @@ function snapshot(): HubSnapshot {
     twitchScopes: Object.fromEntries(PANEL_SCOPES.map((sc) => [sc, twitch.access(sc)])),
     feedback: { email: FEEDBACK_EMAIL, crash: logger?.crash() ?? null },
     alertOverlays: server ? server.openCount('alert') : 0,
+    keyHelper: keyHelper.state(),
     float: { open: floatChat?.isOpen ?? false, editing: floatChat?.isEditing ?? false, hotkey: FLOAT_HOTKEY.replace('CommandOrControl', 'Ctrl') }
   }
 }
@@ -556,6 +562,9 @@ app.whenReady().then(async () => {
     pushUpdate()
   })
 
+  keys = new KeyCapture(hub)
+  keyHelper = new KeyHelper(hub, keys)
+  keyHelper.onChange = pushUpdate
   server = new OverlayServer(hub, store, settings, images, resourcesDir, app.getAppPath(), {
     send: (text) => chats.send(text, chats.states().filter((p) => p.canSend).map((p) => p.id), 'broadcaster'),
     pin: (id) => hub.togglePin(id),
@@ -605,9 +614,21 @@ app.whenReady().then(async () => {
       if (op === 'delete') await c?.deleteMessage?.(m)
       else await c?.ban?.(m, op === 'timeout' ? 600 : 0)
     }
-  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, own: ownAccounts })
+  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, keys, own: ownAccounts })
   obs.onChange = pushUpdate
-  server.onClients = pushUpdate
+  // Перехват клавиш — только пока он разрешён и оверлей «Клавиатура» где-то открыт.
+  // На игровом ПК (помощник) перехватом управляет стрим-ПК через keyHelper.
+  const syncKeys = (): void => {
+    const s = settings.get()
+    if (s.role === 'helper') {
+      keyHelper.apply(s.helper.url || null)
+      return
+    }
+    keyHelper.apply(null)
+    keys.apply(s.overlays.keys.capture && server.openCount('keys') > 0, keysAllowed(s.overlays.keys))
+    server.pushHelpers()
+  }
+  server.onClients = () => { syncKeys(); pushUpdate() }
   floatChat = new FloatChat(settings, hub, () => server.overlayUrl('float'))
   floatChat.onChange = pushUpdate
   twitch.onChange = pushUpdate
@@ -617,6 +638,7 @@ app.whenReady().then(async () => {
     server.pushConfig()
     if (s.setupMode !== prev.setupMode || JSON.stringify(s.lan) !== JSON.stringify(prev.lan)) void server.applyLan().then(pushUpdate)
     floatChat.apply()
+    syncKeys()
     if (s.goodgame.channel !== prev.goodgame.channel) void goodgame.restart()
     if (s.kick.channel !== prev.kick.channel) void kick.restart()
     if (s.youtube.customClientId !== prev.youtube.customClientId) void youtube.logout()
@@ -631,6 +653,7 @@ app.whenReady().then(async () => {
     prev = s
     pushUpdate()
   }
+  syncKeys()
 
   // ---------- IPC: всё, что может интерфейс ----------
   handle('hub:snapshot', () => snapshot())
@@ -638,7 +661,7 @@ app.whenReady().then(async () => {
   handle('hub:obsConfigure', (url, password) => obs.configure(str(url, 200).trim(), password === undefined ? undefined : str(password, 200)))
   handle('hub:obsReconnect', () => obs.reconnect())
   handle('hub:rotateKey', (which) => {
-    server.rotate(which === 'remote' ? 'remote' : which === 'dock' ? 'dock' : which === 'mod' ? 'mod' : 'overlay')
+    server.rotate(which === 'remote' ? 'remote' : which === 'dock' ? 'dock' : which === 'mod' ? 'mod' : which === 'keys' ? 'keys' : 'overlay')
     pushUpdate()
   })
   handle('hub:copy', (text) => clipboard.writeText(str(text, 2000)))
@@ -949,9 +972,9 @@ app.whenReady().then(async () => {
   handle('hub:sileroStatus', () => silero.get())
   handle('hub:sileroInstall', () => { void silero.install(); return silero.get() })
   handle('hub:sileroRemove', () => silero.remove())
-  handle('hub:ttsTest', async (text) => {
+  handle('hub:ttsTest', async (text, voice) => {
     const s = settings.get().tts
-    const r = await tts.synth(str(text, 500), s.voice, s.rate)
+    const r = await tts.synth(str(text, 500), str(voice, 200) || s.voice, s.rate)
     return `/t/${r.file}`
   })
   handle('hub:stats', (period) => {
@@ -1102,6 +1125,8 @@ app.on('before-quit', () => {
   chats.stopAll()
   for (const d of donations) d.stop()
   alerts?.dispose()
+  keyHelper?.dispose()
+  keys?.stop()
   tts?.dispose()
   silero?.dispose()
   void obs?.stop()

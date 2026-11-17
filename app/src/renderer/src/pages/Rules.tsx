@@ -395,7 +395,7 @@ function RuleEditor({ rule, snap, onClose }: { rule: Rule; snap: HubSnapshot; on
                     <div className="field"><label>Скорость</label><NumIn min={-10} max={10} value={a.rate} onChange={(n) => setA(i, { ...a, rate: n })} /></div>
                     <div className="field"><label>Громкость, %</label><NumIn max={100} value={a.volume} onChange={(n) => setA(i, { ...a, volume: n })} /></div>
                   </div>
-                  <button className="btn sm" onClick={() => previewTts(snap, a.text.replace('{user}', 'Тестовый зритель').replace('{amount}', '500 рублей').replace('{message}', 'Привет со стрима!').replace(/\{([A-Za-zА-Яа-яЁё0-9_]{1,24})\}/g, (m, k: string) => String(snap.counters.find((c) => c.key === k)?.value ?? m))).catch((e) => setErr(errText(e)))}>▶ Послушать</button>
+                  <button className="btn sm" onClick={() => previewTts(snap, a.text.replace('{user}', 'Тестовый зритель').replace('{amount}', '500 рублей').replace('{message}', 'Привет со стрима!').replace(/\{([A-Za-zА-Яа-яЁё0-9_]{1,24})\}/g, (m, k: string) => String(snap.counters.find((c) => c.key === k)?.value ?? m)), a.voice).catch((e) => setErr(errText(e)))}>▶ Послушать</button>
                 </>
               )}
               {a.type === 'sound' && (

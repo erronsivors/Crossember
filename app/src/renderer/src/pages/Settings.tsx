@@ -34,6 +34,7 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
               ? 'Crossember стоит на стрим-ПК рядом с OBS — там же открыт общий чат всех площадок.'
               : 'Игра, OBS и Crossember на одном компьютере.'}
           </p>
+          {s.setupMode === 'two' && <button className="btn sm" onClick={() => void window.hub.setSettings({ role: 'helper' })}>Этот ПК — игровой (режим «Помощник»)</button>}
           <h3 style={{ marginTop: 18 }}>Оформление приложения</h3>
           <div className="seg">
             <button className={s.ui.look === 'standard' ? 'on' : ''} onClick={() => void window.hub.setSettings({ ui: { look: 'standard' } })}>Стандартное</button>

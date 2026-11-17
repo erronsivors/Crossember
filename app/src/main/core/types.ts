@@ -25,6 +25,7 @@ import type { MusicState } from './music'
 import type { SubathonState } from './subathon'
 import type { MemealertsState } from './memealerts'
 import type { UpdateState } from './updater'
+import type { KeyHelperState } from './keyhelper'
 
 export type Platform = 'twitch' | 'youtube' | 'vk' | 'kick' | 'goodgame' | 'donationalerts' | 'donatepay' | 'donatex' | 'boosty' | 'obs' | 'hub'
 
@@ -115,6 +116,8 @@ export interface ServerInfo {
   lan: { running: boolean; url: string | null; error: string | null; addresses: string[] }
   /** Пульт модератора (домашняя сеть, свой ключ); null — сеть или пульт выключены. */
   modUrl: string | null
+  /** Ссылка для помощника на игровом ПК (null — сервер второго ПК выключен) и сколько помощников подключено. */
+  keysHelper: { url: string | null; connected: number }
 }
 
 export interface TwitchAccount {
@@ -151,6 +154,7 @@ export interface HubSnapshot {
   chat: HubEvent[]
   pinned: HubEvent | null
   server: ServerInfo | null
+  keyHelper: KeyHelperState
   obsConfig: { url: string; hasPassword: boolean }
   settings: AppSettings
   twitch: TwitchState

@@ -8,9 +8,14 @@ export function Wizard() {
   // По умолчанию 2 ПК (BETA): по функциям режимы пока не различаются, отличаются только подсказки.
   const [mode, setMode] = useState<SetupMode | null>('two')
   const [theme, setTheme] = useState<Theme>('general')
+  const [game, setGame] = useState(false)
 
   const finish = (): void => {
     if (!mode) return
+    if (mode === 'two' && game) {
+      void window.hub.setSettings({ setupMode: 'two', role: 'helper' })
+      return
+    }
     void window.hub.setSettings({
       setupMode: mode,
       defaultTheme: theme,
@@ -43,14 +48,33 @@ export function Wizard() {
           </button>
         </div>
         {mode === 'two' && (
-          <div className="note" style={{ marginTop: 12 }}>
-            Убедитесь, что Crossember установлен на <b>стрим-ПК (с OBS)</b>. Если захотите видеть чат ещё и на телефоне или игровом ПК — «Настройки → Чат на другом устройстве».
-          </div>
+          <>
+            <h3>Какой это компьютер?</h3>
+            <div className="grid g2" style={{ gap: 12 }}>
+              <button className={`choice ${!game ? 'on' : ''}`} onClick={() => setGame(false)}>
+                <b>Стрим-ПК (с OBS)</b>
+                <span>Здесь будет весь Crossember: чат, алерты, оверлеи. Ставьте сначала сюда.</span>
+              </button>
+              <button className={`choice ${game ? 'on' : ''}`} onClick={() => setGame(true)}>
+                <b>Игровой ПК</b>
+                <span>Режим «Помощник»: только передаёт нажатия клавиш и мыши на стрим-ПК для оверлея клавиатуры.</span>
+              </button>
+            </div>
+            {!game && (
+              <div className="note" style={{ marginTop: 12 }}>
+                Чат на телефоне или игровом ПК — «Настройки → Чат на другом устройстве». Нажатия клавиш с игрового ПК — поставьте туда Crossember и выберите «Игровой ПК».
+              </div>
+            )}
+          </>
         )}
 
-        <h3>2. Стиль оверлеев по умолчанию</h3>
-        <ThemePicker value={theme} onChange={setTheme} />
-        <p className="small muted">«Общий» — нейтральный для любого канала. «У костра» — тёплый фирменный стиль ERRON. Для каждого оверлея можно выбрать свой.</p>
+        {!(mode === 'two' && game) && (
+          <>
+            <h3>2. Стиль оверлеев по умолчанию</h3>
+            <ThemePicker value={theme} onChange={setTheme} />
+            <p className="small muted">«Общий» — нейтральный для любого канала. «У костра» — тёплый фирменный стиль ERRON. Для каждого оверлея можно выбрать свой.</p>
+          </>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
           <button className="btn primary" disabled={!mode} onClick={finish}>Готово</button>

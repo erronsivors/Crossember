@@ -1,3 +1,4 @@
+npmRebuild: false
 # Сборка установщика Crossember для Windows: npm run dist → dist/Crossember-Setup-<версия>.exe и .sha256 рядом.
 # Без автообновлений и без публикации: установщик раздаётся вручную, проверка — по SHA-256.
 appId: com.erron.crossember

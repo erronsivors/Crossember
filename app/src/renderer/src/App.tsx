@@ -25,6 +25,7 @@ import { ChatStyle } from './pages/ChatStyle'
 import { ALERT_TABS, INTERACTIVE, InteractiveHub, SubTabs } from './pages/Interactive'
 import { Feedback } from './pages/Feedback'
 import { Wizard } from './pages/Wizard'
+import { Helper } from './pages/Helper'
 import { ModeContext } from './components'
 import { useNow, fmtDuration } from './ui'
 import { UpdateModal, UpdateNav } from './Update'
@@ -78,6 +79,7 @@ export function App() {
   }, [ui?.look, ui?.palette])
 
   if (!snap) return <div className="empty">Запуск…</div>
+  if (snap.settings.role === 'helper') return <Helper snap={snap} />
   const { obs, twitch } = snap
   const okCount = snap.connections.filter((c) => c.state === 'ok').length
   const live = obs.streaming || snap.platforms.some((p) => p.live)

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Crossember · Клавиатура и мышь</title>
+<link rel="stylesheet" href="/a/overlay.css">
+<style>
+  body { --u: 56px; --gap: calc(var(--u) * .1); --idle: .55; }
+  #stage { position: absolute; left: 16px; top: 16px; display: flex; align-items: flex-start; gap: calc(var(--u) * .4); }
+  .kb { display: flex; flex-direction: column; gap: var(--gap); }
+  .row { display: flex; gap: var(--gap); }
+  .key, .gap { height: var(--u); flex: none; }
+  .key { display: grid; place-items: center; border-radius: calc(var(--u) * .2); background: var(--card); box-shadow: 0 0 0 1.5px var(--edge);
+    font: 800 calc(var(--u) * .34) var(--title); color: var(--fg); opacity: var(--idle); transition: transform 60ms, opacity 60ms, background 60ms, box-shadow 120ms; }
+  .key.wide { font-size: calc(var(--u) * .26); letter-spacing: .04em; }
+  .on { opacity: 1; background: var(--accent); box-shadow: 0 0 0 1.5px var(--accent), 0 0 calc(var(--u) * .35) var(--accent); transform: translateY(calc(var(--u) * .04)) scale(.96); }
+  /* Мышь: корпус, две кнопки, колесо, боковые кнопки */
+  .mouse { position: relative; width: calc(var(--u) * 1.7); height: calc(var(--u) * 2.6); border-radius: calc(var(--u) * .85); background: var(--card);
+    box-shadow: 0 0 0 1.5px var(--edge); overflow: hidden; opacity: var(--idle); }
+  .mouse.active { opacity: 1; }
+  .mb { position: absolute; top: 0; height: 42%; width: 50%; transition: background 60ms; }
+  .mb.l { left: 0; border-right: 1.5px solid var(--edge); }
+  .mb.r { right: 0; }
+  .mb.on, .ms.on { background: var(--accent); box-shadow: none; transform: none; }
+  .mw.on { background: var(--accent); box-shadow: none; transform: translateX(-50%); }
+  .mw { position: absolute; left: 50%; top: 12%; width: 18%; height: 20%; transform: translateX(-50%); border-radius: 99px; background: var(--fg); opacity: .5; z-index: 1; }
+  .mw.on { opacity: 1; }
+  .ms { position: absolute; left: 0; width: 9%; height: 12%; background: var(--edge); }
+  .ms.m4 { top: 58%; } .ms.m5 { top: 44%; }
+  .wheel-dir { position: absolute; left: 50%; transform: translateX(-50%); font: 800 calc(var(--u) * .3) var(--title); color: var(--fg); opacity: 0; transition: opacity 80ms; z-index: 1; }
+  .wheel-dir.up { top: 0; } .wheel-dir.down { top: 33%; }
+  .wheel-dir.on { opacity: 1; background: none; box-shadow: none; transform: translateX(-50%); }
+  .mline { position: absolute; left: 0; right: 0; top: 42%; border-top: 1.5px solid var(--edge); }
+</style></head>
+<body class="t-general"><div id="stage"></div>
+<script src="/a/overlay.js"></script><script src="/a/keys.js"></script>
+</body></html>

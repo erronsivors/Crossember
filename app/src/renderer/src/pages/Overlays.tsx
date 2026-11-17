@@ -5,9 +5,10 @@ import type { AppSettings, ChatOverlaySettings, StatsPeriod, Theme } from '../..
 import { Hint, NumberField, ThemePicker, Toggle } from '../components'
 import { DOCK_BLOCKS, DOCK_PRESETS, type DockBlock } from '../../../main/core/dock'
 import { KeyRotate } from './Settings'
+import { KEY_DEFS, KEYS_PRESETS, type KeysOverlaySettings, type KeysPreset } from '../../../main/core/keyslayout'
 
 type Key = keyof AppSettings['overlays']
-const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote', bets: 'bets', music: 'music', subathon: 'subathon' }
+const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote', bets: 'bets', music: 'music', subathon: 'subathon', keys: 'keys' }
 const DESC: Record<string, string> = {
   alert: 'Донаты, подписки, рейды, фолловы — по очереди, по центру экрана.',
   chat: 'Колонка чата: новые сообщения снизу.',
@@ -23,7 +24,8 @@ const DESC: Record<string, string> = {
   vote: 'Вопрос, варианты с номерами и полосками, таймер и итог. Быстрое висит до конца, долгое появляется иногда. Ники зрителей не показываются.',
   bets: 'Вопрос, исходы с банком, долей и коэффициентом, таймер приёма и итог. После итога держится 25 секунд и прячется.',
   music: 'Обложка, название, исполнитель и кто заказал трек. Spotify или любой плеер Windows (Яндекс Музыка, браузер).',
-  subathon: 'Большой таймер сабатона, пометки «пауза» и «счастливый час», всплывающие «+5:00» от подписок и донатов.'
+  subathon: 'Большой таймер сабатона, пометки «пауза» и «счастливый час», всплывающие «+5:00» от подписок и донатов.',
+  keys: 'Какие клавиши и кнопки мыши вы нажимаете — для гайдов, спидранов и обучающих эфиров.'
 }
 
 export function Overlays({ snap, go }: { snap: HubSnapshot; go?: (p: Page) => void }) {
@@ -139,6 +141,7 @@ function OverlayCard({ o, snap, go }: { o: OverlayInfo; snap: HubSnapshot; go?: 
           <Toggle on={(cfg as AppSettings['overlays']['last']).showSub} onChange={(v) => set({ showSub: v })} label="Показывать последнюю подписку" />
         </>
       )}
+      {key === 'keys' && <KeysSettings c={cfg as KeysOverlaySettings} snap={snap} set={set} />}
       {key === 'counter' && <CounterSettings c={cfg as AppSettings['overlays']['counter']} snap={snap} set={set} />}
       {key === 'auction' && <AuctionOverlaySettings c={cfg as AppSettings['overlays']['auction']} set={set} />}
       {key === 'vote' && <VoteOverlaySettings c={cfg as AppSettings['overlays']['vote']} set={set} />}
@@ -190,6 +193,70 @@ function ChatSettings({ c, set }: { c: ChatOverlaySettings; set: (p: Record<stri
         <Toggle on={c.showBadges} onChange={(v) => set({ showBadges: v })} label="Бейджи" />
         <Toggle on={c.showPlatform} onChange={(v) => set({ showPlatform: v })} label="Значок площадки" />
         <Toggle on={c.showStatus} onChange={(v) => set({ showStatus: v })} label={<>Строки о сбоях площадок <Hint id="showStatus" /></>} />
+      </div>
+    </>
+  )
+}
+
+/** Режим «2 ПК»: нажатия приходят с игрового ПК, где Crossember запущен в режиме «Помощник». */
+function KeysHelperBox({ snap }: { snap: HubSnapshot }) {
+  const [copied, setCopied] = useState(false)
+  const [confirm, setConfirm] = useState(false)
+  const h = snap.server?.keysHelper
+  return (
+    <div className="note" style={{ margin: '0 0 12px' }}>
+      <b>Игровой ПК.</b> Поставьте туда Crossember, в первом окне выберите «Два ПК» → «Игровой ПК» и вставьте эту ссылку.
+      {h?.url ? (
+        <>
+          <div className="url" style={{ marginTop: 8 }}>
+            <code title="В ссылке ключ — не показывайте её в эфире">{h.url.replace(/k=.+$/, 'k=••••••')}</code>
+            <button className="btn sm" onClick={() => { void window.hub.copy(h.url!); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>{copied ? 'Скопировано ✓' : 'Ссылка для игрового ПК'}</button>
+          </div>
+          <div className="small" style={{ marginTop: 6 }}>
+            <span className={`dot ${h.connected ? 'ok' : ''}`} /> {h.connected ? `Игровой ПК подключён${h.connected > 1 ? ` (${h.connected})` : ''}` : 'Игровой ПК не подключён'}
+          </div>
+          <KeyRotate label="Перевыпустить ключ игрового ПК" confirm={confirm} onAsk={() => setConfirm(true)} onCancel={() => setConfirm(false)} onYes={() => { void window.hub.rotateKey('keys'); setConfirm(false) }} />
+        </>
+      ) : (
+        <div className="small" style={{ marginTop: 6 }}>Сначала включите «Настройки → Чат на другом устройстве» и выберите адрес этого ПК в домашней сети — по нему игровой ПК найдёт стрим-ПК.</div>
+      )}
+    </div>
+  )
+}
+
+function KeysSettings({ c, snap, set }: { c: KeysOverlaySettings; snap: HubSnapshot; set: (p: Record<string, unknown>) => void }) {
+  const free = Object.keys(KEY_DEFS).filter((id) => !c.extra.includes(id))
+  return (
+    <>
+      <Toggle on={c.capture} onChange={(v) => set({ capture: v })} label="Показывать мои нажатия" />
+      <p className="small muted" style={{ margin: '4px 0 10px' }}>
+        Crossember видит нажатия, только пока галочка стоит и оверлей открыт в OBS или в браузере. В оверлей уходят лишь клавиши,
+        которые на нём нарисованы, ничего не записывается, движение мыши не передаётся. Но нарисованные буквы загораются при любом наборе —
+        в чате и в полях паролей тоже. Перед вводом пароля в эфире снимите галочку или скройте источник в OBS.
+      </p>
+      {snap.settings.setupMode === 'two' && <KeysHelperBox snap={snap} />}
+      <div className="field">
+        <label>Раскладка</label>
+        <div className="seg" style={{ flexWrap: 'wrap' }}>
+          {(Object.keys(KEYS_PRESETS) as KeysPreset[]).map((p) => <button key={p} className={c.preset === p ? 'on' : ''} onClick={() => set({ preset: p })}>{KEYS_PRESETS[p].name}</button>)}
+        </div>
+      </div>
+      <Toggle on={c.mouse} onChange={(v) => set({ mouse: v })} label="Мышь: кнопки и колесо" />
+      <div className="field" style={{ marginTop: 10 }}>
+        <label>Свои клавиши (отдельным рядом)</label>
+        <div className="chips">
+          {c.extra.map((id) => <button key={id} className="on" title="Убрать" onClick={() => set({ extra: c.extra.filter((x) => x !== id) })}>{KEY_DEFS[id].label} ✕</button>)}
+          {c.extra.length < 20 && (
+            <select className="input" style={{ width: 'auto' }} value="" onChange={(e) => e.target.value && set({ extra: [...c.extra, e.target.value] })}>
+              <option value="">+ Добавить клавишу</option>
+              {free.map((id) => <option key={id} value={id}>{id === KEY_DEFS[id].label ? id : `${id} (${KEY_DEFS[id].label})`}</option>)}
+            </select>
+          )}
+        </div>
+      </div>
+      <div className="grid g2" style={{ gap: 10 }}>
+        <NumberField label="Размер клавиши" value={c.size} min={24} max={140} suffix="px" onChange={(v) => set({ size: v })} />
+        <NumberField label="Яркость ненажатых" value={c.idle} min={0} max={100} suffix="%" onChange={(v) => set({ idle: v })} />
       </div>
     </>
   )

@@ -35,7 +35,8 @@
     "fastify": "5.12.7",
     "obs-websocket-js": "5.0.8",
     "react": "19.1.10",
-    "react-dom": "19.1.10"
+    "react-dom": "19.1.10",
+    "uiohook-napi": "1.5.5"
   },
   "author": "erron"
 }

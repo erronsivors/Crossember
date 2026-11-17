@@ -793,7 +793,7 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
           <Field label="Скорость (0 — из настроек)"><N value={l.rate} min={-10} max={10} onChange={(n) => onChange({ rate: n })} /></Field>
           <Field label="Громкость, %"><N value={l.volume} min={0} max={100} onChange={(n) => onChange({ volume: n })} /></Field>
         </div>
-        <button className="btn sm" onClick={() => { setErr(null); previewTts(snap, fillText(l.text, SAMPLE[kind] ?? SAMPLE.donation)).catch((e) => setErr(errText(e))) }}>▶ Послушать на примере</button>
+        <button className="btn sm" onClick={() => { setErr(null); previewTts(snap, fillText(l.text, SAMPLE[kind] ?? SAMPLE.donation), l.voice).catch((e) => setErr(errText(e))) }}>▶ Послушать на примере</button>
         {err && <p className="small" style={{ color: '#ff7a84' }}>{err}</p>}
       </>}
 
