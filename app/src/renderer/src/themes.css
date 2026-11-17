@@ -1,0 +1,175 @@
+/* Standard palettes. Load together with styles.css. Brand tokens stay in styles.css. */
+:root[data-palette="classic"] {
+  /* Inherits the original warm palette. */
+}
+
+/* Графит */
+:root[data-palette="graphite"] {
+  --night: #101113;
+  --coal: #191b1e;
+  --coal-2: #202327;
+  --coal-3: #292d32;
+  --line: #2c3035;
+  --line-2: #41474f;
+  --ink: #f0f1f3;
+  --ink-2: #d8dde3;
+  --muted: #b8c0cb;
+  --muted-2: #a0aab7;
+  --light: #d6b793;
+  --accent: #b99a78;
+  --secondary: #6c8fb7;
+  --glow-warm: #d6b793;
+  --side-bg: #0c0d0f;
+  --popover: #141619;
+  --bright: #fff;
+  --secondary-ink: var(--light);
+  --accent-ink: var(--light);
+}
+
+/* Глубокая ночь */
+:root[data-palette="midnight"] {
+  --night: #090f1b;
+  --coal: #111b2b;
+  --coal-2: #182438;
+  --coal-3: #202e44;
+  --line: #25334a;
+  --line-2: #3a4d68;
+  --ink: #eef3fc;
+  --ink-2: #d4dff1;
+  --muted: #b2c2db;
+  --muted-2: #9aadc9;
+  --light: #abc5ed;
+  --accent: #7399cf;
+  --secondary: #527caf;
+  --glow-warm: #719ddc;
+  --side-bg: #070c16;
+  --popover: #0d1624;
+  --bright: #fff;
+  --secondary-ink: var(--light);
+  --accent-ink: var(--light);
+}
+
+/* Сталь */
+:root[data-palette="steel"] {
+  --night: #0c1419;
+  --coal: #141f26;
+  --coal-2: #1c2932;
+  --coal-3: #26363f;
+  --line: #293c46;
+  --line-2: #405965;
+  --ink: #eff6f8;
+  --ink-2: #d4e4eb;
+  --muted: #b4cbd5;
+  --muted-2: #a0bbc7;
+  --light: #a4cbd6;
+  --accent: #729eac;
+  --secondary: #7796be;
+  --glow-warm: #7fabb9;
+  --side-bg: #091015;
+  --popover: #101a21;
+  --bright: #fff;
+  --secondary-ink: var(--light);
+  --accent-ink: var(--light);
+}
+
+/* Хвоя */
+:root[data-palette="forest"] {
+  --night: #0b1412;
+  --coal: #131f1b;
+  --coal-2: #1b2a24;
+  --coal-3: #26372e;
+  --line: #293c32;
+  --line-2: #415a4b;
+  --ink: #eef5ee;
+  --ink-2: #d8e7da;
+  --muted: #b8cdbd;
+  --muted-2: #a1baa8;
+  --light: #bad0ae;
+  --accent: #7fa88a;
+  --secondary: #7199b9;
+  --glow-warm: #8eaf80;
+  --side-bg: #080f0d;
+  --popover: #0f1915;
+  --bright: #fff;
+  --secondary-ink: var(--light);
+  --accent-ink: var(--light);
+}
+
+/* Вино */
+:root[data-palette="wine"] {
+  --night: #170e12;
+  --coal: #23171d;
+  --coal-2: #2e2027;
+  --coal-3: #3a2a32;
+  --line: #402c36;
+  --line-2: #5a414e;
+  --ink: #f9eef2;
+  --ink-2: #ebd6df;
+  --muted: #d2b9c5;
+  --muted-2: #c2a5b4;
+  --light: #e7b3a8;
+  --accent: #bf8d83;
+  --secondary: #8e9bc7;
+  --glow-warm: #d49785;
+  --side-bg: #110a0e;
+  --popover: #1d1218;
+  --bright: #fff;
+  --secondary-ink: var(--light);
+  --accent-ink: var(--light);
+}
+
+/* У костра (BETA). The combined selector wins over every palette,
+   including when the files are loaded in a different order. */
+:root[data-look="campfire"],
+:root[data-look="campfire"][data-palette] {
+  --night: #090e1a;
+  --coal: #121b2b;
+  --coal-2: #1a263a;
+  --coal-3: #26334a;
+  --line: #2d3c57;
+  --line-2: #465472;
+  --ink: #f6f1f2;
+  --ink-2: #e1deea;
+  --muted: #c0c5d8;
+  --muted-2: #a9b4cd;
+  --light: #ffb0a2;
+  --accent: #c8645a;
+  --accent-ink: #ffc2b6;
+  --secondary: #587fc9;
+  --secondary-ink: #afc9ff;
+  --glow-warm: #e55f50;
+  --side-bg: #080c16;
+  --popover: #0e1626;
+  --bright: #fff;
+}
+
+:root[data-look="campfire"] body {
+  background:
+    radial-gradient(ellipse 70% 60% at 90% 110%, color-mix(in srgb, var(--fire) 26%, transparent), transparent 65%),
+    radial-gradient(ellipse 70% 60% at 5% -5%, color-mix(in srgb, var(--path) 28%, transparent), transparent 65%),
+    var(--night);
+}
+
+:root[data-look="campfire"] .card,
+:root[data-look="campfire"] .ix-tile {
+  border-color: color-mix(in srgb, var(--secondary) 30%, var(--line));
+  box-shadow:
+    inset 1px 0 0 color-mix(in srgb, var(--secondary) 17%, transparent),
+    inset -1px 0 0 color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+:root[data-look="campfire"] .btn.primary {
+  background: var(--light);
+  border-color: var(--light);
+  color: var(--night);
+}
+
+:root[data-look="campfire"] .btn.primary:hover {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
+/* Красно-синяя кромка как у логотипа: правый край меню и активный пункт. */
+:root[data-look="campfire"] .side { border-image: linear-gradient(180deg, var(--path), var(--mix) 50%, var(--fire)) 1; }
+:root[data-look="campfire"] .nav.on { box-shadow: inset 3px 0 0 var(--fire); background: linear-gradient(90deg, color-mix(in srgb, var(--fire) 14%, var(--coal-2)), var(--coal-2) 60%); }
+:root[data-look="campfire"] .topbar { border-color: color-mix(in srgb, var(--fire) 35%, var(--line)); }

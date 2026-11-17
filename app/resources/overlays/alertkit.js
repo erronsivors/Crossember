@@ -287,6 +287,15 @@
 
       // Видимость — только пока слой «идёт» на таймлайне.
       anims.push(wrap.animate([{ visibility: 'visible' }, { visibility: 'visible' }], { duration: dur, delay: start, fill: 'none' }));
+      // Своё «дыхание» картинки: мягкое увеличение от нижнего края, отдельно от ключевых кадров и появления.
+      const period = num(l.breathMs, 0);
+      if ((l.type === 'image' || l.type === 'video') && period >= 800) {
+        const box = inner.firstElementChild;
+        const k = 1 + Math.min(8, Math.max(1, num(l.breathPct, 2))) / 100;
+        box.style.transformOrigin = '50% 100%';
+        anims.push(box.animate([{ transform: 'none' }, { transform: `scale(${1 + (k - 1) * 0.35}, ${k})` }, { transform: 'none' }],
+          { duration: period, delay: start, iterations: Math.max(1, Math.ceil(dur / period)), easing: 'ease-in-out' }));
+      }
       // Позиция и движение по ключевым кадрам.
       const k = Array.isArray(l.keyframes) ? l.keyframes : [];
       if (k.length) {

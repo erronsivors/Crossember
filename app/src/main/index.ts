@@ -33,6 +33,7 @@ import { Smtc } from './core/smtc'
 import { Music } from './core/music'
 import { Subathon } from './core/subathon'
 import { Memealerts } from './core/memealerts'
+import { Updater } from './core/updater'
 import { exportAlert, findAlerts, importAlert, type FolderLibs } from './core/alertfolder'
 import { packHas } from './core/alertpack'
 import { readFile as readFileAsync } from 'node:fs/promises'
@@ -128,6 +129,7 @@ let spotify: Spotify
 let music: Music
 let subathon: Subathon
 let memealerts: Memealerts
+let updater: Updater
 let analytics: Analytics
 let profiles: Profiles
 let kickAuth: KickAuth
@@ -182,6 +184,7 @@ function snapshot(): HubSnapshot {
     music: music.state(),
     subathon: subathon.state(),
     memealerts: memealerts.state(),
+    update: updater.get(),
     twitchScopes: Object.fromEntries(PANEL_SCOPES.map((sc) => [sc, twitch.access(sc)])),
     feedback: { email: FEEDBACK_EMAIL, crash: logger?.crash() ?? null },
     alertOverlays: server ? server.openCount('alert') : 0,
@@ -442,6 +445,9 @@ app.whenReady().then(async () => {
   subathon.on('change', pushUpdate)
   memealerts = new Memealerts(hub, secrets)
   memealerts.onChange = pushUpdate
+  updater = new Updater(hub, () => settings.get().updates.check)
+  updater.onChange = pushUpdate
+  updater.start()
   rewards = new Rewards(store, settings, hub)
   rewards.on('change', pushUpdate)
   rewards.setApi({
@@ -843,6 +849,11 @@ app.whenReady().then(async () => {
   handle('hub:memeToken', (t) => memealerts.setToken(str(t, 4000)))
   handle('hub:memeSupporters', (q) => memealerts.supporters(typeof q === 'string' ? str(q, 60) : ''))
   handle('hub:memeGive', (name, n) => memealerts.giveByName(str(name, 64), Number(n)))
+  // ---------- Обновления ----------
+  handle('hub:updateCheck', () => updater.check())
+  handle('hub:updateDownload', () => updater.download())
+  handle('hub:updateLater', () => updater.later())
+  handle('hub:updateInstall', () => updater.install())
   // ---------- Колесо ----------
   handle('hub:wheelSetItems', (list) => wheel.setItems(list))
   handle('hub:wheelLoadLots', () => wheel.loadLots(auction.state().lots))
@@ -1068,6 +1079,7 @@ app.on('ready', () => powerMonitor.on('shutdown', () => logger?.close()))
 
 app.on('before-quit', () => {
   logger?.info('app', 'Выход')
+  updater?.dispose()
   logger?.close()
   for (const accel of ruleKeys.keys()) globalShortcut.unregister(accel)
   if (voteKey) globalShortcut.unregister(voteKey)

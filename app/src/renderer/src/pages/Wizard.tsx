@@ -5,7 +5,8 @@ import mark from '../assets/mark.svg'
 
 /** Мастер первого запуска: режим 1/2 ПК и тема по умолчанию. Всё можно поменять позже в «Настройках». */
 export function Wizard() {
-  const [mode, setMode] = useState<SetupMode | null>(null)
+  // По умолчанию 2 ПК (BETA): по функциям режимы пока не различаются, отличаются только подсказки.
+  const [mode, setMode] = useState<SetupMode | null>('two')
   const [theme, setTheme] = useState<Theme>('general')
 
   const finish = (): void => {
@@ -37,7 +38,7 @@ export function Wizard() {
             <span>Игра, OBS и Crossember на одном компьютере. Самый частый вариант.</span>
           </button>
           <button className={`choice ${mode === 'two' ? 'on' : ''}`} onClick={() => setMode('two')}>
-            <b>Два ПК</b>
+            <b>Два ПК <span className="beta">BETA</span></b>
             <span>На одном играете, на другом OBS и трансляция. Crossember ставится на стрим-ПК рядом с OBS — там же общий чат всех площадок.</span>
           </button>
         </div>

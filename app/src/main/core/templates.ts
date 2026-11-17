@@ -76,6 +76,13 @@ export interface Layer {
   animOut: AnimPreset
   animOutMs: number
   keyframes: Keyframe[]
+  /** Кадры при выключенной «Анимации движения» (переключатель в редакторе, ничего не стирает). */
+  keyframesOff: Keyframe[]
+  /** Исходные кадры, пока включено «Без покачивания». */
+  keyframesFull: Keyframe[]
+  /** image / video: своё «дыхание» — период вдоха-выдоха, мс (0 — нет) и сила, % масштаба. */
+  breathMs: number
+  breathPct: number
   /** text: текст слоя; card: главная строка. Подстановки {user} {amount} {message} {platform}. */
   text: string
   /** card: верхняя строка. */
@@ -194,6 +201,10 @@ export function newLayer(type: LayerType, patch: Partial<Layer> = {}): Layer {
     animOut: visual ? 'fade' : 'none',
     animOutMs: 450,
     keyframes: [],
+    keyframesOff: [],
+    keyframesFull: [],
+    breathMs: 0,
+    breathPct: 2,
     text: type === 'card' ? '{user} — {amount}' : type === 'tts' ? '{user} — {amount}. {message}' : type === 'text' ? '{user}' : '',
     kicker: type === 'card' ? 'Новый донат' : '',
     showMessage: true,
@@ -244,6 +255,10 @@ export function sanitizeLayer(v: unknown): Layer {
     animOut: oneOf(o.animOut, ANIM_PRESETS, d.animOut),
     animOutMs: num(o.animOutMs, d.animOutMs, 0, 5000),
     keyframes: (Array.isArray(o.keyframes) ? o.keyframes : []).slice(0, 50).map(keyframe).sort((a, b) => a.t - b.t),
+    keyframesOff: (Array.isArray(o.keyframesOff) ? o.keyframesOff : []).slice(0, 50).map(keyframe).sort((a, b) => a.t - b.t),
+    keyframesFull: (Array.isArray(o.keyframesFull) ? o.keyframesFull : []).slice(0, 50).map(keyframe).sort((a, b) => a.t - b.t),
+    breathMs: o.breathMs === 0 ? 0 : num(o.breathMs, 0, 800, 10_000),
+    breathPct: num(o.breathPct, 2, 1, 8),
     text: str(o.text, d.text, 300),
     kicker: str(o.kicker, d.kicker, 60),
     showMessage: bool(o.showMessage, d.showMessage),

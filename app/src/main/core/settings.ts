@@ -1,6 +1,7 @@
 import type { Store } from './db'
 import { DOCK_PRESETS, sanitizeBlocks, type DockBlock } from './dock'
 import { lookDefaults, sanitizeLook, textDefaults, type ChatLook } from './chatstyle'
+import { DEFAULT_HOME, sanitizeHome, type HomeItem } from './home'
 import { EXT_DEFAULTS, EXT_OVERLAY_DEFAULTS, sanitizeExt, sanitizeExtOverlays, type ExtOverlays, type ExtSettings } from './extsettings'
 
 /**
@@ -99,6 +100,10 @@ export type StatsPeriod = 'stream' | 'today' | 'week' | 'month' | 'all'
 export interface AppSettings extends ExtSettings {
   setupMode: SetupMode | null
   defaultTheme: Theme
+  /** Оформление самого приложения: стандартное с цветовой схемой или «У костра» (BETA). На оверлеи не влияет. */
+  ui: { look: 'standard' | 'campfire'; palette: string }
+  /** Раскладка главной (см. home.ts). */
+  home: HomeItem[]
   twitch: {
     /** Свой Client ID (необязательно). Пусто — используется общее приложение Crossember. */
     customClientId: string
@@ -156,6 +161,8 @@ export interface AppSettings extends ExtSettings {
   giveaway: GiveawaySettings
   vote: VoteSettings
   analytics: AnalyticsSettings
+  /** Проверять обновления в GitHub Releases при запуске и раз в 6 часов. */
+  updates: { check: boolean }
 }
 
 /** Локальная аналитика (данные — в таблицах viewers и streams). */
@@ -295,6 +302,8 @@ export const ALERT_DEFAULTS: AlertSettings = {
 export const DEFAULTS: AppSettings = {
   setupMode: null,
   defaultTheme: 'general',
+  ui: { look: 'standard', palette: 'classic' },
+  home: DEFAULT_HOME.map((i) => ({ ...i })),
   twitch: { customClientId: '', thirdPartyEmotes: true, autoSendAs: 'broadcaster' },
   youtube: { customClientId: '' },
   goodgame: { channel: '' },
@@ -335,6 +344,7 @@ export const DEFAULTS: AppSettings = {
     startText: 'Голосование: {вопрос} {варианты} — пишите номер в чат!', winText: 'Итог голосования «{вопрос}»: {победитель} ({голоса})'
   },
   ...EXT_DEFAULTS,
+  updates: { check: true },
   analytics: { chat: true, online: true, coreMin: 3, ignore: 'nightbot, streamelements, streamlabs, moobot, fossabot, wizebot, botrix, kicklet, kickbot' }
 }
 
@@ -441,6 +451,13 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
     ...sanitizeExt(i, base),
     setupMode: i.setupMode === 'one' || i.setupMode === 'two' ? i.setupMode : i.setupMode === null ? null : base.setupMode,
     defaultTheme: theme(i.defaultTheme, base.defaultTheme),
+    home: i.home === undefined ? base.home ?? DEFAULT_HOME.map((x) => ({ ...x })) : sanitizeHome(i.home),
+    ui: (() => {
+      const o = obj(i.ui)
+      const b = base.ui ?? DEFAULTS.ui
+      // Список схем знает интерфейс (palettes.ts); здесь — только безопасный вид id.
+      return { look: o.look === 'campfire' || o.look === 'standard' ? o.look : b.look, palette: typeof o.palette === 'string' && /^[a-z-]{1,24}$/.test(o.palette) ? o.palette : b.palette }
+    })(),
     twitch: {
       customClientId: /^[a-z0-9]{0,64}$/.test(clientId) ? clientId : base.twitch.customClientId,
       thirdPartyEmotes: bool(tw.thirdPartyEmotes, base.twitch.thirdPartyEmotes),
@@ -581,6 +598,7 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
         winText: text(o.winText, b.winText, 300)
       }
     })(),
+    updates: { check: bool(obj(i.updates).check, (base.updates ?? DEFAULTS.updates).check) },
     analytics: (() => {
       const o = obj(i.analytics)
       const b = base.analytics ?? DEFAULTS.analytics

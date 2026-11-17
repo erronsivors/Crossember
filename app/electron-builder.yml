@@ -1,0 +1,43 @@
+# Сборка установщика Crossember для Windows: npm run dist → dist/Crossember-Setup-<версия>.exe и .sha256 рядом.
+# Без автообновлений и без публикации: установщик раздаётся вручную, проверка — по SHA-256.
+appId: com.erron.crossember
+productName: Crossember
+copyright: made by erron for friends
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# Картинки алертов, оверлеи и скрипт Silero лежат рядом с программой, а не внутри app.asar:
+# их читает сервер оверлеев и запускает Python.
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - '**/*'
+      # Клиенты OAuth файлами не раздаём: YouTube вшит в программу при сборке (electron.vite.config.ts), Kick пока не настроен.
+      - '!kick/**'
+      - '!youtube/oauth-client.json'
+win:
+  target: nsis
+  icon: build/icon.png
+  artifactName: Crossember-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Crossember
+  # Настройки, токены и база в %APPDATA%\Crossember остаются после удаления: переустановка их не теряет.
+  deleteAppDataOnUninstall: false
+  installerLanguages:
+    - ru_RU
+  language: '1049'
+# Обновления: программа читает latest.yml из последнего релиза этого репозитория. Публикует npm run release (gh), не сборка.
+publish:
+  provider: github
+  owner: erronsivors
+  repo: erron-streamhub
+  releaseType: release

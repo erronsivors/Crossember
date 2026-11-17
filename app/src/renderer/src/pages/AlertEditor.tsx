@@ -42,7 +42,7 @@ export function makeLayer(type: LayerType, patch: Partial<Layer> = {}): Layer {
   return {
     id: uid(), type, name: LAYER_LABEL[type], hidden: false, start: 0, duration: 0,
     x: card ? 260 : 660, y: card ? 200 : 340, w: card ? 1400 : 600, h: card ? 260 : type === 'text' ? 120 : 400, rotate: 0, opacity: 1,
-    animIn: visual ? (card ? 'pop' : 'fade') : 'none', animInMs: 450, animOut: visual ? 'fade' : 'none', animOutMs: 450, keyframes: [],
+    animIn: visual ? (card ? 'pop' : 'fade') : 'none', animInMs: 450, animOut: visual ? 'fade' : 'none', animOutMs: 450, keyframes: [], keyframesOff: [], keyframesFull: [], breathMs: 0, breathPct: 2,
     text: card ? '{user} — {amount}' : type === 'tts' ? '{user} — {amount}. {message}' : type === 'text' ? '{user}' : '',
     kicker: card ? 'Новый донат' : '', showMessage: true, font: type === 'text' ? 'unbounded' : 'manrope', size: 56, color: '#ffffff', accent: '',
     align: 'center', bold: true, shadow: true, stroke: 0, textFx: 'none', fxStep: 45, media: '', fit: 'contain', loop: false, sound: type === 'sound' ? 'coin' : 'none', volume: 80,
@@ -145,13 +145,41 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
     const onKey = (e: KeyboardEvent): void => {
       const inField = (e.target as HTMLElement)?.closest('input, textarea, select')
       if ((e.code === 'Delete' || e.code === 'Backspace') && !inField && sel && selKf !== null) { e.preventDefault(); removeKf(sel, selKf); return }
+      // Delete без выбранного кадра — удалить выбранный слой (Ctrl+Z вернёт).
+      if (e.code === 'Delete' && !inField && sel && selKf === null) { e.preventDefault(); removeLayer(sel); return }
       if (!(e.ctrlKey || e.metaKey)) return
       if (e.code === 'KeyZ' && !inField) { e.preventDefault(); undo() }
+      if (e.code === 'KeyC' && !inField && layer && !window.getSelection()?.toString()) { e.preventDefault(); copyLayer(layer) }
+      if (e.code === 'KeyV' && !inField && clipboard) { e.preventDefault(); pasteLayer() }
       if (e.code === 'KeyS') { e.preventDefault(); save() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   })
+
+  /** Ctrl+C / Ctrl+V: копия слоя со сдвигом на 30 px — можно вставить и в другой шаблон (буфер живёт, пока открыт Crossember). */
+  const copyLayer = (l: Layer): void => {
+    clipboard = JSON.parse(JSON.stringify(l)) as Layer
+    setMsg(`Скопирован слой «${l.name}» — Ctrl+V вставит копию`)
+  }
+  const pasteLayer = (): void => {
+    if (!clipboard) return
+    if (t.layers.length >= 40) { setMsg('В шаблоне уже 40 слоёв — больше не помещается'); return }
+    const d = 30
+    const shift = (f: Keyframe): Keyframe => ({ ...f, x: f.x + d, y: f.y + d })
+    const c: Layer = { ...JSON.parse(JSON.stringify(clipboard)) as Layer, id: crypto.randomUUID(), x: clipboard.x + d, y: clipboard.y + d }
+    c.keyframes = c.keyframes.map(shift)
+    c.keyframesOff = (c.keyframesOff ?? []).map(shift)
+    c.keyframesFull = (c.keyframesFull ?? []).map(shift)
+    c.name = `${clipboard.name} (копия)`.slice(0, 40)
+    const at = sel ? t.layers.findIndex((l) => l.id === sel) + 1 : t.layers.length
+    const layers = [...t.layers]
+    layers.splice(at > 0 ? at : layers.length, 0, c)
+    change({ ...t, layers })
+    setSel(c.id)
+    setSelKf(null)
+    setMsg(null)
+  }
 
   const addLayer = (type: LayerType): void => {
     const l = makeLayer(type)
@@ -228,7 +256,9 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
         onRemoveKf={removeKf}
         onBegin={() => setHistory((h) => [...h.slice(-49), t])}
         onLayer={(id, p) => setLayer(id, p, false)}
-        onDuration={(ms) => change({ ...t, durationMs: ms })} />
+        onDuration={(ms) => change({ ...t, durationMs: ms })}
+        onRemove={removeLayer}
+        onToggle={(id, hidden) => setLayer(id, { hidden })} />
     </div>
   )
 }
@@ -389,10 +419,11 @@ function setKeyAt(l: Layer, time: number, total: number, fn: (s: Keyframe) => Ke
 }
 
 // ---------- таймлайн ----------
-function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, onRemoveKf, onBegin, onLayer, onDuration }: {
+function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, onRemoveKf, onBegin, onLayer, onDuration, onRemove, onToggle }: {
   t: AlertTemplate; total: number; time: number; sel: string | null; selKf: number | null; playing: boolean
   onTime: (ms: number) => void; onPlay: () => void; onSel: (id: string, kf: number | null) => void; onRemoveKf: (id: string, kf: number) => void; onBegin: () => void
   onLayer: (id: string, p: Partial<Layer>) => void; onDuration: (ms: number) => void
+  onRemove: (id: string) => void; onToggle: (id: string, hidden: boolean) => void
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(800)
@@ -464,12 +495,18 @@ function Timeline({ t, total, time, sel, selKf, playing, onTime, onPlay, onSel, 
           <input className="input mono sm" type="number" min={1} max={120} step={0.5} defaultValue={t.durationMs / 1000} key={t.durationMs}
             onBlur={(e) => { const v = Math.round(clamp(Number(e.target.value) || 6, 1, 120) * 1000); if (v !== t.durationMs) onDuration(v) }} /> с
         </label>
-        <span className="small muted">Тяните полоску — сдвиг, края — начало и длина, ◆ — ключевые кадры (правый клик или Delete — удалить). <Hint id="edTimeline" /></span>
+        <span className="small muted">Тяните полоску — сдвиг, края — начало и длина, ◆ — ключевые кадры (правый клик или Delete — удалить). ● — скрыть слой, ✕ — удалить. <Hint id="edTimeline" /></span>
       </div>
       <div className="ed-tl-grid" onPointerMove={moveTo} onPointerUp={end} onPointerCancel={end}>
         <div className="ed-tl-names">
           <div className="ed-tl-ruler-name" />
-          {list.map((l) => <div key={l.id} className={`ed-tl-name ${sel === l.id ? 'on' : ''} ${l.hidden ? 'off' : ''}`} onClick={() => onSel(l.id, null)}>{LAYER_ICO[l.type]} {l.name}</div>)}
+          {list.map((l) => (
+            <div key={l.id} className={`ed-tl-name ${sel === l.id ? 'on' : ''} ${l.hidden ? 'off' : ''}`} onClick={() => onSel(l.id, null)}>
+              <button className="ed-tl-btn" title={l.hidden ? 'Показать слой' : 'Скрыть слой (в эфире его не будет)'} onClick={(e) => { e.stopPropagation(); onToggle(l.id, !l.hidden) }}>{l.hidden ? '○' : '●'}</button>
+              <span className="ed-tl-label">{LAYER_ICO[l.type]} {l.name}</span>
+              <button className="ed-tl-btn x" title="Удалить слой (Ctrl+Z — вернуть)" onClick={(e) => { e.stopPropagation(); onRemove(l.id) }}>✕</button>
+            </div>
+          ))}
         </div>
         <div className="ed-tl-tracks" ref={trackRef}>
           <div className="ed-tl-ruler" onPointerDown={(e) => { start(e, { kind: 'head', x0: e.clientX }); moveTo(e) }}>
@@ -547,6 +584,28 @@ function TemplateProps({ t, onChange }: { t: AlertTemplate; onChange: (p: Partia
   )
 }
 
+/** Буфер Ctrl+C / Ctrl+V редактора: общий для всех шаблонов, пока открыт Crossember. */
+let clipboard: Layer | null = null
+
+/**
+ * «Без покачивания»: кадры появления до момента, когда слой стал полностью видимым, затем сразу поза, в которой он
+ * стоит перед исчезновением, и кадры исчезновения. null — убирать нечего.
+ */
+export function calmKeyframes(k: Keyframe[]): Keyframe[] | null {
+  if (k.length < 3) return null
+  const peak = Math.max(...k.map((f) => f.opacity))
+  const a = k.findIndex((f) => f.opacity >= peak - 0.001)
+  let b = k.length - 1
+  while (b > a && k[b].opacity < peak - 0.001) b--
+  if (b - a < 1) return null
+  // Задуманное мигание или затухание внутри показа не трогаем — тогда кнопку не предлагаем.
+  if (k.slice(a, b + 1).some((f) => f.opacity < peak - 0.001)) return null
+  const hold = { x: k[b].x, y: k[b].y, scale: k[b].scale, rotate: k[b].rotate }
+  const out = [...k.slice(0, a), { ...k[a], ...hold, ease: 'linear' as const }, { ...k[b], ...hold }, ...k.slice(b + 1)]
+  const moved = (f: Keyframe, g: Keyframe): boolean => f.x !== g.x || f.y !== g.y || f.scale !== g.scale || f.rotate !== g.rotate
+  return k.slice(a, b + 1).some((f) => moved(f, k[b])) ? out : null
+}
+
 function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }: {
   l: Layer; t: AlertTemplate; time: number; total: number; snap: HubSnapshot; kind: string; selKf: number | null
   setSelKf: (i: number | null) => void; onChange: (p: Partial<Layer>, snapshot?: boolean) => void
@@ -557,6 +616,32 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
   const local = clamp(time - l.start, 0, dur)
   const s = kit().sample(l, local)
   const animated = l.keyframes.length > 0
+  const off = l.keyframesOff ?? []
+  const full = l.keyframesFull ?? []
+  const motionOn = animated || !off.length
+  const calmOn = full.length > 0
+  const calmed = calmOn ? null : calmKeyframes(l.keyframes)
+  /** «Анимация движения» вкл/выкл: кадры не стираются, а откладываются — можно сравнить с ней и без неё. */
+  const setMotion = (on: boolean): void => {
+    if (on) onChange({ keyframes: off, keyframesOff: [] })
+    else onChange({ keyframes: [], keyframesOff: l.keyframes, x: Math.round(s.x), y: Math.round(s.y), rotate: Math.round(s.rotate), opacity: s.opacity })
+    setSelKf(null)
+  }
+  const setCalm = (on: boolean): void => {
+    if (on && calmed) onChange({ keyframes: calmed, keyframesFull: l.keyframes })
+    else if (!on) onChange({ keyframes: full, keyframesFull: [] })
+    setSelKf(null)
+  }
+  // Угловые сцены: «дыхание» героя — в самой картинке (idle.webp), неподвижный вариант — idle-still.webp.
+  const idleM = /^(p:[0-9]{2}-[a-z0-9-]+\/corner\/hero\/idle(?:-flip)?)(-still)?\.webp$/.exec(l.media)
+  const idle = idleM ? { still: !!idleM[2], moving: `${idleM[1]}.webp`, stillId: `${idleM[1]}-still.webp` } : null
+  /** Дыхание героя угловой сцены: нет / как в наборе (анимированная картинка) / свой темп (неподвижная картинка + breathMs). */
+  const breath = !idle ? (l.breathMs > 0 ? 'own' : 'none') : idle.still ? (l.breathMs > 0 ? 'own' : 'none') : 'pack'
+  const setBreath = (v: string): void => {
+    if (v === 'pack' && idle) onChange({ media: idle.moving, breathMs: 0 })
+    else if (v === 'own') onChange({ ...(idle ? { media: idle.stillId } : {}), breathMs: l.breathMs || 3200 })
+    else onChange({ ...(idle ? { media: idle.stillId } : {}), breathMs: 0 })
+  }
   /** Поле положения/вида: без анимации меняет слой, с анимацией — кадр в текущем моменте. */
   const setPose = (p: Partial<Keyframe>): void => {
     if (!animated) {
@@ -650,10 +735,24 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
               ))}
             </select>
           </Field>
-          {/\/corner\/hero\/idle(-flip)?(-still)?\.webp$/.test(l.media) && (
+          {l.type === 'image' && (
             <div style={{ gridColumn: '1 / -1' }}>
-              <Toggle on={!l.media.endsWith('-still.webp')} label="Герой дышит и покачивается"
-                onChange={(on) => onChange({ media: on ? l.media.replace('-still.webp', '.webp') : l.media.replace(/\.webp$/, '-still.webp') })} />
+              <Toggle on={breath !== 'none'} label={idle ? 'Герой дышит и покачивается' : 'Дыхание (мягко увеличивается и уменьшается)'} onChange={(on) => setBreath(on ? (idle ? 'pack' : 'own') : 'none')} />
+              {breath !== 'none' && (
+                <div className="ed-fields" style={{ marginTop: 8 }}>
+                  {idle && (
+                    <Field label="Как дышит">
+                      <select className="input" value={breath} onChange={(e) => setBreath(e.target.value)}>
+                        <option value="pack">Как в наборе</option><option value="own">Свой темп</option>
+                      </select>
+                    </Field>
+                  )}
+                  {breath === 'own' && <>
+                    <Field label="Вдох и выдох, сек"><N value={l.breathMs / 1000} min={0.8} max={10} step={0.1} onChange={(n) => onChange({ breathMs: Math.round(n * 1000) })} /></Field>
+                    <Field label="Сила, %"><N value={l.breathPct} min={1} max={8} onChange={(n) => onChange({ breathPct: n })} /></Field>
+                  </>}
+                </div>
+              )}
             </div>
           )}
           <Field label="Проявление">
@@ -731,8 +830,11 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
         <div className="ed-sub">Ключевые кадры <Hint id="edKeyframes" /></div>
         <div className="btnrow">
           <button className="btn sm" onClick={addKey}>◆ Кадр в {sec(Math.round(local))}</button>
-          {animated && <button className="btn sm" onClick={() => { onChange({ keyframes: [], x: Math.round(s.x), y: Math.round(s.y), rotate: Math.round(s.rotate), opacity: s.opacity }); setSelKf(null) }}>Убрать анимацию</button>}
+          {(animated || off.length > 0 || full.length > 0) && <button className="btn sm" title="Стереть все кадры слоя без возможности вернуть"
+            onClick={() => { onChange({ keyframes: [], keyframesOff: [], keyframesFull: [], x: Math.round(s.x), y: Math.round(s.y), rotate: Math.round(s.rotate), opacity: s.opacity }); setSelKf(null) }}>Убрать анимацию насовсем</button>}
         </div>
+        {(animated || off.length > 0) && <Toggle on={motionOn} onChange={setMotion} label="Анимация движения (выключите, чтобы сравнить)" />}
+        {motionOn && (calmed || calmOn) && <Toggle on={calmOn} onChange={setCalm} label="Без покачивания — только появление и уход" />}
         {l.keyframes.map((f, i) => (
           <div key={i} className={`ed-kf ${selKf === i ? 'on' : ''}`} onClick={() => setSelKf(i)}>
             <span className="mono">◆ {sec(f.t)}</span>

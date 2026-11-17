@@ -27,6 +27,8 @@ import { Feedback } from './pages/Feedback'
 import { Wizard } from './pages/Wizard'
 import { ModeContext } from './components'
 import { useNow, fmtDuration } from './ui'
+import { UpdateModal, UpdateNav } from './Update'
+import { PALETTES } from './palettes'
 
 export type Page = 'home' | 'chat' | 'events' | 'alerts' | 'rules' | 'interactive' | 'auction' | 'wheel' | 'goal' | 'giveaway' | 'vote' | 'bets' | 'subathon' | 'rewards' | 'bot' | 'music' | 'channel' | 'analytics' | 'overlays' | 'chatstyle' | 'connections' | 'settings' | 'feedback'
 
@@ -66,6 +68,14 @@ export function App() {
     void window.hub.snapshot().then(setSnap)
     return window.hub.onUpdate(setSnap)
   }, [])
+
+  // Оформление приложения: атрибуты на <html>, цвета — в themes.css.
+  const ui = snap?.settings.ui
+  useEffect(() => {
+    if (!ui) return
+    document.documentElement.dataset.look = ui.look
+    document.documentElement.dataset.palette = PALETTES.some((p) => p.id === ui.palette) ? ui.palette : 'classic'
+  }, [ui?.look, ui?.palette])
 
   if (!snap) return <div className="empty">Запуск…</div>
   const { obs, twitch } = snap
@@ -111,6 +121,7 @@ export function App() {
             <span className="ico">✉</span>
             Обратная связь
           </button>
+          <UpdateNav u={snap.update} />
           <div className="side-foot">
             <span className={`dot ${snap.server ? 'ok' : 'error'}`} /> {snap.settings.setupMode === 'two' ? 'Режим: 2 ПК' : snap.settings.setupMode === 'one' ? 'Режим: 1 ПК' : 'Режим не выбран'} · всё локально
           </div>
@@ -167,6 +178,7 @@ export function App() {
           {page === 'channel' && <Channel snap={snap} />}
           {page === 'analytics' && <Analytics snap={snap} />}
           {page === 'feedback' && <Feedback snap={snap} />}
+          <UpdateModal u={snap.update} />
         </main>
       </div>
       {snap.settings.setupMode === null && <Wizard />}

@@ -24,6 +24,7 @@ import type { RewardsState } from './rewards'
 import type { MusicState } from './music'
 import type { SubathonState } from './subathon'
 import type { MemealertsState } from './memealerts'
+import type { UpdateState } from './updater'
 
 export type Platform = 'twitch' | 'youtube' | 'vk' | 'kick' | 'goodgame' | 'donationalerts' | 'donatepay' | 'donatex' | 'boosty' | 'obs' | 'hub'
 
@@ -181,6 +182,8 @@ export interface HubSnapshot {
   twitchScopes: Record<string, 'ok' | 'login' | 'relogin'>
   /** Обратная связь: адрес автора и последняя серьёзная ошибка (для плашки «Сообщить об ошибке»). */
   feedback: { email: string; crash: CrashInfo | null }
+  /** Обновления из GitHub Releases. */
+  update: UpdateState
   /** Сколько копий оверлея «Алерты» сейчас открыто (0 — алерты и озвучку некому показать). */
   alertOverlays: number
   float: { open: boolean; editing: boolean; hotkey: string }

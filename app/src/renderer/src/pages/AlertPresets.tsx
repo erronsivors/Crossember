@@ -46,8 +46,15 @@ function Thumb({ t, snap, live }: { t: AlertTemplate; snap: HubSnapshot; live: b
   )
 }
 
-type Section = 'main' | 'vector' | 'text'
-const SECTIONS: { id: Section; name: string }[] = [{ id: 'main', name: 'Основные' }, { id: 'vector', name: 'Векторные' }, { id: 'text', name: 'Текстовые' }]
+type Section = 'main' | 'vector' | 'text' | 'own' | 'campfire'
+const SECTIONS: { id: Section; name: string }[] = [
+  { id: 'main', name: 'Основные' }, { id: 'vector', name: 'Векторные' }, { id: 'text', name: 'Текстовые' }, { id: 'own', name: 'Свои' }, { id: 'campfire', name: 'У костра' }
+]
+/** Копия своего шаблона: новые id, чтобы исходный не перезаписался при сохранении. */
+const copyOf = (t: AlertTemplate): AlertTemplate => {
+  const c = JSON.parse(JSON.stringify(t)) as AlertTemplate
+  return { ...c, id: crypto.randomUUID(), name: `${t.name} (копия)`.slice(0, 60), layers: c.layers.map((l) => ({ ...l, id: crypto.randomUUID() })) }
+}
 const VECTOR_GROUPS = [...new Set(PRESETS.map((p) => p.group).filter((g): g is string => !!g))]
 const SAMPLE_KINDS: { id: string; label: string }[] = [
   { id: 'donation', label: 'Донат' }, { id: 'sub', label: 'Подписка' }, { id: 'follow', label: 'Фоллоу' }, { id: 'raid', label: 'Рейд' }
@@ -122,7 +129,9 @@ function PackCard({ s, snap, active, onPlay }: { s: PackSet; snap: HubSnapshot; 
 
 /** Выбор готового стиля при создании шаблона: карточка — проиграть в предпросмотре, «Выбрать» — открыть в конструкторе. */
 export function PresetPicker({ snap, onPick, onClose }: { snap: HubSnapshot; onPick: (t: AlertTemplate) => void; onClose: () => void }) {
-  const [section, setSectionS] = useState<Section>(memo.section)
+  const campfire = snap.settings.ui.look === 'campfire'
+  // Раздел «У костра» есть только в этом оформлении приложения.
+  const [section, setSectionS] = useState<Section>(memo.section === 'campfire' && !campfire ? 'main' : memo.section)
   const [packCat, setPackCatS] = useState(memo.packCat)
   const [vecGroup, setVecGroupS] = useState(memo.vecGroup)
   const [pick, setPickS] = useState<Pick | null>(memo.pick)
@@ -133,6 +142,7 @@ export function PresetPicker({ snap, onPick, onClose }: { snap: HubSnapshot; onP
   const [breathe, setBreatheS] = useState(memo.breathe)
   const setBreathe = (v: boolean): void => { memo.breathe = v; setBreatheS(v); setRun((n) => n + 1) }
   const [err, setErr] = useState('')
+  const [del, setDel] = useState<string | null>(null)
   const setPos = (v: CornerPosition): void => { memo.pos = v; setPosS(v); setRun((n) => n + 1) }
   const setSection = (v: Section): void => { memo.section = v; setSectionS(v) }
   const setPackCat = (v: string): void => { memo.packCat = v; setPackCatS(v) }
@@ -152,7 +162,7 @@ export function PresetPicker({ snap, onPick, onClose }: { snap: HubSnapshot; onP
       .catch((e: Error) => setErr(`Не удалось открыть угловую сцену: ${e.message}`))
   }
   const cornerPicked = !!pick?.key.endsWith(':corner')
-  const samples = useMemo(() => section === 'main' ? [] : PRESETS
+  const samples = useMemo(() => section === 'main' || section === 'own' || section === 'campfire' ? [] : PRESETS
     .filter((p) => section === 'vector' ? p.group === vecGroup : !p.group)
     .map((p) => ({ p, t: p.make() })), [section, vecGroup])
   useEffect(() => {
@@ -193,7 +203,11 @@ export function PresetPicker({ snap, onPick, onClose }: { snap: HubSnapshot; onP
           </div>
         </div>
         <div className="seg preset-groups">
-          {SECTIONS.map((x) => <button key={x.id} className={section === x.id ? 'on' : ''} onClick={() => setSection(x.id)}>{x.name} · {x.id === 'main' ? PACK_SETS.length * 3 : PRESETS.filter((p) => (x.id === 'vector') === !!p.group).length}</button>)}
+          {SECTIONS.filter((x) => x.id !== 'campfire' || campfire).map((x) => (
+            <button key={x.id} className={section === x.id ? 'on' : ''} onClick={() => setSection(x.id)}>
+              {x.name}{x.id === 'campfire' ? <span className="beta">BETA</span> : ` · ${x.id === 'main' ? PACK_SETS.length * 3 : x.id === 'own' ? snap.templates.length : PRESETS.filter((p) => (x.id === 'vector') === !!p.group).length}`}
+            </button>
+          ))}
         </div>
         {section === 'main' && <>
           <div className="seg preset-groups sub">
@@ -211,7 +225,24 @@ export function PresetPicker({ snap, onPick, onClose }: { snap: HubSnapshot; onP
             {VECTOR_GROUPS.map((g) => <button key={g} className={vecGroup === g ? 'on' : ''} onClick={() => setVecGroup(g)}>{g}</button>)}
           </div>
         )}
-        {section !== 'main' && (
+        {section === 'own' && (snap.templates.length
+          ? <div className="preset-grid">
+            {snap.templates.map((t) => (
+              <div key={t.id} className="preset-own">
+                <button className={`preset${pick?.key === 'own:' + t.id ? ' on' : ''}`} onClick={() => choose({ key: 'own:' + t.id, title: t.name, make: () => copyOf(t) })}>
+                  <Thumb t={t} snap={snap} live={false} />
+                  <b>{t.name}</b>
+                  <span>{t.layers.length} сл. · {(t.durationMs / 1000).toFixed(1)} с · откроется копия</span>
+                </button>
+                {del === t.id
+                  ? <button className="btn sm preset-del ask" onClick={() => { setDel(null); if (pick?.key === 'own:' + t.id) { memo.pick = null; setPickS(null) } window.hub.templateRemove(t.id).catch((e: Error) => setErr(e.message)) }}>Удалить?</button>
+                  : <button className="btn sm preset-del" title="Удалить шаблон" onClick={() => { setDel(t.id); window.setTimeout(() => setDel((d) => (d === t.id ? null : d)), 3000) }}>✕</button>}
+              </div>
+            ))}
+          </div>
+          : <div className="empty">Своих шаблонов пока нет. Выберите любой стиль, измените его в конструкторе и сохраните — он появится здесь.</div>)}
+        {section === 'campfire' && <div className="empty">Здесь появятся алерты «У костра» — они в работе.</div>}
+        {(section === 'vector' || section === 'text') && (
           <div className="preset-grid">
             {samples.map(({ p, t }) => (
               <button key={p.id} className={`preset${pick?.key === p.id ? ' on' : ''}`} onClick={() => choose({ key: p.id, title: p.name, make: p.make })}>

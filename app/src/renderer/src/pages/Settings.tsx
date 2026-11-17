@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { HubSnapshot } from '../../../main/core/types'
 import { Hint, NumberField, ThemePicker, Toggle } from '../components'
+import { PALETTES } from '../palettes'
 import type { FloatChatSettings, TtsSettings } from '../../../main/core/settings'
 import type { SileroStatus } from '../../../main/core/silero'
 import { VoiceSelect, previewTts, reloadVoices, useVoices } from '../editors'
@@ -26,22 +27,44 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
           <h3>Режим работы <Hint id="mode" /></h3>
           <div className="seg">
             <button className={s.setupMode === 'one' ? 'on' : ''} onClick={() => void window.hub.setSettings({ setupMode: 'one' })}>1 ПК</button>
-            <button className={s.setupMode === 'two' ? 'on' : ''} onClick={() => void window.hub.setSettings({ setupMode: 'two' })}>2 ПК</button>
+            <button className={s.setupMode === 'two' ? 'on' : ''} onClick={() => void window.hub.setSettings({ setupMode: 'two' })}>2 ПК <span className="beta">BETA</span></button>
           </div>
           <p className="small muted">
             {s.setupMode === 'two'
               ? 'Crossember стоит на стрим-ПК рядом с OBS — там же открыт общий чат всех площадок.'
               : 'Игра, OBS и Crossember на одном компьютере.'}
           </p>
-          <h3 style={{ marginTop: 18 }}>Тема по умолчанию <Hint id="theme" /></h3>
-          <ThemePicker value={s.defaultTheme} onChange={(t) => void window.hub.setSettings({ defaultTheme: t })} />
-          <p className="small muted">Применяется к новым оверлеям. У каждого оверлея своя тема — в разделе «Оверлеи».</p>
-          <button className="btn sm" onClick={() => void window.hub.setSettings({ overlays: { alert: { theme: s.defaultTheme }, chat: { theme: s.defaultTheme }, chatH: { theme: s.defaultTheme }, pinned: { theme: s.defaultTheme } } })}>
-            Применить ко всем оверлеям
-          </button>
+          <h3 style={{ marginTop: 18 }}>Оформление приложения</h3>
+          <div className="seg">
+            <button className={s.ui.look === 'standard' ? 'on' : ''} onClick={() => void window.hub.setSettings({ ui: { look: 'standard' } })}>Стандартное</button>
+            <button className={s.ui.look === 'campfire' ? 'on' : ''} onClick={() => void window.hub.setSettings({ ui: { look: 'campfire' } })}>У костра <span className="beta">BETA</span></button>
+          </div>
+          {s.ui.look === 'standard'
+            ? <>
+              <p className="small muted">Цветовая схема окна Crossember. На оверлеи в OBS не влияет.</p>
+              <div className="palettes">
+                {PALETTES.map((p) => (
+                  <button key={p.id} className={`palette ${s.ui.palette === p.id ? 'on' : ''}`} onClick={() => void window.hub.setSettings({ ui: { palette: p.id } })}>
+                    <span className="palette-sw">{p.swatch.map((c, i) => <i key={i} style={{ background: c }} />)}</span>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            </>
+            : <p className="small muted">Окно в сине-красных тонах логотипа. Оформление в работе, отдельные алерты «У костра» появятся позже.</p>}
         </div>
 
-        <FloatCard snap={snap} />
+        <div className="card">
+          <h3>Оверлеи: тема по умолчанию <Hint id="theme" /></h3>
+          <div className="set-row">
+            <ThemePicker value={s.defaultTheme} onChange={(t) => void window.hub.setSettings({ defaultTheme: t })} />
+            <button className="btn sm" onClick={() => void window.hub.setSettings({ overlays: { alert: { theme: s.defaultTheme }, chat: { theme: s.defaultTheme }, chatH: { theme: s.defaultTheme }, pinned: { theme: s.defaultTheme } } })}>
+              Применить ко всем
+            </button>
+          </div>
+          <p className="small muted">Для новых оверлеев. У каждого оверлея своя тема — в разделе «Оверлеи».</p>
+          <FloatCard snap={snap} />
+        </div>
         <TtsCard snap={snap} />
         <ProfileCard snap={snap} />
 
@@ -84,6 +107,19 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
           <p className="small muted">Слушает только этот компьютер — из сети и интернета недоступен.</p>
           <h3 style={{ marginTop: 18 }}>Ключ оверлеев <Hint id="overlayKey" /></h3>
           <KeyRotate label="Перевыпустить ключ оверлеев" confirm={confirm === 'overlay'} onAsk={() => setConfirm('overlay')} onCancel={() => setConfirm(null)} onYes={() => { void window.hub.rotateKey('overlay'); setConfirm(null) }} />
+        </div>
+
+        <div className="card">
+          <h3>Обновления</h3>
+          <div className="kv">
+            <div><span>Версия</span><b className="mono" style={{ fontSize: 15 }}>{snap.update.current}</b></div>
+          </div>
+          <Toggle on={snap.settings.updates.check} onChange={(v) => void window.hub.setSettings({ updates: { check: v } })} label="Проверять новые версии" />
+          <p className="small muted">Раз в 6 часов Crossember спрашивает у GitHub номер последней версии. Скачивает и ставит только по вашей кнопке. В версии для разработки не проверяет.</p>
+          <button className="btn sm" disabled={!snap.settings.updates.check || snap.update.status === 'checking'} onClick={() => void window.hub.updateCheck()}>
+            {snap.update.status === 'checking' ? 'Проверяю…' : 'Проверить сейчас'}
+          </button>
+          {snap.update.latest && snap.update.status === 'idle' && <p className="small muted" style={{ marginTop: 8 }}>Установлена последняя версия.</p>}
         </div>
 
         <div className="card">
@@ -196,10 +232,12 @@ function FloatCard({ snap }: { snap: HubSnapshot }) {
   const set = (p: Partial<FloatChatSettings>): void => void window.hub.setSettings({ float: p })
   const b = f.bounds ?? { x: 0, y: 0, width: 380, height: 520 }
   return (
-    <div className="card">
-      <h3>Чат поверх игры <Hint id="float" /></h3>
-      <p className="small muted" style={{ marginTop: -6 }}>Прозрачное окно с чатом поверх всех окон. Клики проходят сквозь него в игру.</p>
-      <Toggle on={f.enabled} onChange={(v) => set({ enabled: v })} label="Показывать чат поверх игры" />
+    <div className="set-sub">
+      <div className="set-row">
+        <Toggle on={f.enabled} onChange={(v) => set({ enabled: v })} label="Чат поверх игры" />
+        <Hint id="float" />
+        <span className="small muted">прозрачное окно поверх всех окон, клики проходят в игру</span>
+      </div>
       {f.enabled && (
         <>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '6px 0 12px' }}>

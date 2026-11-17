@@ -31,6 +31,13 @@ import type { HubEvent, YoutubeState } from './types'
  */
 const SHARED_FILE = ['youtube', 'oauth-client.json']
 
+declare const __YT_SHARED__: string
+function embeddedShared(): string {
+  const key = Buffer.from('crossember-yt')
+  const b = Buffer.from(__YT_SHARED__, 'base64').reverse()
+  return Buffer.from(b.map((x, i) => x ^ key[i % key.length])).toString('utf8')
+}
+
 const SCOPE = 'https://www.googleapis.com/auth/youtube.force-ssl'
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
@@ -84,11 +91,14 @@ export class YoutubeConnector implements ChatConnector {
 
   constructor(private hub: Hub, private settings: Settings, private secrets: Secrets, private resourcesDir: string) {
     hub.register('youtube', 'YouTube')
-    try {
-      const c = obj(JSON.parse(readFileSync(join(resourcesDir, ...SHARED_FILE), 'utf8')))
-      if (s(c.clientId).endsWith('.apps.googleusercontent.com')) this.shared = { id: s(c.clientId), secret: s(c.clientSecret) }
-    } catch {
-      /* файла нет — общего входа нет */
+    // Файл рядом (режим разработки) или вшитый при сборке (см. electron.vite.config.ts).
+    for (const read of [() => readFileSync(join(resourcesDir, ...SHARED_FILE), 'utf8'), embeddedShared]) {
+      try {
+        const c = obj(JSON.parse(read()))
+        if (s(c.clientId).endsWith('.apps.googleusercontent.com')) { this.shared = { id: s(c.clientId), secret: s(c.clientSecret) }; break }
+      } catch {
+        /* нет — пробуем следующий источник; нет нигде — общего входа нет */
+      }
     }
     try {
       const t = JSON.parse(secrets.get(TOKENS_KEY) ?? 'null') as Tokens | null

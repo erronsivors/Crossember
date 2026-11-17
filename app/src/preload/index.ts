@@ -245,6 +245,10 @@ const api = {
   memeToken: (t: string) => call('hub:memeToken', t),
   memeSupporters: (q: string) => call<MemeSupporter[]>('hub:memeSupporters', q),
   memeGive: (name: string, n: number) => call<string>('hub:memeGive', name, n),
+  updateCheck: () => call('hub:updateCheck'),
+  updateDownload: () => call('hub:updateDownload'),
+  updateLater: () => call('hub:updateLater'),
+  updateInstall: () => call('hub:updateInstall'),
   onUpdate: (cb: (s: HubSnapshot) => void): (() => void) => {
     const fn = (_e: IpcRendererEvent, s: HubSnapshot): void => cb(s)
     ipcRenderer.on('hub:update', fn)
