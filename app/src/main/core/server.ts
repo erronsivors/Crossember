@@ -50,6 +50,7 @@ const OVERLAYS = [
   { id: 'music', key: 'music', name: 'Сейчас играет', size: '700 × 160' },
   { id: 'subathon', key: 'subathon', name: 'Сабатон', size: '800 × 260' },
   { id: 'keys', key: 'keys', name: 'Клавиатура и мышь', size: '600 × 300' },
+  { id: 'viz', key: 'viz', name: 'Визуализатор звука', size: '800 × 200' },
   // Окно «чат поверх игры» — открывается самим Crossember, в списке для OBS не показывается.
   { id: 'float', key: 'float', name: 'Чат поверх игры', size: '', hidden: true }
 ] as { id: string; key: string; name: string; size: string; hidden?: boolean }[]
@@ -76,6 +77,7 @@ const ASSETS: Record<string, string> = {
   'music.js': 'text/javascript; charset=utf-8',
   'subathon.js': 'text/javascript; charset=utf-8',
   'keys.js': 'text/javascript; charset=utf-8',
+  'viz.js': 'text/javascript; charset=utf-8',
   'sounds.js': 'text/javascript; charset=utf-8'
 }
 
@@ -440,6 +442,7 @@ export class OverlayServer {
         const reset = setInterval(() => { count = 0 }, 1000)
         // Связь жива? Раз в 10 с ping; не ответил — рвём соединение, его клавиши отпускаются в close.
         let alive = true
+        let flooded = false
         socket.on('pong', () => { alive = true })
         const beat = setInterval(() => {
           if (!alive) { socket.terminate(); return }
@@ -449,7 +452,13 @@ export class OverlayServer {
         }, 10_000)
         socket.on('message', (raw: Buffer) => {
           // Слишком часто — отключаем целиком: так не теряется отпускание уже зажатой клавиши.
-          if (++count > 120 || raw.length > 100) { socket.close(4008, 'too many'); return }
+          if (flooded) return
+          if (++count > 120 || raw.length > 100) {
+            flooded = true
+            for (const id of [...this.keySrc.keys()]) this.pressKey(src, id, false)
+            socket.terminate()
+            return
+          }
           let m: { kind?: unknown; id?: unknown; down?: unknown }
           try { m = JSON.parse(raw.toString('utf8')) } catch { return }
           if (!m || typeof m !== 'object' || Array.isArray(m)) return
@@ -657,10 +666,17 @@ export class OverlayServer {
     await this.applyLan()
   }
 
+  /** Уровни полос звука (0–100) — только копиям оверлея «Визуализатор». */
+  vizFrame(levels: number[]): void {
+    const data = JSON.stringify({ kind: 'viz', v: levels })
+    for (const [sock, ov] of this.socketOverlay) if (ov === 'viz' && sock.readyState === sock.OPEN) sock.send(data)
+  }
+
   /** Какие нажатия нужны прямо сейчас: показ включён и оверлей «Клавиатура» открыт. */
   private keysWanted(): string[] {
-    const k = this.settings.get().overlays.keys
-    return k.capture && this.openCount('keys') > 0 ? [...keysAllowed(k)] : []
+    const s = this.settings.get()
+    const k = s.overlays.keys
+    return s.role === 'main' && k.capture && this.openCount('keys') > 0 ? [...keysAllowed(k)] : []
   }
 
   /** Сообщить помощникам, какие клавиши присылать (пустой список — выключить перехват на игровом ПК). */

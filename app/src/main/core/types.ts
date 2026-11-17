@@ -155,6 +155,7 @@ export interface HubSnapshot {
   pinned: HubEvent | null
   server: ServerInfo | null
   keyHelper: KeyHelperState
+  viz: { state: 'off' | 'on' | 'error'; error: string | null }
   obsConfig: { url: string; hasPassword: boolean }
   settings: AppSettings
   twitch: TwitchState

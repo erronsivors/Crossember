@@ -22,6 +22,7 @@ import type { RewardMeta } from '../main/core/rewards'
 import type { TwitchChatSettings, TwitchRewardInput } from '../main/core/twitch'
 import type { SpotifyTrack } from '../main/core/spotify'
 import type { MemeSupporter } from '../main/core/memealerts'
+import type { VizRun } from '../main/core/viz'
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] }
 type Role = 'broadcaster' | 'bot'
@@ -33,6 +34,14 @@ const api = {
   setSettings: (patch: DeepPartial<AppSettings>) => call<AppSettings>('hub:settings', patch),
   obsConfigure: (url: string, password?: string) => call('hub:obsConfigure', url, password),
   obsReconnect: () => call('hub:obsReconnect'),
+  vizFrame: (v: number[]) => ipcRenderer.send('hub:vizFrame', v),
+  vizStatus: (state: 'on' | 'off' | 'error', error?: string) => call('hub:vizStatus', state, error ?? ''),
+  vizGet: () => call<VizRun | null>('hub:vizGet'),
+  onViz: (cb: (run: VizRun | null) => void): (() => void) => {
+    const fn = (_e: IpcRendererEvent, run: VizRun | null): void => cb(run)
+    ipcRenderer.on('hub:viz', fn)
+    return () => { ipcRenderer.removeListener('hub:viz', fn) }
+  },
   rotateKey: (which: 'overlay' | 'remote' | 'dock' | 'mod' | 'keys') => call('hub:rotateKey', which),
   logError: (text: string) => call('hub:logError', text),
   crashDismiss: () => call('hub:crashDismiss'),

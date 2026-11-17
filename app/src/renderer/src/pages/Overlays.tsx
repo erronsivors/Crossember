@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { HubSnapshot, OverlayInfo } from '../../../main/core/types'
 import type { Page } from '../App'
 import type { AppSettings, ChatOverlaySettings, StatsPeriod, Theme } from '../../../main/core/settings'
 import { Hint, NumberField, ThemePicker, Toggle } from '../components'
 import { DOCK_BLOCKS, DOCK_PRESETS, type DockBlock } from '../../../main/core/dock'
 import { KeyRotate } from './Settings'
+import { VIZ_STYLES, type VizSettings, type VizStyle } from '../../../main/core/viz'
+import { audioInputs } from '../audioviz'
 import { KEY_DEFS, KEYS_PRESETS, type KeysOverlaySettings, type KeysPreset } from '../../../main/core/keyslayout'
 
 type Key = keyof AppSettings['overlays']
-const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote', bets: 'bets', music: 'music', subathon: 'subathon', keys: 'keys' }
+const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote', bets: 'bets', music: 'music', subathon: 'subathon', keys: 'keys', viz: 'viz' }
 const DESC: Record<string, string> = {
   alert: 'Донаты, подписки, рейды, фолловы — по очереди, по центру экрана.',
   chat: 'Колонка чата: новые сообщения снизу.',
@@ -25,7 +27,8 @@ const DESC: Record<string, string> = {
   bets: 'Вопрос, исходы с банком, долей и коэффициентом, таймер приёма и итог. После итога держится 25 секунд и прячется.',
   music: 'Обложка, название, исполнитель и кто заказал трек. Spotify или любой плеер Windows (Яндекс Музыка, браузер).',
   subathon: 'Большой таймер сабатона, пометки «пауза» и «счастливый час», всплывающие «+5:00» от подписок и донатов.',
-  keys: 'Какие клавиши и кнопки мыши вы нажимаете — для гайдов, спидранов и обучающих эфиров.'
+  keys: 'Какие клавиши и кнопки мыши вы нажимаете — для гайдов, спидранов и обучающих эфиров.',
+  viz: 'Столбики, волна или круг, которые двигаются под музыку, игру или ваш голос.'
 }
 
 export function Overlays({ snap, go }: { snap: HubSnapshot; go?: (p: Page) => void }) {
@@ -141,6 +144,7 @@ function OverlayCard({ o, snap, go }: { o: OverlayInfo; snap: HubSnapshot; go?: 
           <Toggle on={(cfg as AppSettings['overlays']['last']).showSub} onChange={(v) => set({ showSub: v })} label="Показывать последнюю подписку" />
         </>
       )}
+      {key === 'viz' && <VizOverlaySettings c={cfg as VizSettings} snap={snap} set={set} />}
       {key === 'keys' && <KeysSettings c={cfg as KeysOverlaySettings} snap={snap} set={set} />}
       {key === 'counter' && <CounterSettings c={cfg as AppSettings['overlays']['counter']} snap={snap} set={set} />}
       {key === 'auction' && <AuctionOverlaySettings c={cfg as AppSettings['overlays']['auction']} set={set} />}
@@ -193,6 +197,56 @@ function ChatSettings({ c, set }: { c: ChatOverlaySettings; set: (p: Record<stri
         <Toggle on={c.showBadges} onChange={(v) => set({ showBadges: v })} label="Бейджи" />
         <Toggle on={c.showPlatform} onChange={(v) => set({ showPlatform: v })} label="Значок площадки" />
         <Toggle on={c.showStatus} onChange={(v) => set({ showStatus: v })} label={<>Строки о сбоях площадок <Hint id="showStatus" /></>} />
+      </div>
+    </>
+  )
+}
+
+function VizOverlaySettings({ c, snap, set }: { c: VizSettings; snap: HubSnapshot; set: (p: Record<string, unknown>) => void }) {
+  const [inputs, setInputs] = useState<{ id: string; label: string }[]>([])
+  useEffect(() => { if (c.source === 'device') void audioInputs().then(setInputs).catch(() => setInputs([])) }, [c.source, c.enabled])
+  const st = snap.viz
+  return (
+    <>
+      <Toggle on={c.enabled} onChange={(v) => set({ enabled: v })} label="Слушать звук" />
+      <p className="small muted" style={{ margin: '4px 0 10px' }}>
+        Звук слушает Crossember, пока галочка стоит и оверлей открыт в OBS или браузере. В оверлей уходят только уровни полос — сам звук никуда не передаётся и не записывается.
+        {c.enabled && <> Сейчас: <b>{st.state === 'on' ? 'слушает' : st.state === 'error' ? `ошибка — ${st.error}` : 'ждёт, пока откроют оверлей'}</b>.</>}
+      </p>
+      <div className="field">
+        <label>Что слушать</label>
+        <div className="seg">
+          <button className={c.source === 'system' ? 'on' : ''} onClick={() => set({ source: 'system' })}>Звук системы</button>
+          <button className={c.source === 'device' ? 'on' : ''} onClick={() => set({ source: 'device' })}>Устройство записи</button>
+        </div>
+        <span className="small muted">
+          {c.source === 'system' ? 'Всё, что слышно в колонках или наушниках этого ПК: музыка, игра, браузер.' : 'Микрофон, карта захвата или виртуальный кабель. При двух ПК — звук игры, пришедший на стрим-ПК.'}
+        </span>
+      </div>
+      {c.source === 'device' && (
+        <div className="field">
+          <label>Устройство</label>
+          <select className="input" value={c.deviceId} onChange={(e) => set({ deviceId: e.target.value })}>
+            <option value="">Устройство по умолчанию</option>
+            {inputs.filter((d) => d.id !== 'default').map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+          </select>
+        </div>
+      )}
+      <div className="field">
+        <label>Вид</label>
+        <div className="seg">
+          {(Object.keys(VIZ_STYLES) as VizStyle[]).map((v) => <button key={v} className={c.style === v ? 'on' : ''} onClick={() => set({ style: v })}>{VIZ_STYLES[v]}</button>)}
+        </div>
+      </div>
+      <div className="grid g3" style={{ gap: 10 }}>
+        <NumberField label="Полос" value={c.bars} min={8} max={96} onChange={(v) => set({ bars: v })} />
+        <NumberField label="Чувствительность" value={c.gain} min={10} max={400} suffix="%" onChange={(v) => set({ gain: v })} />
+        <NumberField label="Плавность" value={c.smooth} min={0} max={95} onChange={(v) => set({ smooth: v })} />
+      </div>
+      <div className="set-row" style={{ marginTop: 8 }}>
+        <Toggle on={c.color !== ''} onChange={(v) => set({ color: v ? '#ffffff' : '' })} label="Свой цвет" />
+        {c.color !== '' && <input type="color" value={c.color} onChange={(e) => set({ color: e.target.value })} />}
+        {c.color === '' && <span className="small muted">— цвет темы оверлея</span>}
       </div>
     </>
   )

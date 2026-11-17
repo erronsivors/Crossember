@@ -11,6 +11,7 @@ import './themes.css'
 import './home.css'
 import './editor.css'
 import { App } from './App'
+import { initAudioViz } from './audioviz'
 
 // Ошибки интерфейса — в журнал Crossember (для разбора у друзей).
 window.addEventListener('error', (e) => {
@@ -20,6 +21,8 @@ window.addEventListener('unhandledrejection', (e) => {
   const r = e.reason as { message?: string; stack?: string } | undefined
   void window.hub.logError(`Необработанная ошибка: ${r?.stack ?? r?.message ?? String(e.reason)}`).catch(() => undefined)
 })
+
+initAudioViz()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

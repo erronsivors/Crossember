@@ -83,6 +83,7 @@ export class KeyHelper {
         try { ws.close() } catch { /* уже закрыт */ }
       }, 25_000)
     }
+    feed() // и на случай, если соединение повисло ещё до открытия
     ws.onopen = () => {
       feed()
       this.attempt = 0

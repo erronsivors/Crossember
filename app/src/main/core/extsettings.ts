@@ -1,6 +1,7 @@
 // Настройки разделов второй волны: очки зрителей, бот, ставки, награды, музыка, модераторы, сабатон.
 // Без node-импортов: интерфейс берёт отсюда значения по умолчанию и ограничения.
 import { KEYS_DEFAULTS, sanitizeKeys, type KeysOverlaySettings } from './keyslayout'
+import { VIZ_DEFAULTS, sanitizeViz, type VizSettings } from './viz'
 
 export type Access = 'all' | 'sub' | 'vip' | 'mod'
 export const ACCESS_LABEL: Record<Access, string> = { all: 'Все', sub: 'Подписчики и выше', vip: 'VIP и выше', mod: 'Модераторы' }
@@ -200,13 +201,15 @@ export interface ExtOverlays {
   music: { theme: 'general' | 'campfire'; fontSize: number; showRequester: boolean; showProgress: boolean; hideWhenPaused: boolean }
   subathon: { theme: 'general' | 'campfire'; fontSize: number; showAdds: boolean }
   keys: KeysOverlaySettings
+  viz: VizSettings
 }
 
 export const EXT_OVERLAY_DEFAULTS: ExtOverlays = {
   bets: { theme: 'general', fontSize: 24, showTop: true },
   music: { theme: 'general', fontSize: 22, showRequester: true, showProgress: true, hideWhenPaused: true },
   subathon: { theme: 'general', fontSize: 64, showAdds: true },
-  keys: KEYS_DEFAULTS
+  keys: KEYS_DEFAULTS,
+  viz: VIZ_DEFAULTS
 }
 
 // ---------- проверка ----------
@@ -377,6 +380,7 @@ export function sanitizeExtOverlays(input: Record<string, unknown>, base: Partia
       showProgress: bool(m.showProgress, mb.showProgress), hideWhenPaused: bool(m.hideWhenPaused, mb.hideWhenPaused)
     },
     subathon: { theme: theme(s.theme, sb.theme), fontSize: int(s.fontSize, sb.fontSize, 16, 200), showAdds: bool(s.showAdds, sb.showAdds) },
-    keys: sanitizeKeys(input.keys, base.keys ?? KEYS_DEFAULTS)
+    keys: sanitizeKeys(input.keys, base.keys ?? KEYS_DEFAULTS),
+    viz: sanitizeViz(input.viz, base.viz ?? VIZ_DEFAULTS)
   }
 }

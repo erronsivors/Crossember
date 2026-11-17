@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, globalShortcut, ipcMain, powerMonitor, session, shell, clipboard, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, powerMonitor, session, shell, clipboard, type IpcMainInvokeEvent } from 'electron'
+import type { VizRun } from './core/viz'
 import { basename, join } from 'node:path'
 import { release } from 'node:os'
 import { Logger } from './core/logger'
@@ -136,6 +137,9 @@ let updater: Updater
 let analytics: Analytics
 let keys: KeyCapture
 let keyHelper: KeyHelper
+/** Что сейчас слушает визуализатор (null — ничего). */
+let vizOn: VizRun | null = null
+let vizStatus: { state: 'off' | 'on' | 'error'; error: string | null } = { state: 'off', error: null }
 let profiles: Profiles
 let kickAuth: KickAuth
 let streamInfo: StreamInfo
@@ -194,6 +198,7 @@ function snapshot(): HubSnapshot {
     feedback: { email: FEEDBACK_EMAIL, crash: logger?.crash() ?? null },
     alertOverlays: server ? server.openCount('alert') : 0,
     keyHelper: keyHelper.state(),
+    viz: vizStatus,
     float: { open: floatChat?.isOpen ?? false, editing: floatChat?.isEditing ?? false, hotkey: FLOAT_HOTKEY.replace('CommandOrControl', 'Ctrl') }
   }
 }
@@ -296,8 +301,19 @@ app.on('second-instance', () => {
 
 app.whenReady().then(async () => {
   // Запрет всех разрешений (камера, микрофон, уведомления…). CSP интерфейса вшит в index.html при сборке.
-  session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
-  session.defaultSession.setPermissionCheckHandler(() => false)
+  // Исключение одно: звук для визуализатора — только окну Crossember, только аудио и только пока визуализатор включён.
+  const mainFrame = (wc: Electron.WebContents | null): boolean => !!win && wc === win.webContents
+  session.defaultSession.setPermissionRequestHandler((wc, perm, cb, details) => {
+    const types = (details as { mediaTypes?: string[] }).mediaTypes ?? []
+    if (perm === 'display-capture') { cb(mainFrame(wc) && vizOn?.source === 'system'); return }
+    cb(perm === 'media' && mainFrame(wc) && vizOn !== null && types.length > 0 && types.every((t) => t === 'audio'))
+  })
+  session.defaultSession.setPermissionCheckHandler((wc, perm) => perm === 'media' && mainFrame(wc))
+  // Звук системы (loopback): getDisplayMedia из окна Crossember; картинку экрана интерфейс сразу выключает.
+  session.defaultSession.setDisplayMediaRequestHandler((req, cb) => {
+    if (!win || req.frame !== win.webContents.mainFrame || vizOn?.source !== 'system') { cb({}); return }
+    desktopCapturer.getSources({ types: ['screen'] }).then((s) => (s[0] ? cb({ video: s[0], audio: 'loopback' }) : cb({}))).catch(() => cb({}))
+  })
 
   store = new Store(join(app.getPath('userData'), 'data'))
   settings = new Settings(store)
@@ -622,13 +638,37 @@ app.whenReady().then(async () => {
     const s = settings.get()
     if (s.role === 'helper') {
       keyHelper.apply(s.helper.url || null)
+      server.pushHelpers() // этот ПК больше не стрим-ПК: чужим помощникам — пустой список
       return
     }
     keyHelper.apply(null)
     keys.apply(s.overlays.keys.capture && server.openCount('keys') > 0, keysAllowed(s.overlays.keys))
     server.pushHelpers()
   }
-  server.onClients = () => { syncKeys(); pushUpdate() }
+  // Визуализатор: интерфейс слушает звук, только пока показ включён и оверлей открыт.
+  const syncViz = (): void => {
+    const v = settings.get().overlays.viz
+    const next: VizRun | null = v.enabled && settings.get().role === 'main' && server.openCount('viz') > 0
+      ? { source: v.source, deviceId: v.deviceId, bars: v.bars, gain: v.gain } : null
+    if (JSON.stringify(next) === JSON.stringify(vizOn)) return
+    vizOn = next
+    // Свёрнутое окно не должно замедлять анализ звука.
+    win?.webContents.setBackgroundThrottling(!next)
+    win?.webContents.send('hub:viz', next)
+    if (!next) vizStatus = { state: 'off', error: null }
+  }
+  ipcMain.on('hub:vizFrame', (e, v: unknown) => {
+    if (!vizOn || !win || e.sender !== win.webContents || e.senderFrame !== win.webContents.mainFrame) return
+    if (!Array.isArray(v) || v.length > 96) return
+    server.vizFrame(v.map((x) => (typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(100, Math.round(x))) : 0)))
+  })
+  handle('hub:vizStatus', (st, err) => {
+    vizStatus = { state: st === 'on' ? 'on' : st === 'error' ? 'error' : 'off', error: st === 'error' ? str(err, 200) : null }
+    pushUpdate()
+  })
+  // Интерфейс перезагрузился — заново сообщить, что слушать.
+  handle('hub:vizGet', () => vizOn)
+  server.onClients = () => { syncKeys(); syncViz(); pushUpdate() }
   floatChat = new FloatChat(settings, hub, () => server.overlayUrl('float'))
   floatChat.onChange = pushUpdate
   twitch.onChange = pushUpdate
@@ -639,6 +679,7 @@ app.whenReady().then(async () => {
     if (s.setupMode !== prev.setupMode || JSON.stringify(s.lan) !== JSON.stringify(prev.lan)) void server.applyLan().then(pushUpdate)
     floatChat.apply()
     syncKeys()
+    syncViz()
     if (s.goodgame.channel !== prev.goodgame.channel) void goodgame.restart()
     if (s.kick.channel !== prev.kick.channel) void kick.restart()
     if (s.youtube.customClientId !== prev.youtube.customClientId) void youtube.logout()
