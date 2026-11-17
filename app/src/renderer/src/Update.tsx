@@ -27,7 +27,7 @@ export function UpdateModal({ u }: { u: UpdateState }) {
         {u.status === 'ready' && <>
           <h2>Что нового в {u.version}</h2>
           {u.notes.length
-            ? <ul className="upd-notes">{u.notes.map((n, i) => <li key={i}>{n}</li>)}</ul>
+            ? <ul className="upd-notes">{u.notes.map((n, i) => n.startsWith('# ') ? <li key={i} className="upd-sec">{n.slice(2)}</li> : <li key={i}>{n}</li>)}</ul>
             : <p className="muted">Описание изменений не указано.</p>}
           {u.error && <p className="note err">{u.error}</p>}
           <p className="small muted">Crossember закроется, установится новая версия и откроется снова. «Позже» — установится при следующем выходе из программы.</p>

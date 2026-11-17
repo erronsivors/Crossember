@@ -112,3 +112,5 @@
 .guide-main ul, .guide-main ol { line-height: 1.65; padding-left: 22px; }
 .guide-steps { margin: 12px 0; }
 .guide-steps h3 { margin-top: 0; }
+.cl-sec { margin: 10px 0 2px; font-weight: 700; color: var(--ink); }
+.upd-notes .upd-sec { list-style: none; margin: 10px 0 2px -18px; font-weight: 700; }

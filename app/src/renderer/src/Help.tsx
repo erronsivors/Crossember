@@ -21,7 +21,9 @@ export function WhatsNew({ current }: { current: string }) {
         {CHANGELOG.filter((e) => newer(current, e.version) >= 0).map((e) => (
           <div key={e.version} className={`card cl-entry ${e.version === current ? 'cur' : ''}`}>
             <h3>Версия {e.version} <span className="small muted">{e.date}</span>{e.version === current && <span className="chip">установлена</span>}</h3>
-            <ul>{e.items.map((t, i) => <li key={i}>{t}</li>)}</ul>
+            {e.fixed?.length ? <><div className="cl-sec">Исправления</div><ul>{e.fixed.map((t, i) => <li key={i}>{t}</li>)}</ul></> : null}
+            {e.added?.length ? <><div className="cl-sec">Нововведения</div><ul>{e.added.map((t, i) => <li key={i}>{t}</li>)}</ul></> : null}
+            {e.items?.length ? <ul>{e.items.map((t, i) => <li key={i}>{t}</li>)}</ul> : null}
           </div>
         ))}
       </div>

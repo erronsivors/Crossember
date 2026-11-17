@@ -33,7 +33,10 @@ export interface UpdateState {
 
 const CHECK_EVERY_MS = 6 * 60 * 60 * 1000
 
-/** Пункты из описания релиза: строки «- …», «* …», «1. …» или <li>…</li>; HTML-теги убираются. */
+/**
+ * Пункты из описания релиза: строки «- …», «* …», «1. …» или <li>…</li>; HTML-теги убираются.
+ * Заголовки разделов («Исправления:», «Нововведения:») возвращаются как «# Исправления».
+ */
 export function releaseNotes(raw: UpdateInfo['releaseNotes']): string[] {
   const text = Array.isArray(raw) ? raw.map((n) => n.note ?? '').join('\n') : (raw ?? '')
   const lines = text
@@ -44,8 +47,10 @@ export function releaseNotes(raw: UpdateInfo['releaseNotes']): string[] {
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean)
-  const items = lines.filter((l) => /^([-*•]|\d+[.)])\s+/.test(l)).map((l) => l.replace(/^([-*•]|\d+[.)])\s+/, ''))
-  return (items.length ? items : lines).slice(0, 20).map((l) => l.slice(0, 300))
+  const isItem = (l: string): boolean => /^([-*•]|\d+[.)])\s+/.test(l)
+  const isHead = (l: string): boolean => !isItem(l) && /^[\p{L} ]{3,40}:$/u.test(l)
+  const items = lines.filter((l) => isItem(l) || isHead(l)).map((l) => (isHead(l) ? `# ${l.slice(0, -1)}` : l.replace(/^([-*•]|\d+[.)])\s+/, '')))
+  return (items.some((l) => !l.startsWith('# ')) ? items : lines).slice(0, 24).map((l) => l.slice(0, 300))
 }
 
 export class Updater {
