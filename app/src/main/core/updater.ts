@@ -1,11 +1,16 @@
-import { app } from 'electron'
-import { autoUpdater, type ProgressInfo, type UpdateInfo } from 'electron-updater'
+import { app, net } from 'electron'
+import { autoUpdater, type ProgressInfo, type UpdateDownloadedEvent, type UpdateInfo } from 'electron-updater'
 import type { Hub } from './hub'
+import { checkSignature, sha512File, sha512FileSync } from './updatekey'
+
+/** Откуда брать подпись: тот же репозиторий, что в electron-builder.yml (publish). */
+const RELEASES = 'https://github.com/erronsivors/Crossember/releases/download'
 
 /**
  * Обновления из GitHub Releases публичного репозитория (настройки — publish в electron-builder.yml).
  * Ничего не скачивается и не ставится без кнопки: «Скачать» → процент → «Что нового» → «Установить и перезапустить».
- * Подлинность файла проверяет electron-updater по SHA-512 из latest.yml релиза.
+ * Подлинность: electron-updater сверяет SHA-512 из latest.yml, а мы — подпись своим ключом (updatekey.ts):
+ * пока подпись не проверена, установка невозможна ни по кнопке, ни при выходе из программы.
  * В GitHub уходит только запрос «какая последняя версия» (и сам файл, если пользователь нажал «Скачать»).
  */
 
@@ -48,12 +53,17 @@ export class Updater {
   private timer: NodeJS.Timeout | null = null
   /** Последняя успешная проверка нашла новую версию. */
   private offered = false
+  /** Скачанный установщик подписан нашим ключом: путь и SHA-512 на момент проверки. */
+  private verified: { file: string; sha512: string } | null = null
+  private installing = false
   onChange: () => void = () => undefined
 
   constructor(private hub: Hub, private enabled: () => boolean) {
     autoUpdater.autoDownload = false
-    // «Позже» после скачивания: поставится при выходе из программы.
-    autoUpdater.autoInstallOnAppQuit = true
+    // Встроенную установку при выходе не используем: она регистрируется до нашей проверки подписи.
+    // Своя — в onQuit(): только проверенный файл и только если он не изменился с момента проверки.
+    autoUpdater.autoInstallOnAppQuit = false
+    app.once('quit', (_e, code) => this.onQuit(code))
     autoUpdater.logger = null
     autoUpdater.on('checking-for-update', () => this.set({ status: 'checking' }))
     autoUpdater.on('update-not-available', () => {
@@ -67,15 +77,12 @@ export class Updater {
       if (fresh) this.hub.log('hub', 'info', `Обновление: доступна версия ${i.version}`)
     })
     autoUpdater.on('download-progress', (p: ProgressInfo) => this.set({ status: 'downloading', percent: Math.max(0, Math.min(100, Math.floor(p.percent))) }))
-    autoUpdater.on('update-downloaded', (i: UpdateInfo) => {
-      this.set({ status: 'ready', percent: 100, version: i.version, notes: releaseNotes(i.releaseNotes).length ? releaseNotes(i.releaseNotes) : this.s.notes, later: false })
-      this.hub.log('hub', 'info', `Обновление ${i.version} скачано`)
-    })
+    autoUpdater.on('update-downloaded', (i: UpdateDownloadedEvent) => void this.verify(i))
     autoUpdater.on('error', (e: Error) => {
       const msg = e.message.slice(0, 200)
       this.hub.log('hub', 'warn', `Обновление: ${e.message.slice(0, 300)}`)
       // Скачанное не теряем: ошибка запуска установки — показать и дать повторить установку.
-      if (this.s.status === 'ready') return this.set({ error: `Не удалось запустить установку: ${msg}`, later: false })
+      if (this.s.status === 'ready') { this.installing = false; return this.set({ error: `Не удалось запустить установку: ${msg}`, later: false }) }
       if (this.s.status === 'downloading') return this.set({ status: 'error', error: `Не удалось скачать: ${msg}` })
       // Ошибка проверки (нет сети, нет релизов): предложение остаётся, только если оно было действительным до проверки.
       this.set({ status: this.offered ? 'available' : 'idle', error: '' })
@@ -110,12 +117,80 @@ export class Updater {
 
   later(): void { this.set({ later: true }) }
 
-  install(): void {
-    if (this.s.status !== 'ready') return
+  /** Скачано — проверить подпись своим ключом; только после этого «Установить» и установка при выходе. */
+  private async verify(i: UpdateDownloadedEvent): Promise<void> {
+    this.verified = null
+    const fail = (why: string): void => {
+      this.hub.log('hub', 'error', `Обновление ${i.version} не установлено: ${why}`)
+      this.set({ status: 'error', percent: 0, error: `Обновление не прошло проверку подлинности и не будет установлено (${why}). Напишите автору Crossember.` })
+    }
+    if (!/^\d+\.\d+\.\d+$/.test(i.version) || !i.downloadedFile) return fail('нет данных о файле')
+    try {
+      // Имя подписи — по нашему правилу имени установщика, а не по имени файла в кэше electron-updater.
+      const file = `Crossember-Setup-${i.version}.exe`
+      const sig = await fetchSmall(`${RELEASES}/v${i.version}/${file}.sig`)
+      const sha512 = await sha512File(i.downloadedFile)
+      if (!checkSignature(i.version, sha512, sig)) return fail('подпись не совпала')
+      this.verified = { file: i.downloadedFile, sha512 }
+    } catch (e) {
+      return fail((e as Error).message.slice(0, 120))
+    }
+    this.set({ status: 'ready', percent: 100, version: i.version, notes: releaseNotes(i.releaseNotes).length ? releaseNotes(i.releaseNotes) : this.s.notes, later: false })
+    this.hub.log('hub', 'info', `Обновление ${i.version} скачано, подпись верна`)
+  }
+
+  /** Файл тот же, что проверяли (не подменён, пока ждал «Позже»). */
+  private async intact(): Promise<boolean> {
+    const v = this.verified
+    if (!v) return false
+    try { return (await sha512File(v.file)) === v.sha512 } catch { return false }
+  }
+
+  /** «Позже» после скачивания: поставить при обычном выходе из программы. */
+  private onQuit(code: number): void {
+    if (code !== 0 || this.installing || this.s.status !== 'ready' || !this.verified) return
+    try {
+      if (sha512FileSync(this.verified.file) !== this.verified.sha512) return
+    } catch {
+      return
+    }
+    this.installing = true
+    // install() есть у NsisUpdater (BaseUpdater), в типе AppUpdater его не видно.
+    ;(autoUpdater as unknown as { install(silent: boolean, runAfter: boolean): boolean }).install(true, false)
+  }
+
+  async install(): Promise<void> {
+    if (this.s.status !== 'ready' || !this.verified || this.installing) return
+    if (!(await this.intact())) {
+      this.verified = null
+      this.set({ status: 'error', error: 'Скачанный файл изменился после проверки — скачайте обновление заново.' })
+      return
+    }
+    this.installing = true
     this.set({ error: '' })
     // isSilent = false: окно установщика видно; isForceRunAfter = true: программа откроется после установки.
     autoUpdater.quitAndInstall(false, true)
   }
 
   dispose(): void { if (this.timer) clearInterval(this.timer) }
+}
+
+/** Скачать маленький текстовый файл (подпись): не дольше 20 с и не больше 1 КБ. */
+async function fetchSmall(url: string): Promise<string> {
+  const res = await net.fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(20_000) }).catch((e: Error) => {
+    throw new Error(e.name === 'TimeoutError' ? 'подпись не скачалась за 20 с' : 'подпись не скачалась (нет сети?)')
+  })
+  if (!res.ok) throw new Error(res.status === 404 ? 'нет подписи в релизе' : `подпись не скачалась (${res.status})`)
+  const reader = res.body?.getReader()
+  if (!reader) throw new Error('пустая подпись')
+  const parts: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.length
+    if (size > 1024) { void reader.cancel(); throw new Error('подпись слишком большая') }
+    parts.push(value)
+  }
+  return Buffer.concat(parts).toString('utf8')
 }
