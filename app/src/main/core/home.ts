@@ -33,15 +33,15 @@ export const HOME_BLOCK_INFO: Record<HomeBlock, { name: string; desc: string; mi
 
 export interface HomeItem { id: HomeBlock; x: number; y: number; w: number; h: number }
 
-/** Вид по умолчанию — как была главная до настройки. */
+/** Вид по умолчанию: три блока сверху, название эфира, три блока снизу. */
 export const DEFAULT_HOME: HomeItem[] = [
   { id: 'viewers', x: 0, y: 0, w: 4, h: 3 },
   { id: 'obs', x: 4, y: 0, w: 4, h: 3 },
   { id: 'alerts', x: 8, y: 0, w: 4, h: 3 },
   { id: 'streaminfo', x: 0, y: 3, w: 12, h: 4 },
-  { id: 'connections', x: 0, y: 7, w: 12, h: 3 },
-  { id: 'events', x: 0, y: 10, w: 6, h: 2 },
-  { id: 'quick', x: 6, y: 10, w: 6, h: 2 }
+  { id: 'connections', x: 0, y: 7, w: 4, h: 5 },
+  { id: 'events', x: 4, y: 7, w: 4, h: 5 },
+  { id: 'quick', x: 8, y: 7, w: 4, h: 5 }
 ]
 
 export const overlaps = (a: HomeItem, b: HomeItem): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h

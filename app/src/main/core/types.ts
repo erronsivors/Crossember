@@ -12,6 +12,8 @@ import type { Counter } from './counters'
 import type { ProfileState } from './profile'
 import type { StreamInfoState } from './streaminfo'
 import type { KickAuthState } from './kickauth'
+import type { VkAuthState } from './vkauth'
+import type { GgAuthState } from './ggauth'
 import type { AuctionState } from './auction'
 import type { VoteState } from './vote'
 import type { WheelState } from './wheel'
@@ -173,6 +175,8 @@ export interface HubSnapshot {
   profile: ProfileState
   streamInfo: StreamInfoState
   kickAuth: KickAuthState
+  vkAuth: VkAuthState
+  ggAuth: GgAuthState
   auction: AuctionState
   wheel: WheelState
   goal: GoalState

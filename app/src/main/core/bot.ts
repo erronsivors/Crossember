@@ -31,11 +31,10 @@ export interface BotState {
 /** Действия, которые бот вызывает у других модулей (подключаются в index.ts). */
 export interface BotDeps {
   reply: (platform: Platform, text: string) => void
-  sendAll: (text: string) => void
+  /** Во все чаты, где можно писать; only — только в эти площадки. */
+  sendAll: (text: string, only?: Platform[]) => void
   isLive: () => boolean
   uptimeMs: () => number | null
-  /** Ник бота Twitch и свои аккаунты — их сообщения не считаются командами (кроме стримера). */
-  botName: () => string | null
   skipAlert: () => void
   pauseAlerts: (v: boolean) => void
   skipTrack: () => Promise<string>
@@ -163,9 +162,8 @@ export class Bot extends EventEmitter {
     if (e.test && !testing) return
     const text = (e.text ?? '').trim()
     if (!text || !this.deps) return
-    const botName = this.deps.botName()
-    if (botName && lower(e.user) === lower(botName)) return
-    // Своё же сообщение бота, вернувшееся из чата (бот пишет от имени стримера).
+    // Свой же ответ бота, вернувшийся из чата, — пропускаем, иначе бот отвечает сам себе по кругу.
+    // Остальные сообщения с аккаунта бота — обычные: стример часто проверяет команды именно с него.
     if (this.recentOut.includes(text)) return
     this.msgCount++
     const cfg = this.settings.get()
@@ -177,7 +175,8 @@ export class Bot extends EventEmitter {
       if (cfg.mod.enabled && (await this.modCommand(e, cmd, args, text))) return
       if (!cfg.bot.enabled) return
       if (this.builtin(e, cmd, args)) return
-      const c = cfg.bot.commands.find((x) => x.enabled && (x.trigger === cmd || x.aliases.includes(cmd)))
+      // Одинаковый триггер может быть у разных команд для разных площадок — берём ту, что для этой площадки.
+      const c = cfg.bot.commands.find((x) => x.enabled && (x.trigger === cmd || x.aliases.includes(cmd)) && (!x.platforms.length || x.platforms.includes(e.platform)))
       if (c) this.custom(e, c, args)
     } catch (err) {
       this.note(e, cmd, `Ошибка: ${(err as Error).message}`)
@@ -353,7 +352,7 @@ export class Bot extends EventEmitter {
       this.timerMsgAt[t.id] = this.msgCount
       const text = fillResponse(t.text, { uptime: fmtUptime(this.deps.uptimeMs()), currency: this.cur() })
       this.recentOut.unshift(text)
-      this.deps.sendAll(text)
+      this.deps.sendAll(text, t.platforms.length ? t.platforms : undefined)
       this.log.unshift({ ts: now, platform: 'hub', user: 'Таймер', cmd: t.text.slice(0, 40), result: text })
       if (this.log.length > LOG_LIMIT) this.log.length = LOG_LIMIT
       this.emit('change')

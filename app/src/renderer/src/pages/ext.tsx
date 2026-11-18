@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { HubSnapshot } from '../../../main/core/types'
+import type { HubSnapshot, Platform } from '../../../main/core/types'
+import { PlatIcon } from '../ui'
 import type { Access } from '../../../main/core/extsettings'
 
 export type Wrap = (p: Promise<unknown>, after?: (v: unknown) => void) => void
@@ -46,6 +47,35 @@ export function AccessPick({ value, onChange }: { value: Access; onChange: (a: A
   return (
     <div className="seg">
       {ACCESS.map((a) => <button key={a.id} className={value === a.id ? 'on' : ''} onClick={() => onChange(a.id)}>{a.label}</button>)}
+    </div>
+  )
+}
+
+/**
+ * Где работает команда или куда пишет таймер: «Все площадки» (пустой список) или выбранные из подключённых.
+ * Пустой выбор в режиме «Выбрать» тоже значит «все» — так команда не пропадёт молча.
+ */
+export function PlatformPick({ snap, value, onChange }: { snap: HubSnapshot; value: Platform[]; onChange: (p: Platform[]) => void }) {
+  const [pick, setPick] = useState(value.length > 0)
+  const list = snap.platforms.filter((p) => p.configured || value.includes(p.id))
+  return (
+    <div>
+      <div className="seg">
+        <button className={!pick ? 'on' : ''} onClick={() => { setPick(false); if (value.length) onChange([]) }}>Все площадки</button>
+        <button className={pick ? 'on' : ''} onClick={() => setPick(true)}>Выбрать</button>
+      </div>
+      {pick && (
+        <div className="plat-pick">
+          {list.length ? list.map((p) => (
+            <label key={p.id} className="plat-pick-row">
+              <input type="checkbox" checked={value.includes(p.id)} onChange={(e) => onChange(e.target.checked ? [...value, p.id] : value.filter((x) => x !== p.id))} />
+              <PlatIcon p={p.id} /> {p.name}
+              {!p.canSend && <span className="small muted">— только чтение, ответы сюда не уйдут</span>}
+            </label>
+          )) : <div className="small muted">Нет подключённых площадок — подключите их в «Подключениях».</div>}
+          {list.length > 0 && !value.length && <div className="small muted">Ничего не отмечено — работает на всех площадках.</div>}
+        </div>
+      )}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import type { ConnStatus, HubSnapshot, Platform } from '../../../main/core/types
 import { Hint, Toggle, errText } from '../components'
 import { PlatIcon, fmtTime, useNow } from '../ui'
 import { DonationPanel, isDonationService } from './DonationPanels'
+import { MemeCard } from './Rewards'
 
 const STATE_LABEL: Record<ConnStatus['state'], string> = { off: 'Не подключено', connecting: 'Подключение…', ok: 'Подключено', error: 'Ошибка' }
 const HINT: Partial<Record<Platform, string>> = {
@@ -10,9 +11,13 @@ const HINT: Partial<Record<Platform, string>> = {
   donationalerts: 'donationalerts', donatepay: 'donatepay', donatex: 'donatex', boosty: 'boosty'
 }
 
+/** Временно выключены: плашки видны, но не нажимаются. */
+const PAUSED: Platform[] = ['donatepay', 'donatex']
+
 export function Connections({ snap, initial }: { snap: HubSnapshot; initial?: Platform }) {
-  const [sel, setSel] = useState<Platform>(initial ?? 'twitch')
+  const [sel, setSel] = useState<Platform | 'memealerts'>(initial && !PAUSED.includes(initial) ? initial : 'twitch')
   const cur = snap.connections.find((c) => c.id === sel) ?? snap.connections[0]
+  const meme = snap.memealerts
   const active = snap.connections.filter((c) => c.state === 'ok').length
 
   return (
@@ -27,21 +32,34 @@ export function Connections({ snap, initial }: { snap: HubSnapshot; initial?: Pl
 
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0,1.3fr) minmax(0,1fr)' }}>
         <div className="grid g2" style={{ alignContent: 'start' }}>
-          {snap.connections.map((c) => (
-            <div key={c.id} className={`card conn ${sel === c.id ? 'sel' : ''}`} onClick={() => setSel(c.id)}>
-              <div className="top">
-                <PlatIcon p={c.id} />
-                <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="name">{c.name}</div>
-                  <div className="small muted ellipsis">{c.detail}</div>
+          {snap.connections.map((c) => {
+            const paused = PAUSED.includes(c.id)
+            return (
+              <div key={c.id} className={`card conn ${sel === c.id ? 'sel' : ''} ${paused ? 'paused' : ''}`} onClick={paused ? undefined : () => setSel(c.id)} title={paused ? 'Временно недоступно' : undefined}>
+                <div className="top">
+                  <PlatIcon p={c.id} />
+                  <div className="grow" style={{ minWidth: 0 }}>
+                    <div className="name">{c.name}</div>
+                    <div className="small muted ellipsis">{paused ? 'Временно недоступно' : c.detail}</div>
+                  </div>
+                  {!paused && <span className={`dot ${c.state}`} />}
                 </div>
-                <span className={`dot ${c.state}`} />
               </div>
+            )
+          })}
+          <div className={`card conn ${sel === 'memealerts' ? 'sel' : ''}`} onClick={() => setSel('memealerts')}>
+            <div className="top">
+              <span className="plat" style={{ background: '#f7b500', color: '#1a1311', fontSize: 14 }}>M</span>
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div className="name">Memealerts</div>
+                <div className="small muted ellipsis">{meme.account ? `Вход выполнен · ${meme.account}` : meme.pending ? 'Вход…' : 'Не подключено'}</div>
+              </div>
+              <span className={`dot ${meme.error ? 'error' : meme.account ? 'ok' : 'off'}`} />
             </div>
-          ))}
+          </div>
         </div>
 
-        <div className="card" style={{ alignSelf: 'start' }}>
+        {sel === 'memealerts' ? <div style={{ alignSelf: 'start' }}><MemeCard snap={snap} /></div> : <div className="card" style={{ alignSelf: 'start' }}>
           <h3><PlatIcon p={cur.id} /> {cur.name} {HINT[cur.id] && <Hint id={HINT[cur.id]!} />} <span className={`r dot ${cur.state}`} /></h3>
           <p className="muted" style={{ marginTop: 0 }}>{STATE_LABEL[cur.state]} · {cur.detail}</p>
           {cur.id === 'obs' && <ObsForm snap={snap} />}
@@ -55,7 +73,7 @@ export function Connections({ snap, initial }: { snap: HubSnapshot; initial?: Pl
               <div key={i} className={l.level}><time>{fmtTime(l.ts)}</time>{l.text}</div>
             )) : <div className="muted">Пусто</div>}
           </div>
-        </div>
+        </div>}
       </div>
     </>
   )
@@ -251,15 +269,26 @@ function ObsForm({ snap }: { snap: HubSnapshot }) {
   )
 }
 
-/** Площадки, которые читаются без входа: достаточно ника канала. */
+/** Kick: ник канала (чат читается без входа) + вход. GoodGame и VK: только вход — канал берётся из аккаунта. */
 function ChannelPanel({ id, snap }: { id: 'goodgame' | 'kick' | 'vk'; snap: HubSnapshot }) {
   const saved = snap.settings[id].channel
   const [nick, setNick] = useState(saved)
   const p = snap.platforms.find((x) => x.id === id)
   const site = id === 'goodgame' ? 'goodgame.ru/ник' : id === 'kick' ? 'kick.com/ник' : 'live.vkvideo.ru/ник'
+  const auth = id === 'vk' ? snap.vkAuth : id === 'goodgame' ? snap.ggAuth : null
+  const account = auth?.account ?? null
+  // Без приложения для входа (нет общего в сборке и не задано своё) остаётся чтение по нику.
+  const byLogin = !!auth?.available
   return (
     <div>
-      <div className="field">
+      {byLogin && saved && (
+        <div className="btnrow">
+          <span className="small">Канал: <b>{saved}</b></span>
+          {/* Канал, подключённый раньше по нику, без входа: можно отключить отдельно. */}
+          {!account && <button className="btn sm" onClick={() => void window.hub.setSettings({ [id]: { channel: '' } })}>Отключить</button>}
+        </div>
+      )}
+      {!byLogin && <div className="field">
         <label>Ник канала (как в ссылке {site})</label>
         <div style={{ display: 'flex', gap: 8 }}>
           <input className="input" style={{ flex: 1 }} value={nick} onChange={(e) => setNick(e.target.value)} placeholder="например, erron" spellCheck={false} />
@@ -267,27 +296,91 @@ function ChannelPanel({ id, snap }: { id: 'goodgame' | 'kick' | 'vk'; snap: HubS
           {saved && <button className="btn sm" onClick={() => { setNick(''); void window.hub.setSettings({ [id]: { channel: '' } }) }}>Отключить</button>}
         </div>
         <span className="small muted">Можно вставить ссылку на канал целиком — Crossember сам возьмёт ник.</span>
-      </div>
-      {p?.configured && <p className="small muted">{p.live ? 'В эфире · зрителей: ' + (p.viewers ?? 0) : 'Не в эфире'} · режим «только чтение»: писать в этот чат пока можно только на сайте площадки.</p>}
+      </div>}
+      {p?.configured && <p className="small muted">{p.live ? 'В эфире · зрителей: ' + (p.viewers ?? 0) : 'Не в эфире'} · {SEND_NOTE[id](snap)}</p>}
       {saved && <button className="btn sm" onClick={() => void window.hub.reconnect(id)}>Переподключить</button>}
-      {id === 'kick' && <KickLogin snap={snap} />}
+      {id === 'kick' && <AppLogin p="kick" a={snap.kickAuth} />}
+      {id === 'vk' && <AppLogin p="vk" a={snap.vkAuth} />}
+      {id === 'goodgame' && <AppLogin p="goodgame" a={snap.ggAuth} />}
     </div>
   )
 }
 
-/** Вход в Kick — только для смены названия и категории эфира (чат читается без входа). */
-function KickLogin({ snap }: { snap: HubSnapshot }) {
-  const k = snap.kickAuth
+const SEND_NOTE: Record<'goodgame' | 'kick' | 'vk', (snap: HubSnapshot) => string> = {
+  kick: (s) => (s.kickAuth.canChat ? 'писать в чат можно из Crossember' : 'чтобы писать в чат из Crossember, войдите в Kick ниже'),
+  vk: (s) => (s.vkAuth.canChat ? 'писать в чат можно из Crossember во время эфира' : 'чтобы писать в чат из Crossember, войдите в VK Видео Live ниже'),
+  goodgame: (s) => (s.ggAuth.canChat ? 'писать в чат можно из Crossember' : 'чтобы писать в чат из Crossember, войдите в GoodGame ниже')
+}
+
+type AppPlatform = 'kick' | 'vk' | 'goodgame'
+/** Как один раз завести своё приложение на площадке — простыми словами. */
+const APP_SETUP: Record<AppPlatform, { name: string; url: string; where: string; secret: 'need' | 'optional' }> = {
+  kick: { name: 'Kick', url: 'https://kick.com/settings/developer', where: 'На kick.com откройте настройки → Developer и создайте приложение (любое название).', secret: 'need' },
+  vk: { name: 'VK Видео Live', url: 'https://dev.live.vkvideo.ru/apps', where: 'На dev.live.vkvideo.ru войдите через VK ID, откройте «Приложения» и создайте приложение. Отметьте права: отправка сообщений в чат и настройки трансляции.', secret: 'optional' },
+  goodgame: { name: 'GoodGame', url: 'https://goodgame.ru/', where: 'На goodgame.ru откройте адрес goodgame.ru/user/ВАШ_ID/oauth2 (ID — число в ссылке на ваш профиль) и добавьте приложение.', secret: 'need' }
+}
+const LOGIN: Record<AppPlatform, { login: () => Promise<unknown>; cancel: () => Promise<unknown>; logout: () => Promise<unknown> }> = {
+  kick: { login: () => window.hub.kickLogin(), cancel: () => window.hub.kickCancel(), logout: () => window.hub.kickLogout() },
+  vk: { login: () => window.hub.vkLogin(), cancel: () => window.hub.vkCancel(), logout: () => window.hub.vkLogout() },
+  goodgame: { login: () => window.hub.ggLogin(), cancel: () => window.hub.ggCancel(), logout: () => window.hub.ggLogout() }
+}
+
+/** Вход в Kick / VK Видео Live / GoodGame: сообщения в чат и смена названия и категории эфира (чат читается и без входа). */
+function AppLogin({ p, a }: { p: AppPlatform; a: HubSnapshot['kickAuth'] }) {
+  const cfg = APP_SETUP[p]
+  const act = LOGIN[p]
   const [err, setErr] = useState<string | null>(null)
-  if (!k.available) return null
+  const [open, setOpen] = useState(false)
+  const [clientId, setClientId] = useState(a.customId)
+  const [secret, setSecret] = useState('')
+  const [copied, setCopied] = useState(false)
+  const login = (): void => { setErr(null); act.login().catch((e) => setErr(errText(e))) }
+  const saveApp = (id: string): void => {
+    setErr(null)
+    window.hub.oauthApp(p, id, secret).then(() => { setSecret(''); setOpen(false) }).catch((e) => setErr(errText(e)))
+  }
+  // Общего приложения в сборке нет и своё не задано — показываем настройку сразу, без «Для опытных».
+  const setup = open || !a.available
   return (
     <div className="field" style={{ marginTop: 18 }}>
-      <label>Название и категория эфира</label>
-      {k.account
-        ? <div className="btnrow"><span className="small">Вход выполнен: <b>{k.account}</b></span><button className="btn sm" onClick={() => void window.hub.kickLogout()}>Выйти</button></div>
-        : k.pending
-          ? <div className="btnrow"><span className="small muted">Подтвердите вход в открывшемся браузере…</span><button className="btn sm" onClick={() => void window.hub.kickCancel()}>Отмена</button></div>
-          : <div className="btnrow"><button className="btn sm primary" onClick={() => { setErr(null); window.hub.kickLogin().catch((e) => setErr(errText(e))) }}>Войти в Kick</button><span className="small muted">чтобы менять название и игру с главной Crossember</span></div>}
+      <label>{p === 'kick' ? 'Чат и название эфира' : 'Вход в аккаунт — чат, сообщения и название эфира'}</label>
+      {a.available && (a.account
+        ? <div className="btnrow"><span className="small">Вход выполнен: <b>{a.account}</b></span><button className="btn sm" onClick={() => void act.logout()}>Выйти</button></div>
+        : a.pending
+          ? <div className="btnrow"><span className="small muted">Подтвердите вход в открывшемся браузере…</span><button className="btn sm" onClick={() => void act.cancel()}>Отмена</button></div>
+          : <div className="btnrow"><button className="btn sm primary" onClick={login}>Войти в {cfg.name}</button><span className="small muted">чтобы писать в чат и менять название и игру из Crossember</span></div>)}
+      {a.account && a.needRelogin && (
+        <div className="note warnbox" style={{ marginTop: 8 }}>Crossember нужно новое разрешение (писать в чат). Выйдите и войдите в {cfg.name} заново — один раз.</div>
+      )}
+      {setup && (
+        <div className="note" style={{ marginTop: 8 }}>
+          {!a.available && <p className="small" style={{ marginTop: 0 }}>Чтобы входить в {cfg.name} одной кнопкой, один раз подключите своё приложение {cfg.name} — это бесплатно и займёт пару минут.</p>}
+          <ol className="small" style={{ margin: '0 0 10px', paddingLeft: 18, display: 'grid', gap: 6 }}>
+            <li>{cfg.where} <button className="btn sm" onClick={() => void window.hub.openExternal(cfg.url)}>Открыть сайт</button></li>
+            <li>
+              В поле «адрес возврата» (Redirect URI) вставьте: <span className="mono">{a.redirect}</span>{' '}
+              <button className="btn sm" onClick={() => { void window.hub.copy(a.redirect); setCopied(true) }}>{copied ? 'Скопировано' : 'Копировать'}</button>
+            </li>
+            <li>Скопируйте с сайта {cfg.secret === 'need' ? 'Client ID и секрет (Client Secret)' : 'Client ID (секрет не нужен)'} и вставьте ниже.</li>
+          </ol>
+          <div className="field">
+            <label>Client ID</label>
+            <input className="input mono" value={clientId} onChange={(e) => setClientId(e.target.value.trim())} spellCheck={false} />
+          </div>
+          {cfg.secret === 'need' && (
+            <div className="field">
+              <label>Client Secret {a.hasCustom ? '(сохранён — введите новый, чтобы заменить)' : ''}</label>
+              <input className="input mono" type="password" value={secret} onChange={(e) => setSecret(e.target.value.trim())} spellCheck={false} />
+            </div>
+          )}
+          <div className="btnrow">
+            <button className="btn sm primary" disabled={!clientId} onClick={() => saveApp(clientId)}>Сохранить</button>
+            {a.hasCustom && a.source === 'custom' && <button className="btn sm" onClick={() => { setClientId(''); saveApp('') }}>Убрать своё приложение</button>}
+          </div>
+          <span className="small muted" style={{ display: 'block', marginTop: 6 }}>Секрет хранится зашифрованным только на этом ПК. После смены приложения нужно войти заново.</span>
+        </div>
+      )}
+      {a.available && <div style={{ marginTop: 8 }}><button className="btn sm" onClick={() => setOpen(!open)}>{open ? 'Скрыть' : a.source === 'custom' ? 'Своё приложение' : 'Для опытных: своё приложение'}</button></div>}
       {err && <span className="small" style={{ color: '#ff7a84' }}>{err}</span>}
     </div>
   )

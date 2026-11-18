@@ -1,4 +1,5 @@
 import { BrowserWindow, session } from 'electron'
+import { isAuthUrl } from '../sitewindow'
 import type { Hub } from '../hub'
 import type { Settings } from '../settings'
 import type { Secrets } from '../secrets'
@@ -90,11 +91,17 @@ export class BoostyConnector implements DonationConnector {
     })
     this.win = win
     this.onChange()
-    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-    // Только boosty.to и вход через VK/Яндекс/Google/Mail, которые предлагает сам Boosty.
-    win.webContents.on('will-navigate', (e, url) => {
-      if (!/^https:\/\/([\w-]+\.)*(boosty\.to|vk\.com|vk\.ru|vkontakte\.ru|id\.vk\.com|id\.vk\.ru|yandex\.ru|ya\.ru|google\.com|mail\.ru)(\/|$)/.test(url)) e.preventDefault()
-    })
+    // Только boosty.to и сайты входа (Twitch, VK, Яндекс, Google…). Вход через Twitch открывается всплывающим окном —
+    // оно в той же временной сессии, поэтому cookie «auth» появится там же, где его ищет check().
+    const okUrl = (url: string): boolean => /^https:\/\/([\w-]+\.)*boosty\.to(\/|$)/.test(url) || isAuthUrl(url)
+    const guard = (w: BrowserWindow): void => {
+      w.webContents.setWindowOpenHandler(({ url }) => okUrl(url)
+        ? { action: 'allow', overrideBrowserWindowOptions: { width: 520, height: 760, autoHideMenuBar: true, webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false } } }
+        : { action: 'deny' })
+      w.webContents.on('did-create-window', (child) => guard(child))
+      w.webContents.on('will-navigate', (e, url) => { if (!okUrl(url)) e.preventDefault() })
+    }
+    guard(win)
     const check = async (): Promise<void> => {
       const got = await this.readAuth(ses).catch(() => null)
       if (!got || !this.win) return

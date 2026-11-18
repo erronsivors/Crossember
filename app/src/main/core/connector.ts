@@ -26,7 +26,8 @@ export interface ChatConnector {
   stop(): void
   restart(): Promise<void>
   chatState(): ChatPlatformState
-  send?(text: string, opts?: { as?: 'broadcaster' | 'bot' }): Promise<void>
+  /** replyTo — id сообщения на этой площадке: ответить в его ветку, где площадка это умеет. */
+  send?(text: string, opts?: { as?: 'broadcaster' | 'bot'; replyTo?: string }): Promise<void>
   deleteMessage?(m: HubEvent): Promise<void>
   /** seconds > 0 — таймаут, 0 — бан. */
   ban?(m: HubEvent, seconds: number): Promise<void>
@@ -53,14 +54,14 @@ export class ChatRegistry {
   }
 
   /** Отправить сообщение в выбранные площадки. Ошибки собираются, чтобы одна площадка не мешала другим. */
-  async send(text: string, targets: Platform[], as: 'broadcaster' | 'bot'): Promise<void> {
+  async send(text: string, targets: Platform[], as: 'broadcaster' | 'bot', reply?: { platform: Platform; id: string }): Promise<void> {
     const errors: string[] = []
     await Promise.all(
       targets.map(async (id) => {
         const c = this.map.get(id)
         if (!c?.send || !c.chatState().canSend) return
         try {
-          await c.send(text, { as })
+          await c.send(text, { as, replyTo: reply?.platform === id ? reply.id : undefined })
         } catch (e) {
           errors.push(`${c.chatState().name}: ${(e as Error).message}`)
         }

@@ -17,8 +17,10 @@ extraResources:
     to: resources
     filter:
       - '**/*'
-      # Клиенты OAuth файлами не раздаём: YouTube вшит в программу при сборке (electron.vite.config.ts), Kick пока не настроен.
+      # Клиенты OAuth файлами не раздаём: YouTube, Kick, VK и GoodGame вшиваются в программу при сборке (electron.vite.config.ts).
       - '!kick/**'
+      - '!vk/**'
+      - '!goodgame/**'
       - '!youtube/oauth-client.json'
 win:
   target: nsis
@@ -31,6 +33,10 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Crossember
+  # Картинки мастера (24-битные BMP): боковая 164x314 — приветствие, завершение и удаление; шапка 150x57 — остальные страницы.
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/installerSidebar.bmp
+  installerHeader: build/installerHeader.bmp
   # Настройки, токены и база в %APPDATA%\Crossember остаются после удаления: переустановка их не теряет.
   deleteAppDataOnUninstall: false
   installerLanguages:

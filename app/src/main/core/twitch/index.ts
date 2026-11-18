@@ -105,6 +105,8 @@ export class TwitchConnector implements ChatConnector {
       const acc = await d.wait()
       this.hub.log('twitch', 'info', `${role === 'bot' ? 'Бот' : 'Стример'} вошёл: ${acc.login}`)
       if (role === 'broadcaster') await this.start()
+      // Подключили бота — значит, хотят, чтобы отвечал он. Вручную можно вернуть «от канала» в «Подключениях».
+      else this.settings.patch({ twitch: { autoSendAs: 'bot' } })
     } catch (e) {
       this.hub.log('twitch', 'warn', (e as Error).message)
       throw e

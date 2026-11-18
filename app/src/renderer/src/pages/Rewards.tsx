@@ -182,7 +182,7 @@ function RewardForm({ id, init, meta, wrap, onDone }: { id?: string; init: Twitc
   )
 }
 
-function MemeCard({ snap }: { snap: HubSnapshot }) {
+export function MemeCard({ snap }: { snap: HubSnapshot }) {
   const m = snap.memealerts
   const { err, ok, wrap, say } = useWrap()
   const [token, setToken] = useState('')

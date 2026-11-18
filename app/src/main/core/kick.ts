@@ -4,6 +4,7 @@ import type { Settings } from './settings'
 import type { ImageCache } from './imgcache'
 import type { ChatConnector, ChatPlatformState } from './connector'
 import type { MsgPart } from './types'
+import type { KickAuth } from './kickauth'
 
 /**
  * Kick: чтение чата без входа, по нику канала.
@@ -11,7 +12,7 @@ import type { MsgPart } from './types'
  *   для программ, поэтому открывается в скрытом окне-браузере (отдельный профиль, только kick.com, без доступа к системе).
  * - Сообщения и события — через публичный WebSocket (Pusher), которым пользуется сам сайт Kick. Это неофициальный путь:
  *   Kick может его поменять — тогда статус площадки покажет ошибку.
- * Отправка в чат требует собственного приложения Kick с секретом — позже, в режиме «Для опытных».
+ * Писать в чат можно после входа в Kick (официальный API, kickauth.ts).
  */
 
 const NICK = /^[A-Za-z0-9_.-]{1,40}$/
@@ -36,7 +37,7 @@ export class KickConnector implements ChatConnector {
   viewers: number | null = null
   onChange: () => void = () => undefined
 
-  constructor(private hub: Hub, private settings: Settings, private img: ImageCache) {
+  constructor(private hub: Hub, private settings: Settings, private img: ImageCache, private auth: KickAuth) {
     hub.register('kick', 'Kick')
   }
 
@@ -46,7 +47,11 @@ export class KickConnector implements ChatConnector {
 
   chatState(): ChatPlatformState {
     const nick = this.nick()
-    return { id: 'kick', name: 'Kick', configured: !!nick, live: this.live, viewers: this.viewers, canSend: false, canModerate: false, account: nick || null }
+    return { id: 'kick', name: 'Kick', configured: !!nick, live: this.live, viewers: this.viewers, canSend: !!nick && this.auth.canChat() && this.auth.sameChannel(nick), canModerate: false, account: nick || null }
+  }
+
+  async send(text: string, opts: { replyTo?: string } = {}): Promise<void> {
+    await this.auth.sendChat(text, opts.replyTo, this.nick())
   }
 
   async start(): Promise<void> {
@@ -231,7 +236,7 @@ export class KickConnector implements ChatConnector {
         return
       case 'pusher_internal:subscription_succeeded':
         this.retryDelay = 3000
-        this.hub.setStatus('kick', 'ok', `Подключено · ${this.nick()} · только чтение`)
+        this.hub.setStatus('kick', 'ok', `Подключено · ${this.nick()}${this.auth.canChat() ? '' : ' · только чтение'}`)
         return
       case 'pusher:ping':
         ws.send(JSON.stringify({ event: 'pusher:pong', data: {} }))

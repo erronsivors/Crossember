@@ -48,11 +48,10 @@ const NAV: { id: Page; label: string; ico: string; also?: Page[] }[] = [
   { id: 'music', label: 'Музыка', ico: '♫' },
   { id: 'analytics', label: 'Аналитика', ico: '◫' }
 ]
-/** Настраивается один раз — ниже, под подписью. */
+/** Настраивается один раз — ниже, под подписью. «Настройки» — в меню окна сверху. */
 const SETUP: { id: Page; label: string; ico: string; also?: Page[] }[] = [
   { id: 'overlays', label: 'Оверлеи', ico: '▣', also: ['chatstyle'] },
-  { id: 'connections', label: 'Подключения', ico: '⏚' },
-  { id: 'settings', label: 'Настройки', ico: '⚙' }
+  { id: 'connections', label: 'Подключения', ico: '⏚' }
 ]
 const TOOL_PAGES = INTERACTIVE.map((t) => t.id)
 
@@ -101,7 +100,7 @@ export function App() {
   }, [])
   const menus: MenuDef[] = [
     { label: 'Файл', items: [
-      { label: 'Профили…', hint: 'как в OBS', on: () => setModal('profiles') },
+      { label: 'Профили…', on: () => setModal('profiles') },
       { label: 'Экспорт и импорт профиля', on: () => go('settings') },
       'sep',
       { label: 'Выход', on: () => void window.hub.quit() }

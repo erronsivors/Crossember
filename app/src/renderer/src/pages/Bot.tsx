@@ -4,7 +4,7 @@ import type { BotCommand, BotSettings, BotTimer, ModSettings, PointsSettings } f
 import type { Viewer } from '../../../main/core/points'
 import { NumberField, Toggle } from '../components'
 import { fmtTime } from '../ui'
-import { AccessPick, Notes, PLAT_NAME, ScopeNote, TextSetting, num, useWrap } from './ext'
+import { AccessPick, Notes, PLAT_NAME, PlatformPick, ScopeNote, TextSetting, num, useWrap } from './ext'
 
 type Tab = 'commands' | 'timers' | 'points' | 'mods'
 const TABS: { id: Tab; label: string }[] = [
@@ -41,7 +41,7 @@ export function Bot({ snap }: { snap: HubSnapshot }) {
 function Commands({ snap }: { snap: HubSnapshot }) {
   const b = snap.settings.bot
   const save = (list: BotCommand[]): void => void window.hub.setSettings({ bot: { commands: list } })
-  const add = (): void => save([...b.commands, { id: newId('c'), trigger: '!новая', aliases: [], response: 'Ответ бота, {user}', cooldownSec: 5, userCooldownSec: 0, access: 'all', cost: 0, enabled: true }])
+  const add = (): void => save([...b.commands, { id: newId('c'), trigger: '!новая', aliases: [], response: 'Ответ бота, {user}', cooldownSec: 5, userCooldownSec: 0, access: 'all', cost: 0, enabled: true, platforms: [] }])
   return (
     <div className="grid auc-grid">
       <div className="auc-side">
@@ -49,7 +49,7 @@ function Commands({ snap }: { snap: HubSnapshot }) {
           <h3>Свои команды <button className="r btn sm" onClick={add}>+ команда</button></h3>
           {!b.commands.length && <div className="empty">Команд пока нет</div>}
           {b.commands.map((c) => (
-            <CommandRow key={c.id} c={c} uses={snap.bot.uses[c.id] ?? 0} currency={snap.settings.points.name}
+            <CommandRow key={c.id} c={c} snap={snap} uses={snap.bot.uses[c.id] ?? 0} currency={snap.settings.points.name}
               onSave={(x) => save(b.commands.map((y) => (y.id === c.id ? x : y)))}
               onRemove={() => save(b.commands.filter((y) => y.id !== c.id))} />
           ))}
@@ -68,7 +68,7 @@ function Commands({ snap }: { snap: HubSnapshot }) {
   )
 }
 
-function CommandRow({ c, uses, currency, onSave, onRemove }: { c: BotCommand; uses: number; currency: string; onSave: (c: BotCommand) => void; onRemove: () => void }) {
+function CommandRow({ c, snap, uses, currency, onSave, onRemove }: { c: BotCommand; snap: HubSnapshot; uses: number; currency: string; onSave: (c: BotCommand) => void; onRemove: () => void }) {
   const [open, setOpen] = useState(false)
   const [ask, setAsk] = useState(false)
   const set = (p: Partial<BotCommand>): void => onSave({ ...c, ...p })
@@ -88,6 +88,7 @@ function CommandRow({ c, uses, currency, onSave, onRemove }: { c: BotCommand; us
           </div>
           <TextSetting label="Ответ бота" value={c.response} max={450} area onSave={(v) => set({ response: v })} />
           <div className="field"><label>Кто может</label><AccessPick value={c.access} onChange={(a) => set({ access: a })} /></div>
+          <div className="field"><label>Где работает</label><PlatformPick snap={snap} value={c.platforms} onChange={(p) => set({ platforms: p })} /></div>
           <div className="grid g3" style={{ gap: 10 }}>
             <NumberField label="Общий кулдаун" value={c.cooldownSec} min={0} max={86_400} suffix="сек" onChange={(v) => set({ cooldownSec: v })} />
             <NumberField label="Кулдаун зрителя" value={c.userCooldownSec} min={0} max={86_400} suffix="сек" onChange={(v) => set({ userCooldownSec: v })} />
@@ -174,8 +175,8 @@ function Timers({ b, snap }: { b: BotSettings; snap: HubSnapshot }) {
   const set = (id: string, p: Partial<BotTimer>): void => save(b.timers.map((t) => (t.id === id ? { ...t, ...p } : t)))
   return (
     <div className="card">
-      <h3>Сообщения по таймеру <button className="r btn sm" onClick={() => save([...b.timers, { id: newId('t'), text: 'Подписывайтесь, чтобы не пропустить эфир!', everyMin: 20, minMessages: 5, enabled: true }])}>+ сообщение</button></h3>
-      <p className="small muted" style={{ marginTop: 0 }}>Пишутся во все чаты, где можно писать, и только пока идёт эфир. Если в чате тихо (меньше N сообщений с прошлого раза) — бот ждёт.</p>
+      <h3>Сообщения по таймеру <button className="r btn sm" onClick={() => save([...b.timers, { id: newId('t'), text: 'Подписывайтесь, чтобы не пропустить эфир!', everyMin: 20, minMessages: 5, enabled: true, platforms: [] }])}>+ сообщение</button></h3>
+      <p className="small muted" style={{ marginTop: 0 }}>Пишутся в выбранные чаты (по умолчанию — во все, где можно писать) и только пока идёт эфир. Если в чате тихо (меньше N сообщений с прошлого раза) — бот ждёт.</p>
       {!b.timers.length && <div className="empty">Таймеров нет</div>}
       {b.timers.map((t) => (
         <div key={t.id} className="bot-cmd">
@@ -189,6 +190,7 @@ function Timers({ b, snap }: { b: BotSettings; snap: HubSnapshot }) {
             <NumberField label="Раз в" value={t.everyMin} min={1} max={1440} suffix="мин" onChange={(v) => set(t.id, { everyMin: v })} />
             <NumberField label="Не раньше, чем через сообщений" value={t.minMessages} min={0} max={1000} onChange={(v) => set(t.id, { minMessages: v })} />
           </div>
+          <div className="field"><label>Куда писать</label><PlatformPick snap={snap} value={t.platforms} onChange={(p) => set(t.id, { platforms: p })} /></div>
         </div>
       ))}
     </div>

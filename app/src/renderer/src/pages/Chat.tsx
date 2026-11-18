@@ -25,6 +25,9 @@ export function Chat({ snap }: { snap: HubSnapshot }) {
   // Куда отправлять: по умолчанию во все площадки, где можно писать. Снятые галочки запоминаются на время работы.
   const [off, setOff] = useState<string[]>([])
   const [err, setErr] = useState<string | null>(null)
+  // Ответ на сообщение: во все выбранные площадки уходит «@ник текст», на площадке автора — ещё и ответом в ветку (Twitch).
+  const [reply, setReply] = useState<HubEvent | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [paused, setPaused] = useState(false)
   const [confirmBan, setConfirmBan] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -52,9 +55,12 @@ export function Chat({ snap }: { snap: HubSnapshot }) {
   const send = (): void => {
     const t = text.trim()
     if (!t) return
+    const mention = reply ? `@${reply.user}` : ''
+    const body = mention && !t.toLowerCase().startsWith(mention.toLowerCase()) ? `${mention} ${t}` : t
     void act(async () => {
-      await window.hub.chatSend(t, as, targets)
+      await window.hub.chatSend(body, as, targets, reply && !reply.test ? { platform: reply.platform, id: reply.id } : null)
       setText('')
+      setReply(null)
     })
   }
 
@@ -99,6 +105,7 @@ export function Chat({ snap }: { snap: HubSnapshot }) {
                 {m.test && <span className="tag test">ТЕСТ</span>}
                 <span className="ctext"><Parts m={m} /></span>
                 <span className="cact">
+                  <button title="Ответить" onClick={() => { setReply(m); inputRef.current?.focus() }}>↩</button>
                   <button title="Вывести в оверлей «Закреп»" onClick={() => void window.hub.chatPin(m.id)}>📌</button>
                   <button title="Удалить сообщение" onClick={() => void act(() => window.hub.chatDelete(m.id))}>🗑</button>
                   {!m.test && <button title="Таймаут 10 минут" onClick={() => void act(() => window.hub.chatBan(m.id, 600))}>⏱</button>}
@@ -109,15 +116,23 @@ export function Chat({ snap }: { snap: HubSnapshot }) {
               </div>
             ))}
           </div>
+          {reply && (
+            <div className="chatreply small">
+              <span className="cplat" style={{ background: PLATFORM[reply.platform].color }} />
+              <span className="grow ellipsis">Ответ <b>@{reply.user}</b>: <span className="muted">{reply.text}</span></span>
+              <button className="btn sm" title="Не отвечать" onClick={() => setReply(null)}>✕</button>
+            </div>
+          )}
           <div className="chatinput">
             <input
+              ref={inputRef}
               className="input"
               maxLength={500}
               value={text}
               disabled={!canWrite}
               placeholder={canWrite ? `Написать в: ${writable.filter((p) => targets.includes(p.id)).map((p) => p.name).join(', ')}…` : writable.length ? 'Выберите площадки для отправки' : 'Подключите площадку, чтобы писать в чат'}
               onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
+              onKeyDown={(e) => { if (e.key === 'Enter') send(); else if (e.key === 'Escape' && reply) { e.stopPropagation(); setReply(null) } }}
             />
             {writable.length > 1 && writable.map((p) => (
               <label key={p.id} className="tgt" title={`Отправлять в ${p.name}`}>

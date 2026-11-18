@@ -86,7 +86,7 @@ export function UpdatesModal({ snap, onClose }: { snap: HubSnapshot; onClose: ()
   )
 }
 
-/** Файл → Профили: как в OBS — наборы настроек, правил и шаблонов под именем, переключение одним нажатием. */
+/** Файл → Профили: наборы настроек, правил и шаблонов под именем, переключение одним нажатием. */
 export function ProfilesModal({ snap, onClose }: { snap: HubSnapshot; onClose: () => void }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)

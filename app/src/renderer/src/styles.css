@@ -144,6 +144,8 @@ button, input, select { font: inherit; color: inherit; }
 .conn { display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: border-color .15s; }
 .conn:hover, .conn.sel { border-color: var(--line-2); }
 .conn.sel { box-shadow: 0 0 0 1px var(--accent); }
+.conn.paused { cursor: default; opacity: .45; }
+.conn.paused:hover { border-color: var(--line); }
 .conn .top { display: flex; align-items: center; gap: 12px; }
 .plat { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font: 800 14px var(--f-display); color: #fff; flex: none; }
 .conn .name { font: 700 15px var(--f-display); }
@@ -638,3 +640,7 @@ select.input { cursor: pointer; }
 .pick-modal .preset-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .preset.on { border-color: var(--light); box-shadow: 0 0 0 1px var(--light) inset; }
 @media (max-width: 760px) { .pick-top { grid-template-columns: 1fr; position: static; } }
+.plat-pick { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.plat-pick-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.plat-pick-row .plat { width: 22px; height: 22px; font-size: 10px !important; }
+.chatreply { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--line); }

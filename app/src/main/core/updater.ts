@@ -173,8 +173,8 @@ export class Updater {
     }
     this.installing = true
     this.set({ error: '' })
-    // isSilent = false: окно установщика видно; isForceRunAfter = true: программа откроется после установки.
-    autoUpdater.quitAndInstall(false, true)
+    // Тихо, без мастера: установщик берёт прежнюю папку из реестра, после установки программа откроется сама.
+    autoUpdater.quitAndInstall(true, true)
   }
 
   dispose(): void { if (this.timer) clearInterval(this.timer) }

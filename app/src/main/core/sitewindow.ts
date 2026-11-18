@@ -14,6 +14,16 @@ const SITES: Record<SiteId, { title: string; url: string; host: RegExp }> = {
 /** Сайты, через которые сервисы предлагают войти (Twitch, Google, VK…). Только для входа — всё остальное уходит в обычный браузер. */
 const AUTH_HOSTS = /(^|\.)(twitch\.tv|google\.com|youtube\.com|gstatic\.com|kick\.com|facebook\.com|discord\.com|vk\.com|vk\.ru|vkontakte\.ru|tiktok\.com|telegram\.org|yandex\.ru|ya\.ru|mail\.ru|apple\.com|steamcommunity\.com|recaptcha\.net|hcaptcha\.com|cloudflare\.com)$/
 
+/** Страница входа через сторонний аккаунт (Twitch, Google, VK…): только https и только хосты из списка выше. */
+export function isAuthUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:' && AUTH_HOSTS.test(u.hostname)
+  } catch {
+    return false
+  }
+}
+
 export const isSiteId = (v: unknown): v is SiteId => typeof v === 'string' && v in SITES
 
 const windows = new Map<SiteId, BrowserWindow>()

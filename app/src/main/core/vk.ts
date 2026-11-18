@@ -3,6 +3,7 @@ import type { Settings } from './settings'
 import type { ImageCache } from './imgcache'
 import type { ChatConnector, ChatPlatformState } from './connector'
 import type { Badge, MsgPart } from './types'
+import type { VkAuth } from './vkauth'
 
 /**
  * VK Видео Live: чтение чата без входа, по нику канала (как в ссылке live.vkvideo.ru/ник).
@@ -10,7 +11,7 @@ import type { Badge, MsgPart } from './types'
  * - Каналы сокета (чат и инфо: онлайн, зрители) — из публичного API api.live.vkvideo.ru/v1/blog/<ник>/public_video_stream.
  * - Сообщения — через Centrifugo (wss://pubsub.live.vkvideo.ru), которым пользуется сам сайт. Это неофициальный путь:
  *   VK может его поменять — тогда статус площадки покажет ошибку, а новые типы событий попадут в журнал.
- * Отправка и модерация в официальном API VK не описаны — пока только чтение.
+ * Писать в чат можно после входа через официальный DevAPI (vkauth.ts) и только во время эфира.
  */
 
 const SITE = 'https://live.vkvideo.ru'
@@ -54,7 +55,7 @@ export class VkConnector implements ChatConnector {
   viewers: number | null = null
   onChange: () => void = () => undefined
 
-  constructor(private hub: Hub, private settings: Settings, private img: ImageCache) {
+  constructor(private hub: Hub, private settings: Settings, private img: ImageCache, private auth: VkAuth) {
     hub.register('vk', 'VK Видео Live')
   }
 
@@ -64,12 +65,16 @@ export class VkConnector implements ChatConnector {
 
   chatState(): ChatPlatformState {
     const nick = this.nick()
-    return { id: 'vk', name: 'VK Видео Live', configured: !!nick, live: this.live, viewers: this.viewers, canSend: false, canModerate: false, account: nick || null }
+    return { id: 'vk', name: 'VK Видео Live', configured: !!nick, live: this.live, viewers: this.viewers, canSend: !!nick && this.live && this.auth.canChat(), canModerate: false, account: nick || null }
+  }
+
+  async send(text: string): Promise<void> {
+    await this.auth.sendChat(text)
   }
 
   async start(): Promise<void> {
     const nick = this.nick()
-    if (!nick) return this.hub.setStatus('vk', 'off', 'Укажите ник канала VK Видео Live')
+    if (!nick) return this.hub.setStatus('vk', 'off', 'Войдите в VK Видео Live в «Подключениях»')
     if (!NICK.test(nick)) return this.hub.setStatus('vk', 'error', 'Ник канала содержит недопустимые символы')
     this.stop('connecting', 'Подключение…', false)
     const gen = ++this.generation
@@ -169,7 +174,7 @@ export class VkConnector implements ChatConnector {
         if (o.connect) {
           for (const ch of [this.chatChannel, this.infoChannel]) if (ch) ws.send(JSON.stringify({ subscribe: { channel: ch }, id: nextId++ }))
           this.retryDelay = 3000
-          this.hub.setStatus('vk', 'ok', `Подключено · ${this.nick()} · только чтение`)
+          this.hub.setStatus('vk', 'ok', `Подключено · ${this.nick()}${this.auth.canChat() ? '' : ' · только чтение'}`)
           continue
         }
         const push = obj(o.push)

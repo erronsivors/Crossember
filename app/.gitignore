@@ -9,3 +9,6 @@ data/
 resources/youtube/oauth-client.json
 # Общий OAuth-клиент Kick — тоже только локально
 resources/kick/oauth-client.json
+# Общий OAuth-клиент VK Видео Live — тоже только локально
+resources/vk/oauth-client.json
+resources/goodgame/oauth-client.json

@@ -36,7 +36,6 @@ export function StreamInfoCard({ snap, go }: { snap: HubSnapshot; go: (p: Page) 
     window.hub.infoDraft({ title, game }).then(() => window.hub.infoApply()).catch((e) => setErr(errText(e)))
   }
   const dirty = title !== st.title || game !== st.game
-  const anyResult = ORDER.some((p) => st.targets.includes(p) && st.results[p])
 
   return (
     <div className="card sinfo">
@@ -44,6 +43,8 @@ export function StreamInfoCard({ snap, go }: { snap: HubSnapshot; go: (p: Page) 
         <span className="r btnrow">
           {st.recent.length > 0 && <button className="btn sm" onClick={() => setShowRecent(!showRecent)}>Недавние {showRecent ? '▴' : '▾'}</button>}
           {st.access.twitch === 'ok' && <button className="btn sm" title="Подставить то, что сейчас стоит на Twitch" onClick={() => { setErr(null); window.hub.infoFromTwitch().catch((e) => setErr(errText(e))) }}>Взять с Twitch</button>}
+          {dirty && <span className="tag warn">Не применено</span>}
+          <button className="btn sm primary" title="Нажмите на площадку ниже, чтобы включить или выключить её" disabled={st.busy || !title.trim() || !st.targets.length} onClick={apply}>{st.busy ? 'Применяю…' : 'Применить на выбранных'}</button>
         </span>
       </h3>
       {showRecent && (
@@ -78,7 +79,7 @@ export function StreamInfoCard({ snap, go }: { snap: HubSnapshot; go: (p: Page) 
           const on = st.targets.includes(p)
           const r = on ? st.results[p] : undefined
           const a = st.access[p]
-          const note = a === 'relogin' ? 'нужен повторный вход' : a === 'login' ? 'не выполнен вход' : a === 'unavailable' ? 'вход не настроен' : a === 'nochannel' ? 'нет ника канала' : a === 'manual' ? 'вручную' : ''
+          const note = a === 'relogin' ? 'нужен повторный вход' : a === 'login' ? 'не выполнен вход' : a === 'unavailable' ? 'вход не настроен' : a === 'nochannel' ? 'не выполнен вход' : a === 'manual' ? 'вручную' : ''
           return (
             <button key={p} className={`sinfo-t ${on ? 'on' : ''} ${r ? 's-' + r.state : ''}`} onClick={() => toggle(p)} title={r?.text ?? ''}>
               <PlatIcon p={p} />
@@ -105,13 +106,14 @@ export function StreamInfoCard({ snap, go }: { snap: HubSnapshot; go: (p: Page) 
             : <button className="btn sm" onClick={() => { setErr(null); window.hub.kickLogin().catch((e) => setErr(errText(e))) }}>Войти в Kick</button>}
         </div>
       )}
+      {(['vk', 'goodgame'] as const).some((p) => st.targets.includes(p) && st.access[p] === 'manual') && (
+        <div className="note btnrow" style={{ marginTop: 12 }}>
+          <span style={{ flex: 1, minWidth: 220 }}>{(['vk', 'goodgame'] as const).filter((p) => st.targets.includes(p) && st.access[p] === 'manual').map((p) => NAMES[p]).join(' и ')} сейчас меняется вручную: Crossember копирует название и открывает канал. Войдите в «Подключениях» — и название с категорией будут меняться сами.</span>
+          <button className="btn sm" onClick={() => go('connections')}>Подключения →</button>
+        </div>
+      )}
       {err && <div className="note warnbox" style={{ marginTop: 12 }}>{err}</div>}
 
-      <div className="btnrow" style={{ marginTop: 14 }}>
-        <button className="btn primary" disabled={st.busy || !title.trim() || !st.targets.length} onClick={apply}>{st.busy ? 'Применяю…' : 'Применить на выбранных'}</button>
-        {dirty && <span className="tag warn">Не применено</span>}
-        {!dirty && anyResult && !st.busy && <span className="small muted">Нажмите на площадку, чтобы включить или выключить её.</span>}
-      </div>
     </div>
   )
 }

@@ -5,11 +5,13 @@ import type { Settings } from './settings'
 import type { TwitchConnector } from './twitch'
 import type { YoutubeConnector } from './youtube'
 import type { KickAuth } from './kickauth'
+import type { VkAuth } from './vkauth'
+import type { GgAuth } from './ggauth'
 
 /**
  * Название и категория эфира — сразу на всех площадках.
- * Twitch, YouTube, Kick — через официальные API. VK Видео Live и GoodGame — вручную: Crossember копирует название
- * и открывает страницу настроек эфира в браузере (публичного способа менять их программой пока нет).
+ * Twitch, YouTube, Kick, VK Видео Live, GoodGame — через API площадок (у Kick, VK и GoodGame — после входа).
+ * Без входа VK и GoodGame — вручную: Crossember копирует название и открывает страницу канала в браузере.
  */
 
 export const INFO_PLATFORMS = ['twitch', 'youtube', 'kick', 'vk', 'goodgame'] as const
@@ -59,7 +61,9 @@ export class StreamInfo extends EventEmitter {
     private settings: Settings,
     private twitch: TwitchConnector,
     private youtube: YoutubeConnector,
-    private kick: KickAuth
+    private kick: KickAuth,
+    private vk: VkAuth,
+    private gg: GgAuth
   ) {
     super()
     const o = obj(store.get('streaminfo.v1', {}))
@@ -75,9 +79,9 @@ export class StreamInfo extends EventEmitter {
     return {
       twitch: this.twitch.infoAccess(),
       youtube: this.youtube.state().account ? 'ok' : 'login',
-      kick: !this.kick.state().available ? 'unavailable' : this.kick.loggedIn() ? 'ok' : 'login',
-      vk: s.vk.channel ? 'manual' : 'nochannel',
-      goodgame: s.goodgame.channel ? 'manual' : 'nochannel'
+      kick: !this.kick.state().available ? 'unavailable' : !this.kick.loggedIn() ? 'login' : this.kick.canEdit() ? 'ok' : 'relogin',
+      vk: !s.vk.channel ? 'nochannel' : !this.vk.state().available || !this.vk.loggedIn() ? 'manual' : this.vk.canEdit() ? 'ok' : 'relogin',
+      goodgame: !s.goodgame.channel ? 'nochannel' : !this.gg.state().available || !this.gg.loggedIn() ? 'manual' : 'ok'
     }
   }
 
@@ -107,6 +111,8 @@ export class StreamInfo extends EventEmitter {
     try {
       if (this.twitch.infoAccess() !== 'login') return (await this.twitch.searchCategories(query)).map((c) => c.name)
       if (this.kick.loggedIn()) return (await this.kick.searchCategories(query)).map((c) => c.name)
+      if (this.vk.loggedIn()) return await this.vk.searchCategories(query)
+      if (this.gg.loggedIn()) return (await this.gg.searchGames(query)).map((g) => g.title)
     } catch { /* подсказки не обязательны */ }
     return []
   }
@@ -138,12 +144,18 @@ export class StreamInfo extends EventEmitter {
         await this.youtube.setTitle(title, this.ytCategory)
         this.set(p, 'ok', `Применено · ${YT_CATEGORIES.find((c) => c.id === this.ytCategory)?.name ?? ''}`)
       } else if (p === 'kick') {
-        if (access === 'unavailable') throw new Error('Вход в Kick не настроен в этой сборке')
+        if (access === 'unavailable') throw new Error('Вход в Kick не настроен — укажите своё приложение Kick в «Подключениях»')
         if (access === 'login') throw new Error('Не выполнен вход в Kick')
         const g = await this.kick.setChannelInfo(title, game)
         this.set(p, 'ok', g ? `Применено · ${g}` : 'Применено')
+      } else if (p === 'goodgame' && access === 'ok') {
+        const g = await this.gg.setChannelInfo(title, game)
+        this.set(p, 'ok', g ? `Применено · ${g}` : 'Применено')
+      } else if (p === 'vk' && access !== 'manual' && access !== 'nochannel') {
+        const g = await this.vk.setChannelInfo(title, game)
+        this.set(p, 'ok', g ? `Применено · ${g}` : 'Применено')
       } else {
-        if (access === 'nochannel') throw new Error('Не указан ник канала (Подключения)')
+        if (access === 'nochannel') throw new Error('Не выполнен вход (Подключения)')
         this.set(p, 'manual', 'Название скопировано — вставьте его в настройках эфира на открывшейся странице (Ctrl+V)')
       }
     } catch (e) {
@@ -161,9 +173,11 @@ export class StreamInfo extends EventEmitter {
     for (const p of list) this.results[p] = { state: 'working', text: 'Отправляю…', ts: Date.now() }
     this.emit('change')
     try {
-      await Promise.all(list.filter((p) => p !== 'vk' && p !== 'goodgame').map((p) => this.one(p)))
-      // VK и GoodGame — название в буфер обмена и страница настроек эфира в браузере.
-      const manual = list.filter((p) => p === 'vk' || p === 'goodgame')
+      const access = this.access()
+      const isManual = (p: InfoPlatform): boolean => (p === 'vk' || p === 'goodgame') && (access[p] === 'manual' || access[p] === 'nochannel')
+      await Promise.all(list.filter((p) => !isManual(p)).map((p) => this.one(p)))
+      // VK и GoodGame без входа — название в буфер обмена и страница канала в браузере.
+      const manual = list.filter(isManual)
       if (manual.length) {
         clipboard.writeText(this.title)
         for (const p of manual) await this.one(p)

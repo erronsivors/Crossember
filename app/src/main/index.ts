@@ -45,6 +45,8 @@ import { readFile as readFileAsync } from 'node:fs/promises'
 import { Analytics, CHAT_PLATFORMS, isAnalyticsPeriod, type ChatPlatform } from './core/analytics'
 import { Profiles, type ProfilePart } from './core/profile'
 import { KickAuth } from './core/kickauth'
+import { VkAuth } from './core/vkauth'
+import { GgAuth } from './core/ggauth'
 import { StreamInfo, INFO_PLATFORMS, type InfoPlatform } from './core/streaminfo'
 import { TemplateStore, sanitizeTemplate, sanitizeObs } from './core/templates'
 import { RuleEngine } from './core/rules'
@@ -151,6 +153,8 @@ let uiPage = 'home'
 let vizStatus: { state: 'off' | 'on' | 'error'; error: string | null } = { state: 'off', error: null }
 let profiles: Profiles
 let kickAuth: KickAuth
+let vkAuth: VkAuth
+let ggAuth: GgAuth
 let streamInfo: StreamInfo
 let da: DonationAlertsConnector
 let dp: DonatePayConnector
@@ -190,6 +194,8 @@ function snapshot(): HubSnapshot {
     profile: profiles.state(),
     streamInfo: streamInfo.state(),
     kickAuth: kickAuth.state(),
+    vkAuth: vkAuth.state(),
+    ggAuth: ggAuth.state(),
     auction: auction.state(),
     wheel: wheel.state(),
     goal: goal.state(),
@@ -344,13 +350,32 @@ app.whenReady().then(async () => {
   youtube = new YoutubeConnector(hub, settings, secrets, resourcesDir)
   chats.add(youtube)
   youtube.onChange = pushUpdate
-  const goodgame = new GoodGameConnector(hub, settings, images, join(app.getPath('userData'), 'cache'))
-  const kick = new KickConnector(hub, settings, images)
+  ggAuth = new GgAuth(hub, secrets, resourcesDir, () => settings.get().goodgame.channel)
+  const goodgame = new GoodGameConnector(hub, settings, images, join(app.getPath('userData'), 'cache'), ggAuth)
+  // Вошли или вышли из GoodGame — переподключить чат, чтобы он вошёл с токеном или стал анонимным.
+  // Канал GoodGame и VK берётся из входа: вошли — подключаем свой канал (кнопка «Выйти» отключает его, см. hub:ggLogout).
+  // Истёкший вход канал не отключает: чат продолжает читаться. Смена канала в настройках сама перезапускает чат;
+  // при повторном входе в тот же канал перезапускаем вручную.
+  const followLogin = (auth: GgAuth | VkAuth, id: 'goodgame' | 'vk', restart: () => Promise<void>): (() => void) => {
+    let rev = auth.revision()
+    return () => {
+      pushUpdate()
+      if (auth.revision() === rev) return
+      rev = auth.revision()
+      const ch = auth.accountChannel()
+      if (ch && ch !== settings.get()[id].channel) settings.patch({ [id]: { channel: ch } })
+      else if (settings.get()[id].channel) void restart()
+    }
+  }
+  ggAuth.onChange = followLogin(ggAuth, 'goodgame', () => goodgame.restart())
   kickAuth = new KickAuth(hub, secrets, resourcesDir)
   kickAuth.onChange = pushUpdate
-  streamInfo = new StreamInfo(store, settings, twitch, youtube, kickAuth)
+  const kick = new KickConnector(hub, settings, images, kickAuth)
+  vkAuth = new VkAuth(hub, secrets, resourcesDir, () => settings.get().vk.channel)
+  vkAuth.onChange = followLogin(vkAuth, 'vk', async () => undefined)
+  streamInfo = new StreamInfo(store, settings, twitch, youtube, kickAuth, vkAuth, ggAuth)
   streamInfo.on('change', pushUpdate)
-  const vk = new VkConnector(hub, settings, images)
+  const vk = new VkConnector(hub, settings, images, vkAuth)
   chats.add(goodgame)
   chats.add(kick)
   chats.add(vk)
@@ -437,8 +462,8 @@ app.whenReady().then(async () => {
     chats.send(text.slice(0, 450), [p], autoAs()).catch((e: Error) => hub.log('hub', 'warn', `Бот: не удалось ответить — ${e.message}`))
   }
   /** Сообщение во все чаты, где можно писать. */
-  const sendAll = (text: string): void => {
-    const targets = chats.states().filter((x) => x.canSend).map((x) => x.id)
+  const sendAll = (text: string, only?: Platform[]): void => {
+    const targets = chats.states().filter((x) => x.canSend && (!only || only.includes(x.id))).map((x) => x.id)
     if (!text || !targets.length) return
     chats.send(text.slice(0, 450), targets, autoAs()).catch((e: Error) => hub.log('hub', 'warn', `Не удалось написать в чат — ${e.message}`))
   }
@@ -530,7 +555,6 @@ app.whenReady().then(async () => {
     sendAll,
     isLive: liveNow,
     uptimeMs: () => (obs.state.streaming && obs.state.streamStartedAt ? Date.now() - obs.state.streamStartedAt : null),
-    botName: () => twitch.state().bot?.name ?? null,
     skipAlert: () => alerts.skip(),
     pauseAlerts: (v) => alerts.setPaused(v),
     skipTrack: () => music.skip(),
@@ -778,7 +802,7 @@ app.whenReady().then(async () => {
   })
   handle('hub:openExternal', (url) => {
     const u = str(url, 300)
-    if (/^https:\/\/(dev\.twitch\.tv|www\.twitch\.tv|dashboard\.twitch\.tv|clips\.twitch\.tv|developer\.spotify\.com|memealerts\.com|obsproject\.com|github\.com|console\.cloud\.google\.com|www\.donationalerts\.com|donatepay\.ru|donatex\.gg|boosty\.to)\//.test(u)) void shell.openExternal(u)
+    if (/^https:\/\/(dev\.twitch\.tv|www\.twitch\.tv|dashboard\.twitch\.tv|clips\.twitch\.tv|developer\.spotify\.com|memealerts\.com|obsproject\.com|github\.com|console\.cloud\.google\.com|www\.donationalerts\.com|donatepay\.ru|donatex\.gg|boosty\.to|kick\.com|dev\.live\.vkvideo\.ru|goodgame\.ru)\//.test(u)) void shell.openExternal(u)
   })
   handle('hub:testEvent', (kind) => {
     const x = SAMPLES[String(kind)]
@@ -824,6 +848,18 @@ app.whenReady().then(async () => {
   handle('hub:kickLogin', () => kickAuth.login())
   handle('hub:kickCancel', () => kickAuth.cancelLogin())
   handle('hub:kickLogout', () => kickAuth.logout())
+  handle('hub:vkLogin', () => vkAuth.login())
+  handle('hub:vkCancel', () => vkAuth.cancelLogin())
+  handle('hub:vkLogout', async () => { await vkAuth.logout(); settings.patch({ vk: { channel: '' } }) })
+  handle('hub:ggLogin', () => ggAuth.login())
+  handle('hub:ggCancel', () => ggAuth.cancelLogin())
+  handle('hub:ggLogout', async () => { await ggAuth.logout(); settings.patch({ goodgame: { channel: '' } }) })
+  // Своё приложение Kick/VK: секрет уходит только в зашифрованное хранилище.
+  handle('hub:oauthApp', (p, id, secret) => {
+    const auth = p === 'kick' ? kickAuth : p === 'vk' ? vkAuth : p === 'goodgame' ? ggAuth : null
+    if (!auth) return
+    auth.setCustomClient(str(id, 200), typeof secret === 'string' && secret ? str(secret, 500) : null)
+  })
   // ---------- Профиль: сохранить в файл / загрузить ----------
   handle('hub:profileExport', async (withMedia) => {
     if (!win) return null
@@ -1124,9 +1160,11 @@ app.whenReady().then(async () => {
   handle('hub:youtubeCancel', () => youtube.cancelLogin())
   handle('hub:youtubeLogout', () => youtube.logout())
   handle('hub:youtubeSecret', (v) => youtube.setCustomSecret(typeof v === 'string' ? str(v, 200) : null))
-  handle('hub:chatSend', (text, as, targets) => {
+  handle('hub:chatSend', (text, as, targets, reply) => {
     const list = Array.isArray(targets) ? (targets.filter((t) => typeof t === 'string') as Platform[]) : []
-    return chats.send(str(text), list, role(as))
+    const r = reply && typeof reply === 'object' ? (reply as { platform?: unknown; id?: unknown }) : null
+    const to = r && typeof r.platform === 'string' && typeof r.id === 'string' ? { platform: r.platform as Platform, id: str(r.id, 100) } : undefined
+    return chats.send(str(text), list, role(as), to)
   })
   handle('hub:chatPin', (id) => hub.togglePin(id === null ? null : str(id, 100)))
   handle('hub:chatDelete', async (id) => {
@@ -1215,6 +1253,8 @@ app.on('before-quit', () => {
   memealerts?.stop()
   analytics?.stop()
   kickAuth?.cancelLogin()
+  vkAuth?.cancelLogin()
+  ggAuth?.cancelLogin()
   floatChat?.close()
   chats.stopAll()
   for (const d of donations) d.stop()

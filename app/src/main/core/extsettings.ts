@@ -2,6 +2,7 @@
 // Без node-импортов: интерфейс берёт отсюда значения по умолчанию и ограничения.
 import { KEYS_DEFAULTS, sanitizeKeys, type KeysOverlaySettings } from './keyslayout'
 import { VIZ_DEFAULTS, sanitizeViz, type VizSettings } from './viz'
+import type { Platform } from './types'
 
 export type Access = 'all' | 'sub' | 'vip' | 'mod'
 export const ACCESS_LABEL: Record<Access, string> = { all: 'Все', sub: 'Подписчики и выше', vip: 'VIP и выше', mod: 'Модераторы' }
@@ -47,6 +48,8 @@ export interface BotCommand {
   /** Цена в очках зрителей (0 — бесплатно). */
   cost: number
   enabled: boolean
+  /** На каких площадках работает; пусто — на всех. */
+  platforms: Platform[]
 }
 
 export interface BotTimer {
@@ -56,6 +59,8 @@ export interface BotTimer {
   /** Сколько сообщений чата должно пройти с прошлого раза (чтобы не писать в пустоту). */
   minMessages: number
   enabled: boolean
+  /** Куда писать; пусто — во все чаты, где можно писать. */
+  platforms: Platform[]
 }
 
 export interface BotSettings {
@@ -172,7 +177,7 @@ export const EXT_DEFAULTS: ExtSettings = {
   bot: {
     enabled: true,
     commands: [
-      { id: 'c-hello', trigger: '!привет', aliases: [], response: 'Привет, {user}! Устраивайся у костра 🔥', cooldownSec: 10, userCooldownSec: 60, access: 'all', cost: 0, enabled: true }
+      { id: 'c-hello', trigger: '!привет', aliases: [], response: 'Привет, {user}! Устраивайся у костра 🔥', cooldownSec: 10, userCooldownSec: 60, access: 'all', cost: 0, enabled: true, platforms: [] }
     ],
     timers: [],
     balanceCmd: '!очки', topCmd: '!топ', giveCmd: '!передать', gambleCmd: '!рулетка', duelCmd: '!дуэль', uptimeCmd: '!аптайм', listCmd: '!команды',
@@ -232,6 +237,9 @@ export function cleanCmd(v: unknown, d: string): string {
   return c.length <= 30 ? c : d
 }
 
+const CHAT_PLATFORMS: Platform[] = ['twitch', 'youtube', 'vk', 'kick', 'goodgame']
+const platforms = (v: unknown): Platform[] => [...new Set((Array.isArray(v) ? v : []).filter((x): x is Platform => CHAT_PLATFORMS.includes(x as Platform)))]
+
 function command(v: unknown, i: number): BotCommand | null {
   const o = obj(v)
   const trigger = cleanCmd(o.trigger, '')
@@ -246,7 +254,8 @@ function command(v: unknown, i: number): BotCommand | null {
     userCooldownSec: int(o.userCooldownSec, 0, 0, 86_400),
     access: access(o.access, 'all'),
     cost: int(o.cost, 0, 0, 10_000_000),
-    enabled: bool(o.enabled, true)
+    enabled: bool(o.enabled, true),
+    platforms: platforms(o.platforms)
   }
 }
 
@@ -254,7 +263,7 @@ function timer(v: unknown, i: number): BotTimer | null {
   const o = obj(v)
   const t = text(o.text, '', 450).trim()
   if (!t) return null
-  return { id: id(o.id, `t-${i}`), text: t, everyMin: int(o.everyMin, 15, 1, 1440), minMessages: int(o.minMessages, 5, 0, 1000), enabled: bool(o.enabled, true) }
+  return { id: id(o.id, `t-${i}`), text: t, everyMin: int(o.everyMin, 15, 1, 1440), minMessages: int(o.minMessages, 5, 0, 1000), enabled: bool(o.enabled, true), platforms: platforms(o.platforms) }
 }
 
 export function sanitizeExt(input: Record<string, unknown>, base: ExtSettings): ExtSettings {
