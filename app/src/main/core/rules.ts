@@ -347,14 +347,16 @@ export class RuleEngine extends EventEmitter {
   }
 
   /** Добавить или заменить правило. */
-  put(v: unknown): Rule {
+  /** first — новое правило ставится первым (триггер из редактора алерта должен срабатывать раньше общих правил). */
+  put(v: unknown, first = false): Rule {
     const r = sanitizeRule(v)
     const i = this.rules.findIndex((x) => x.id === r.id)
     this.nextAt.delete(r.id) // таймер правила считается заново
     if (i >= 0) this.rules[i] = r
     else {
       if (this.rules.length >= 200) throw new Error('Слишком много правил (максимум 200)')
-      this.rules.push(r)
+      if (first) this.rules.unshift(r)
+      else this.rules.push(r)
     }
     this.save()
     return r
@@ -489,7 +491,8 @@ export class RuleEngine extends EventEmitter {
     const now = Date.now()
     let any = false
     for (const r of this.rules) {
-      if (!r.enabled || !pick(r)) continue
+      // Правило без действий (или только с алертами удалённых шаблонов) не срабатывает и не останавливает следующие.
+      if (!r.enabled || !r.actions.some((a) => a.type !== 'alert' || this.templates.get(a.templateId)) || !pick(r)) continue
       const key = r.cooldownPerUser ? `${r.id}:${e.platform}:${e.user.toLowerCase()}` : r.id
       const last = this.lastFire.get(key) ?? 0
       if (r.cooldownSec > 0 && now - last < r.cooldownSec * 1000) {

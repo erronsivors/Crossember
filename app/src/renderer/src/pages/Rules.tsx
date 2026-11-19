@@ -21,7 +21,7 @@ export const TRIGGERS: { id: TriggerType; label: string; ico: string; service?: 
   { id: 'subathon_add', label: 'Сабатон: добавлено время', ico: '⏳', service: true }, { id: 'subathon_end', label: 'Сабатон: время вышло', ico: '⌛', service: true }
 ]
 const isService = (t: TriggerType): boolean => !!TRIGGERS.find((x) => x.id === t)?.service
-const PLATFORMS: { id: Platform; label: string }[] = [
+export const PLATFORMS: { id: Platform; label: string }[] = [
   { id: 'twitch', label: 'Twitch' }, { id: 'youtube', label: 'YouTube' }, { id: 'vk', label: 'VK' }, { id: 'kick', label: 'Kick' },
   { id: 'goodgame', label: 'GoodGame' }, { id: 'donationalerts', label: 'DonationAlerts' }, { id: 'donatepay', label: 'DonatePay' },
   { id: 'donatex', label: 'DonateX' }, { id: 'boosty', label: 'Boosty' }, { id: 'hub', label: 'Вручную' }
@@ -45,9 +45,9 @@ const TTS_WHEN: { id: TtsWhen; label: string; short: string; hint: string }[] = 
   { id: 'after', label: 'После алерта', short: 'после алерта', hint: 'Алерт отыгрывает полностью, озвучка звучит следом.' }
 ]
 const RESULT: Record<string, string> = { done: 'выполнено', dry: 'проверка', cooldown: 'кулдаун', error: 'ошибка', test: 'тест' }
-const AMOUNT_TYPES: TriggerType[] = ['donation', 'bits', 'raid', 'gift', 'sub']
+export const AMOUNT_TYPES: TriggerType[] = ['donation', 'bits', 'raid', 'gift', 'sub']
 
-const newRule = (): Rule => ({
+export const newRule = (): Rule => ({
   id: crypto.randomUUID(), name: '', enabled: true, types: ['donation'], platforms: [],
   filter: { minAmount: 0, maxAmount: 0, textContains: '', users: '', tests: 'any' }, cooldownSec: 0, cooldownPerUser: false, stop: false, actions: [],
   intervalMin: 15, onlyLive: true, hotkey: ''

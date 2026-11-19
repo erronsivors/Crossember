@@ -212,3 +212,12 @@ textarea.input { resize: vertical; font: inherit; }
 .counter-edit { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .counter-edit:last-child { border-bottom: none; }
 .counter-edit .action-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, .8fr); margin-bottom: 10px; }
+/* Окно «Есть несохранённые изменения»: три кнопки в одну строку, заголовок помельче общего. */
+.modal.ed-leave { width: min(600px, 92vw); }
+.modal.ed-leave h2 { font-size: 22px; }
+/* Триггеры шаблона в «Весь алерт». */
+.ed-trig { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--coal-2); font-size: 13px; }
+.ed-trig .grow { flex: 1; min-width: 0; }
+.ed-trig-edit { border: 1px solid var(--line-2); border-radius: 10px; padding: 10px; margin-top: 6px; }
+.ed-trig-plats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 8px; }
+.ed-trig-plats label { display: flex; align-items: center; gap: 6px; }

@@ -5,6 +5,9 @@ import { TEXT_FX, TEXT_FX_LABEL } from '../../../main/core/textfx'
 import { Hint, Toggle, errText } from '../components'
 import { ObsActionEditor, SoundSelect, VoiceSelect, kit, previewSound, previewTts, serverUrl, type KitHandle } from '../editors'
 import { playBuiltin } from '../sounds'
+import type { Rule, TriggerType } from '../../../main/core/rules'
+import type { Platform } from '../../../main/core/types'
+import { AMOUNT_TYPES, PLATFORMS, TRIGGERS, newRule } from './Rules'
 import { ART_GROUPS, ART_SETS, artPath } from '../../../main/core/art'
 import { PACK_CATEGORIES, PACK_LAYER_NAME, PACK_SETS, packPath } from '../../../main/core/alertpack'
 
@@ -142,6 +145,7 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
     if (next) setTimeout(next, 0)
   }
   const total = totalMs(t, kind)
+  const usedBy = snap.rules.rules.filter((r) => r.enabled && r.actions.some((a) => a.type === 'alert' && a.templateId === t.id))
   const layer = t.layers.find((l) => l.id === sel) ?? null
   const volume = snap.settings.alerts.volume / 100
   const theme = snap.settings.overlays.alert.theme
@@ -242,6 +246,9 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
           : <button className="btn sm" onClick={() => (dirty ? setLeaving('close') : onClose())}>← К алертам</button>}
         <input className="input ed-name" value={t.name} maxLength={60} onChange={(e) => change({ ...t, name: e.target.value }, false)} />
         {dirty ? <span className="tag warn">Есть изменения</span> : <span className="tag">Сохранено</span>}
+        <button className={`btn sm ${usedBy.length ? '' : 'danger'}`} title="Какие события показывают этот алерт" onClick={() => { setSel(null); setSelKf(null) }}>
+          {usedBy.length ? `Когда запускается: ${usedBy.length}` : 'Не запускается — добавьте триггер'}
+        </button>
         <div className="btnrow" style={{ marginLeft: 'auto' }}>
           <button className="btn sm" disabled={!history.length} title="Отменить (Ctrl+Z)" onClick={undo}>↶ Отменить</button>
           <select className="input sm" value={kind} title="На каком событии показывать предпросмотр" onChange={(e) => setKind(e.target.value)}>
@@ -253,7 +260,7 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
       </div>
       {leaving && (
         <div className="modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) stay() }}>
-          <div className="modal narrow" role="alertdialog" aria-modal="true" aria-labelledby="ed-leave-title">
+          <div className="modal ed-leave" role="alertdialog" aria-modal="true" aria-labelledby="ed-leave-title">
             <h2 id="ed-leave-title">{leaving === 'back' ? 'Выйти к выбору шаблона?' : 'Есть несохранённые изменения'}</h2>
             <p className="muted">{leaving === 'back' ? 'Изменения в этом шаблоне пропадут.' : 'Сохранить шаблон перед выходом?'}</p>
             <div className="modal-actions">
@@ -282,7 +289,7 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
           {layer
             ? <LayerProps key={layer.id} l={layer} t={t} time={time} total={total} snap={snap} kind={kind} selKf={selKf} setSelKf={setSelKf}
                 onChange={(p, s) => setLayer(layer.id, p, s)} />
-            : <TemplateProps t={t} onChange={(p) => change({ ...t, ...p })} />}
+            : <><Triggers t={t} snap={snap} exists={exists} /><TemplateProps t={t} onChange={(p) => change({ ...t, ...p })} /></>}
         </div>
       </div>
 
@@ -600,6 +607,85 @@ function T({ value, onChange, max = 300, area }: { value: string; onChange: (s: 
   return area
     ? <textarea className="input" rows={3} value={v} maxLength={max} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onChange(v)} />
     : <input className="input" value={v} maxLength={max} onChange={(e) => setV(e.target.value)} onBlur={() => v !== value && onChange(v)} />
+}
+
+// ---------- когда запускается ----------
+/** События, которые можно показать алертом (служебные поводы и чат — в «Правилах»). */
+const ALERT_TRIGGERS = TRIGGERS.filter((x) => ['donation', 'sub', 'gift', 'follow', 'raid', 'bits', 'reward'].includes(x.id))
+
+function trigText(r: Rule): string {
+  const what = r.types.map((x) => TRIGGERS.find((y) => y.id === x)?.label ?? x).join(', ') || 'нет события'
+  const where = r.platforms.length ? r.platforms.map((p) => PLATFORMS.find((x) => x.id === p)?.label ?? p).join(', ') : 'все площадки'
+  const sum = r.filter.minAmount > 0 ? ` · от ${r.filter.minAmount}` : ''
+  return `${what} · ${where}${sum}`
+}
+
+/**
+ * Триггеры шаблона — это правила с действием «показать этот алерт». Новый триггер ставится первым правилом,
+ * чтобы его не перехватило общее правило «Донат» (оно останавливает проверку следующих).
+ */
+function Triggers({ t, snap, exists }: { t: AlertTemplate; snap: HubSnapshot; exists: boolean }) {
+  const list = snap.rules.rules.filter((r) => r.actions.some((a) => a.type === 'alert' && a.templateId === t.id))
+  const [edit, setEdit] = useState<Rule | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const put = (r: Rule, first = false): void => { setErr(null); window.hub.rulePut(r, first).catch((e) => setErr(errText(e))) }
+  const add = (): void => setEdit({ ...newRule(), name: t.name.slice(0, 60) || 'Алерт', stop: true, actions: [{ type: 'alert', templateId: t.id }] })
+  const save = (): void => {
+    if (!edit) return
+    put(edit, !list.some((r) => r.id === edit.id))
+    setEdit(null)
+  }
+  const remove = (r: Rule): void => {
+    setErr(null)
+    // Остальные действия правила (озвучка, счётчик…) не трогаем — убираем только этот алерт.
+    const rest = r.actions.filter((a) => !(a.type === 'alert' && a.templateId === t.id))
+    ;(rest.length ? window.hub.rulePut({ ...r, actions: rest }) : window.hub.ruleRemove(r.id)).catch((e) => setErr(errText(e)))
+  }
+  const togglePlat = (p: Platform): void => {
+    if (!edit) return
+    setEdit({ ...edit, platforms: edit.platforms.includes(p) ? edit.platforms.filter((x) => x !== p) : [...edit.platforms, p] })
+  }
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div className="ed-sec">Когда запускается</div>
+      <p className="small muted" style={{ marginTop: -4 }}>Алерт показывается, если событие подошло под любой из триггеров. Площадки не отмечены — подходят все.</p>
+      {!exists && <p className="small">Сначала сохраните шаблон — потом добавьте триггер.</p>}
+      {list.map((r) => (
+        <div key={r.id} className="ed-trig">
+          <input type="checkbox" checked={r.enabled} title="Включить или выключить" onChange={(e) => put({ ...r, enabled: e.target.checked })} />
+          <span className="grow">{trigText(r)}</span>
+          <button className="btn sm" title="Изменить" onClick={() => setEdit(r)}>✎</button>
+          <button className="btn sm danger" title="Убрать триггер" onClick={() => remove(r)}>✕</button>
+        </div>
+      ))}
+      {exists && !edit && <button className="btn sm" style={{ width: '100%' }} onClick={add}>+ Добавить триггер</button>}
+      {edit && (
+        <div className="ed-trig-edit">
+          <Field label="Событие" span>
+            <select className="input" value={edit.types[0] ?? 'donation'} onChange={(e) => setEdit({ ...edit, types: [e.target.value as TriggerType] })}>
+              {ALERT_TRIGGERS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+            </select>
+          </Field>
+          <div className="small" style={{ margin: '8px 0 4px' }}>Площадки</div>
+          <div className="ed-trig-plats">
+            {PLATFORMS.map((p) => (
+              <label key={p.id} className="small"><input type="checkbox" checked={edit.platforms.includes(p.id)} onChange={() => togglePlat(p.id)} /> {p.label}</label>
+            ))}
+          </div>
+          {AMOUNT_TYPES.includes(edit.types[0]) && (
+            <Field label="Сумма от (0 — любая)">
+              <N value={edit.filter.minAmount} min={0} max={10000000} step={1} onChange={(n) => setEdit({ ...edit, filter: { ...edit.filter, minAmount: Math.round(n) } })} />
+            </Field>
+          )}
+          <div className="btnrow" style={{ marginTop: 10 }}>
+            <button className="btn sm primary" onClick={save}>Готово</button>
+            <button className="btn sm" onClick={() => setEdit(null)}>Отмена</button>
+          </div>
+        </div>
+      )}
+      {err && <p className="small" style={{ color: '#ff7a84' }}>{err}</p>}
+    </div>
+  )
 }
 
 function TemplateProps({ t, onChange }: { t: AlertTemplate; onChange: (p: Partial<AlertTemplate>) => void }) {

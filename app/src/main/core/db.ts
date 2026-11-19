@@ -1,16 +1,42 @@
 import { DatabaseSync } from 'node:sqlite'
 import { join } from 'node:path'
-import { mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync } from 'node:fs'
 import type { HubEvent } from './types'
+
+/** Что удалось спасти из повреждённой базы при запуске. */
+export interface StoreRescue {
+  /** Папка, куда перенесены повреждённые файлы. */
+  folder: string
+  settings: number
+  secrets: number
+  events: number
+  /** Ключи настроек и входов, которые были в базе, но прочитать их не удалось. */
+  lost: string[]
+}
+
+const BASE_TABLES = ['settings', 'secrets', 'events']
 
 /** Локальное хранилище: один файл SQLite в папке данных пользователя. */
 export class Store {
-  private db: DatabaseSync
+  private db!: DatabaseSync
+  /** Не null — база была повреждена и собрана заново из того, что читалось. */
+  readonly rescued: StoreRescue | null = null
 
   constructor(dir: string) {
     mkdirSync(dir, { recursive: true })
-    this.db = new DatabaseSync(join(dir, 'hub.sqlite3'))
-    this.db.exec(`
+    const file = join(dir, 'hub.sqlite3')
+    let db: DatabaseSync | null = null
+    try { db = this.open(file) } catch { db = null }
+    if (db && healthy(db)) this.db = db
+    else {
+      try { db?.close() } catch { /* уже закрыта */ }
+      this.rescued = this.rescue(dir, file)
+    }
+  }
+
+  private open(file: string): DatabaseSync {
+    const db = new DatabaseSync(file)
+    db.exec(`
       PRAGMA journal_mode = WAL;
       CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS secrets  (key TEXT PRIMARY KEY, value BLOB NOT NULL);
@@ -21,8 +47,60 @@ export class Store {
       CREATE INDEX IF NOT EXISTS events_ts ON events(ts);
     `)
     // Миграция: сумма в рублях для статистики (этап 3).
-    const cols = this.db.prepare('PRAGMA table_info(events)').all() as { name: string }[]
-    if (!cols.some((c) => c.name === 'amount_rub')) this.db.exec('ALTER TABLE events ADD COLUMN amount_rub REAL')
+    const cols = db.prepare('PRAGMA table_info(events)').all() as { name: string }[]
+    if (!cols.some((c) => c.name === 'amount_rub')) db.exec('ALTER TABLE events ADD COLUMN amount_rub REAL')
+    return db
+  }
+
+  /**
+   * Повреждённая база: файлы — в папку broken-<время>, рядом новая база, в неё переносим всё, что читается.
+   * Повреждение бывает незаметным: поиск по индексу отдаёт чужую строку, поэтому каждое значение,
+   * найденное через индекс, принимаем только если ключ строки совпал с искомым.
+   */
+  private rescue(dir: string, file: string): StoreRescue {
+    const folder = join(dir, `broken-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`)
+    mkdirSync(folder, { recursive: true })
+    for (const ext of ['', '-wal', '-shm']) if (existsSync(file + ext)) renameSync(file + ext, join(folder, `hub.sqlite3${ext}`))
+    this.db = this.open(file)
+    const out: StoreRescue = { folder, settings: 0, secrets: 0, events: 0, lost: [] }
+    let old: DatabaseSync
+    try { old = new DatabaseSync(join(folder, 'hub.sqlite3')) } catch { return out }
+    try {
+      for (const t of ['settings', 'secrets'] as const) {
+        const got = new Map<string, unknown>()
+        for (const r of scan(old, t, 'key, value')) if (typeof r.key === 'string') got.set(r.key, r.value)
+        for (const r of scan(old, t, 'key', `INDEXED BY sqlite_autoindex_${t}_1`)) {
+          const k = r.key
+          if (typeof k !== 'string' || got.has(k)) continue
+          try {
+            const row = old.prepare(`SELECT key, value FROM ${t} WHERE key = ?`).get(k) as { key: unknown; value: unknown } | undefined
+            if (row && row.key === k) got.set(k, row.value)
+            else out.lost.push(k)
+          } catch { out.lost.push(k) }
+        }
+        const put = this.db.prepare(`INSERT OR REPLACE INTO ${t}(key, value) VALUES(?, ?)`)
+        for (const [k, v] of got) { try { put.run(k, v as string); out[t]++ } catch { out.lost.push(k) } }
+      }
+      const ev = this.db.prepare('INSERT OR IGNORE INTO events(id, ts, platform, type, user, text, amount, currency, test, amount_rub) VALUES(?,?,?,?,?,?,?,?,?,?)')
+      for (const r of scan(old, 'events', 'id, ts, platform, type, user, text, amount, currency, test, amount_rub')) {
+        try { out.events += Number(ev.run(r.id as string, r.ts as number, r.platform as string, r.type as string, r.user as string, (r.text ?? null) as string | null, (r.amount ?? null) as number | null, (r.currency ?? null) as string | null, (r.test ?? 0) as number, (r.amount_rub ?? null) as number | null).changes) } catch { /* битая строка */ }
+      }
+      // Таблицы модулей (аналитика): схема и строки как были; что не читается — пропадает.
+      let extra: { name: string; sql: string; type: string }[] = []
+      try { extra = old.prepare("SELECT name, sql, type FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC").all() as typeof extra } catch { /* схема не читается */ }
+      for (const x of extra) {
+        if (BASE_TABLES.includes(x.name) || x.name === 'events_ts') continue
+        try { this.db.exec(x.sql) } catch { continue }
+        if (x.type !== 'table') continue
+        for (const r of scan(old, x.name, '*')) {
+          const keys = Object.keys(r)
+          try { this.db.prepare(`INSERT OR IGNORE INTO "${x.name}"(${keys.map((k) => `"${k}"`).join(', ')}) VALUES(${keys.map(() => '?').join(', ')})`).run(...(keys.map((k) => r[k]) as never[])) } catch { /* битая строка */ }
+        }
+      }
+    } finally {
+      try { old.close() } catch { /* ок */ }
+    }
+    return out
   }
 
   /** Прямой доступ к базе для модулей со своими таблицами (аналитика). */
@@ -104,4 +182,40 @@ export class Store {
   close(): void {
     this.db.close()
   }
+}
+
+/** Быстрая проверка целостности; ошибка при проверке — тоже «не цела». */
+function healthy(db: DatabaseSync): boolean {
+  try {
+    const rows = db.prepare('PRAGMA quick_check').all() as Record<string, unknown>[]
+    return rows.length === 1 && Object.values(rows[0])[0] === 'ok'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Прочитать строки таблицы, сколько получится. Сначала целиком; если чтение обрывается на битой странице —
+ * кусками по rowid, перешагивая через ошибки (не дальше 2000 ошибок подряд).
+ */
+function scan(db: DatabaseSync, table: string, cols: string, how = 'NOT INDEXED'): Record<string, unknown>[] {
+  try {
+    return db.prepare(`SELECT ${cols} FROM "${table}" ${how}`).all() as Record<string, unknown>[]
+  } catch { /* читаем по кускам */ }
+  if (how !== 'NOT INDEXED') return []
+  const out: Record<string, unknown>[] = []
+  let after = 0
+  let fails = 0
+  while (fails < 2000) {
+    try {
+      const rows = db.prepare(`SELECT rowid AS _rid, ${cols} FROM "${table}" NOT INDEXED WHERE rowid > ? ORDER BY rowid LIMIT 100`).all(after) as Record<string, unknown>[]
+      if (!rows.length) break
+      for (const r of rows) { after = Number(r._rid); delete r._rid; out.push(r) }
+      fails = 0
+    } catch {
+      after++
+      fails++
+    }
+  }
+  return out
 }

@@ -78,7 +78,7 @@ const api = {
   analyticsClear: () => call('hub:analyticsClear'),
   soundAdd: () => call<SoundInfo | null>('hub:soundAdd'),
   soundRemove: (id: string) => call('hub:soundRemove', id),
-  rulePut: (r: Rule) => call<Rule>('hub:rulePut', r),
+  rulePut: (r: Rule, first?: boolean) => call<Rule>('hub:rulePut', r, first === true),
   ruleRemove: (id: string) => call('hub:ruleRemove', id),
   ruleMove: (id: string, dir: -1 | 1) => call('hub:ruleMove', id, dir),
   ruleTest: (id: string, kind: string) => call<boolean>('hub:ruleTest', id, kind),
