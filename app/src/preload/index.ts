@@ -174,6 +174,7 @@ const api = {
   ttsVoices: () => call<TtsVoice[]>('hub:ttsVoices'),
   sileroStatus: () => call<SileroStatus>('hub:sileroStatus'),
   sileroInstall: () => call<SileroStatus>('hub:sileroInstall'),
+  sileroInstallExtra: () => call<SileroStatus>('hub:sileroInstallExtra'),
   sileroRemove: () => call<void>('hub:sileroRemove'),
   ttsTest: (text: string, voice?: string) => call<string>('hub:ttsTest', text, voice ?? ''),
   daLogin: () => call('hub:daLogin'),

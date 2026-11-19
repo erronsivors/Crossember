@@ -14,7 +14,7 @@ export const CANVAS = { w: 1920, h: 1080 } as const
 
 export const LAYER_TYPES = ['card', 'text', 'image', 'video', 'sound', 'tts', 'obs'] as const
 export type LayerType = (typeof LAYER_TYPES)[number]
-export const ANIM_PRESETS = ['none', 'fade', 'up', 'down', 'left', 'right', 'zoom', 'pop', 'spin'] as const
+export const ANIM_PRESETS = ['none', 'fade', 'up', 'down', 'left', 'right', 'zoom', 'pop', 'spin', 'rise', 'drop', 'flip', 'swirl', 'blur', 'wipe'] as const
 export type AnimPreset = (typeof ANIM_PRESETS)[number]
 export const EASES = ['linear', 'ease', 'in', 'out', 'inout', 'back'] as const
 export type Ease = (typeof EASES)[number]

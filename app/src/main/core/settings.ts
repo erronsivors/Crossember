@@ -78,12 +78,8 @@ export interface AlertSettings {
 /** Озвучка. Движок задаётся приставкой в имени голоса (см. core/tts.ts); engine оставлен для старых настроек. */
 export interface TtsSettings {
   engine: 'windows'
-  /** Голос: Windows, onecore:…, cb:ref:… / cb:voice:… (Chatterbox); пусто — первый русский Windows. */
+  /** Голос: Windows, onecore:…, silero:…; пусто — первый русский Windows. */
   voice: string
-  /** Порт локального Chatterbox-TTS-Server (только 127.0.0.1). */
-  chatterboxPort: number
-  /** Эмоциональность Chatterbox: 25…150 (%). */
-  chatterboxEmotion: number
   /** Скорость −10…10. */
   rate: number
   /** Громкость, %. */
@@ -105,7 +101,10 @@ export interface AppSettings extends ExtSettings {
   helper: { url: string }
   defaultTheme: Theme
   /** Оформление самого приложения: стандартное с цветовой схемой или «У костра» (BETA). На оверлеи не влияет. */
-  ui: { look: 'standard' | 'campfire'; palette: string }
+  /** zoom — масштаб интерфейса в %, 0 — подобрать по экрану (4K без масштабирования Windows — крупнее). */
+  ui: { look: 'standard' | 'campfire'; palette: string; zoom: number }
+  /** Окно: tray — крестик прячет в значок у часов; autostart — запуск вместе с Windows свёрнутым в трей. */
+  startup: { tray: boolean; autostart: boolean }
   /** Раскладка главной (см. home.ts). */
   home: HomeItem[]
   twitch: {
@@ -310,7 +309,8 @@ export const DEFAULTS: AppSettings = {
   role: 'main',
   helper: { url: '' },
   defaultTheme: 'general',
-  ui: { look: 'standard', palette: 'classic' },
+  ui: { look: 'standard', palette: 'classic', zoom: 0 },
+  startup: { tray: false, autostart: false },
   home: DEFAULT_HOME.map((i) => ({ ...i })),
   twitch: { customClientId: '', thirdPartyEmotes: true, autoSendAs: 'broadcaster' },
   youtube: { customClientId: '' },
@@ -321,7 +321,7 @@ export const DEFAULTS: AppSettings = {
   donatex: { customClientId: '' },
   boosty: { poll: false },
   alerts: ALERT_DEFAULTS,
-  tts: { engine: 'windows', voice: '', chatterboxPort: 8004, chatterboxEmotion: 50, rate: 0, volume: 100, maxChars: 200, stripLinks: true, badWords: '' },
+  tts: { engine: 'windows', voice: '', rate: 0, volume: 100, maxChars: 200, stripLinks: true, badWords: '' },
   lan: { enabled: false, host: '', port: 47833, control: false },
   dock: { blocks: DOCK_PRESETS.operator.slice() },
   overlays: {
@@ -467,11 +467,17 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
     })(),
     defaultTheme: theme(i.defaultTheme, base.defaultTheme),
     home: i.home === undefined ? base.home ?? DEFAULT_HOME.map((x) => ({ ...x })) : sanitizeHome(i.home),
+    startup: (() => {
+      const o = obj(i.startup)
+      const b = base.startup ?? DEFAULTS.startup
+      return { tray: bool(o.tray, b.tray), autostart: bool(o.autostart, b.autostart) }
+    })(),
     ui: (() => {
       const o = obj(i.ui)
       const b = base.ui ?? DEFAULTS.ui
       // Список схем знает интерфейс (palettes.ts); здесь — только безопасный вид id.
-      return { look: o.look === 'campfire' || o.look === 'standard' ? o.look : b.look, palette: typeof o.palette === 'string' && /^[a-z-]{1,24}$/.test(o.palette) ? o.palette : b.palette }
+      return { look: o.look === 'campfire' || o.look === 'standard' ? o.look : b.look, palette: typeof o.palette === 'string' && /^[a-z-]{1,24}$/.test(o.palette) ? o.palette : b.palette,
+        zoom: [0, 100, 125, 150, 175, 200].includes(o.zoom as number) ? (o.zoom as number) : b.zoom ?? 0 }
     })(),
     twitch: {
       customClientId: /^[a-z0-9]{0,64}$/.test(clientId) ? clientId : base.twitch.customClientId,
@@ -491,9 +497,8 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
       const b = base.tts ?? DEFAULTS.tts
       return {
         engine: 'windows' as const,
-        voice: text(o.voice, b.voice, 100),
-        chatterboxPort: int(o.chatterboxPort, b.chatterboxPort ?? 8004, 1024, 65535),
-        chatterboxEmotion: int(o.chatterboxEmotion, b.chatterboxEmotion ?? 50, 25, 150),
+        // Голоса Chatterbox (cb:…) убраны в 0.1.6 — такой выбор сбрасываем на голос по умолчанию.
+        voice: ((v) => (v.startsWith('cb:') ? '' : v))(text(o.voice, b.voice, 100)),
         rate: int(o.rate, b.rate, -10, 10),
         volume: int(o.volume, b.volume, 0, 100),
         maxChars: int(o.maxChars, b.maxChars, 20, 500),

@@ -65,6 +65,8 @@ export function App() {
   const [connSel, setConnSel] = useState<Platform | undefined>(undefined)
   const [modal, setModal] = useState<'about' | 'updates' | 'profiles' | null>(null)
   const go = (p: Page, sel?: Platform): void => {
+    // Редактор с несохранённым может придержать переход и выполнить его сам после ответа в окне.
+    if (!window.dispatchEvent(new CustomEvent('cb:leave', { cancelable: true, detail: () => go(p, sel) }))) return
     setConnSel(sel)
     setNav((n) => {
       if (n.list[n.i] === p) return n

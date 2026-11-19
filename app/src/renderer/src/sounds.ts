@@ -44,6 +44,8 @@ const SOUNDS: Record<string, (c: AudioContext, o: AudioNode, t: number) => void>
   chime: (c, o, t) => [784, 988, 1319].forEach((f, i) => tone(c, o, f, t + i * 0.11, 0.9, 'sine', 0.35)),
   coin: (c, o, t) => { tone(c, o, 988, t, 0.08, 'square', 0.18); tone(c, o, 1319, t + 0.08, 0.5, 'square', 0.18) },
   pop: (c, o, t) => tone(c, o, 420, t, 0.16, 'sine', 0.5, 900),
+  // Сигнал окна-предупреждения (в списке звуков алертов его нет).
+  warn: (c, o, t) => { tone(c, o, 880, t, 0.14, 'sine', 0.4); tone(c, o, 587, t + 0.15, 0.3, 'sine', 0.4) },
   fire: (c, o, t) => { noise(c, o, t, 1.2, 0.6, 500); tone(c, o, 196, t + 0.1, 1.1, 'triangle', 0.25, 392) },
   fanfare: (c, o, t) => {
     for (const [f, d] of [[523, 0], [659, 0.12], [784, 0.24], [1047, 0.4]]) {

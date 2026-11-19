@@ -53,6 +53,14 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
               </div>
             </>
             : <p className="small muted">Окно в сине-красных тонах логотипа. Оформление в работе, отдельные алерты «У костра» появятся позже.</p>}
+          <div className="field" style={{ marginTop: 12 }}>
+            <label>Масштаб интерфейса</label>
+            <select className="input" value={s.ui.zoom} onChange={(e) => void window.hub.setSettings({ ui: { zoom: Number(e.target.value) } })}>
+              <option value={0}>Авто — по размеру экрана</option>
+              {[100, 125, 150, 175, 200].map((z) => <option key={z} value={z}>{z} %</option>)}
+            </select>
+          </div>
+          <p className="small muted">«Авто» делает окно крупнее на больших мониторах (2K и 4K), если в Windows стоит масштаб 100 %. В маленьком окне масштаб уменьшается, чтобы всё помещалось.</p>
         </div>
 
         <div className="card">
@@ -125,6 +133,10 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
           <Toggle on={snap.settings.perf.gpu} onChange={(v) => void window.hub.setSettings({ perf: { gpu: v } })} label="Ускорение графики (видеокарта)" />
           <p className="small muted">Выключено — Crossember занимает примерно на 130 МБ памяти меньше. Включите, если окно программы подтормаживает. На оверлеи в OBS не влияет.</p>
           {snap.settings.perf.gpu !== snap.gpuAtStart && <button className="btn sm primary" onClick={() => void window.hub.relaunch()}>Перезапустить, чтобы применить</button>}
+          <h3 style={{ marginTop: 18 }}>Запуск и окно</h3>
+          <Toggle on={s.startup.tray} onChange={(v) => void window.hub.setSettings({ startup: { tray: v } })} label="Сворачивать в трей при закрытии" />
+          <Toggle on={s.startup.autostart} onChange={(v) => void window.hub.setSettings({ startup: { autostart: v } })} label="Запускать вместе с Windows свёрнутым в трей" />
+          <p className="small muted">Трей — значки у часов на панели задач. Из трея Crossember открывается щелчком по значку, там же «Выход». Пока окно спрятано, алерты, чат и оверлеи работают.</p>
         </div>
 
         <div className="card">
@@ -284,10 +296,9 @@ function TtsCard({ snap }: { snap: HubSnapshot }) {
   return (
     <div className="card">
       <h3>Озвучка <Hint id="tts" /></h3>
-      <p className="small muted" style={{ marginTop: -6 }}>Голоса Windows работают сразу, без установки. Свой голос — через Chatterbox на этом ПК. Озвучку включают правила (раздел «Правила») или слой «Озвучка» в шаблоне алерта — там же можно выбрать голос для отдельного алерта.</p>
+      <p className="small muted" style={{ marginTop: -6 }}>Голоса Windows работают сразу, без установки, нейросетевые Silero ставятся одной кнопкой. Озвучку включают правила (раздел «Правила») или слой «Озвучка» в шаблоне алерта — там же можно выбрать голос для отдельного алерта.</p>
       <div className="field"><label>Голос</label><VoiceSelect value={s.voice} onChange={(v) => set({ voice: v })} /></div>
       <SileroBox />
-      <ChatterboxBox snap={snap} />
       <div className="grid g3" style={{ gap: 10 }}>
         <NumberField label="Скорость" value={s.rate} min={-10} max={10} suffix="−10…10" onChange={(v) => set({ rate: v })} />
         <NumberField label="Громкость" value={s.volume} min={0} max={100} suffix="%" onChange={(v) => set({ volume: v })} />
@@ -334,6 +345,7 @@ function SileroBox() {
   }, [])
   if (!st) return null
   const install = (): void => { setErr(null); window.hub.sileroInstall().then(setSt).catch((e) => setErr(errText(e))) }
+  const installExtra = (): void => { setErr(null); window.hub.sileroInstallExtra().then(setSt).catch((e) => setErr(errText(e))) }
   const remove = (): void => {
     setConfirm(false)
     window.hub.sileroRemove().then(() => window.hub.sileroStatus()).then((s) => { setSt(s); return reloadVoices() }).catch((e) => setErr(errText(e)))
@@ -342,6 +354,7 @@ function SileroBox() {
     <details className="field" style={{ margin: '4px 0 6px' }} open={st.state === 'installing' || st.state === 'error' || undefined}>
       <summary className="small" style={{ cursor: 'pointer' }}>Нейросетевые голоса — Silero {st.state === 'ready' ? '(установлены)' : st.state === 'installing' ? '(ставятся…)' : '(не установлены)'}</summary>
       <p className="small muted" style={{ margin: '8px 0' }}>Пять русских голосов (Айдар, Евгений, Бая, Ксения, Ксения 2) с ударениями и интонацией вопросов. Работают на процессоре, видеокарта не нужна. Ставятся отдельно: Crossember скачает Python, PyTorch и модель Silero с их официальных сайтов — около 400 МБ, на диске займёт около 800 МБ. Модели Silero разрешены только для некоммерческого использования.</p>
+      <p className="small muted" style={{ margin: '0 0 8px' }}>Ещё три голоса — Роман, Оксана, Дмитрий — из другой модели Silero (лицензия MIT). Добавляются отдельной кнопкой после установки: около 130 МБ, ударения расставляет отдельный модуль.</p>
       {st.state === 'installing' && (
         <div className="small">
           {st.step}{st.progress >= 0 ? ` — ${Math.round(st.progress * 100)}%` : '…'}
@@ -351,8 +364,10 @@ function SileroBox() {
         </div>
       )}
       {st.state === 'error' && <p className="small" style={{ color: '#ff7a84' }}>Не получилось: {st.error}</p>}
+      {st.state === 'ready' && st.extraError && <p className="small" style={{ color: '#ff7a84' }}>Голоса не добавились: {st.extraError}</p>}
       <div className="btnrow" style={{ marginTop: 8 }}>
         {(st.state === 'none' || st.state === 'error') && <button className="btn sm primary" onClick={install}>{st.state === 'error' ? 'Повторить установку' : 'Установить Silero'}</button>}
+        {st.state === 'ready' && !st.extra && !confirm && <button className="btn sm primary" onClick={installExtra}>{st.extraError ? 'Повторить: голоса Роман, Оксана, Дмитрий' : 'Добавить голоса Роман, Оксана, Дмитрий'}</button>}
         {st.state === 'ready' && !confirm && <button className="btn sm" onClick={() => setConfirm(true)}>Удалить Silero</button>}
         {confirm && <><span className="small">Удалить Silero и освободить место?</span><button className="btn sm" onClick={remove}>Да, удалить</button><button className="btn sm" onClick={() => setConfirm(false)}>Отмена</button></>}
       </div>
@@ -361,36 +376,3 @@ function SileroBox() {
   )
 }
 
-/** Chatterbox: порт локального сервера, эмоциональность и проверка, видит ли его Crossember. */
-function ChatterboxBox({ snap }: { snap: HubSnapshot }) {
-  const s = snap.settings.tts
-  const set = (p: Partial<TtsSettings>): void => void window.hub.setSettings({ tts: p })
-  const { voices } = useVoices()
-  const [busy, setBusy] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
-  const count = voices.filter((v) => v.engine === 'chatterbox' || v.engine === 'chatterbox-builtin').length
-  const check = (): void => {
-    setBusy(true)
-    setNote(null)
-    reloadVoices()
-      .then((v) => {
-        const own = v.filter((x) => x.engine === 'chatterbox').length
-        const all = v.filter((x) => x.engine === 'chatterbox' || x.engine === 'chatterbox-builtin').length
-        setNote(all ? `Chatterbox найден: своих образцов ${own}, встроенных голосов ${all - own}.` : `Chatterbox не отвечает на 127.0.0.1:${s.chatterboxPort}. Запустите его сервер и нажмите ещё раз.`)
-      })
-      .catch((e) => setNote(errText(e)))
-      .finally(() => setBusy(false))
-  }
-  return (
-    <details className="field" style={{ margin: '4px 0 10px' }}>
-      <summary className="small" style={{ cursor: 'pointer' }}>Свой голос — Chatterbox {count ? `(голосов: ${count})` : '(не найден)'}</summary>
-      <p className="small muted" style={{ margin: '8px 0' }}>Chatterbox-TTS-Server ставится отдельно и работает на этом ПК (лучше с видеокартой NVIDIA). Образец своего голоса, 10–30 секунд чистой речи, кладётся в его папку reference_audio — и появляется в списке голосов. Первая фраза после запуска сервера озвучивается дольше. Пока сервер выключен, алерты с этим голосом идут без озвучки.</p>
-      <div className="grid g3" style={{ gap: 10 }}>
-        <NumberField label="Порт сервера" value={s.chatterboxPort} min={1024} max={65535} suffix="127.0.0.1" onChange={(v) => set({ chatterboxPort: v })} />
-        <NumberField label="Эмоциональность" value={s.chatterboxEmotion} min={25} max={150} suffix="%, 50 — спокойно" onChange={(v) => set({ chatterboxEmotion: v })} />
-        <div className="field" style={{ alignSelf: 'end' }}><button className="btn sm" disabled={busy} onClick={check}>{busy ? 'Проверяю…' : 'Найти голоса'}</button></div>
-      </div>
-      {note && <p className="small muted">{note}</p>}
-    </details>
-  )
-}

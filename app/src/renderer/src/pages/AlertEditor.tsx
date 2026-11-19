@@ -13,8 +13,10 @@ const LAYER_LABEL: Record<LayerType, string> = { card: 'Карточка', text:
 const LAYER_ICO: Record<LayerType, string> = { card: '▭', text: 'T', image: '▧', video: '▶', sound: '♪', tts: '🗣', obs: '⚙' }
 const VISUAL: LayerType[] = ['card', 'text', 'image', 'video']
 const ANIMS: { id: AnimPreset; label: string }[] = [
-  { id: 'none', label: 'Нет' }, { id: 'fade', label: 'Проявление' }, { id: 'up', label: 'Снизу' }, { id: 'down', label: 'Сверху' },
-  { id: 'left', label: 'Справа' }, { id: 'right', label: 'Слева' }, { id: 'zoom', label: 'Увеличение' }, { id: 'pop', label: 'Выпрыгивание' }, { id: 'spin', label: 'Вращение' }
+  { id: 'none', label: 'Нет' }, { id: 'fade', label: 'Проявление' }, { id: 'up', label: 'Выезд снизу' }, { id: 'down', label: 'Выезд сверху' },
+  { id: 'left', label: 'Выезд справа' }, { id: 'right', label: 'Выезд слева' }, { id: 'zoom', label: 'Увеличение' }, { id: 'pop', label: 'Выпрыгивание' }, { id: 'spin', label: 'Вращение' },
+  { id: 'rise', label: 'Всплытие' }, { id: 'drop', label: 'Падение' }, { id: 'flip', label: 'Переворот' }, { id: 'swirl', label: 'Вихрь' },
+  { id: 'blur', label: 'Размытие' }, { id: 'wipe', label: 'Шторка' }
 ]
 const EASES: { id: Ease; label: string }[] = [
   { id: 'ease', label: 'Плавно' }, { id: 'linear', label: 'Равномерно' }, { id: 'in', label: 'Разгон' }, { id: 'out', label: 'Торможение' },
@@ -107,14 +109,38 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
   const [playing, setPlaying] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [leaving, setLeaving] = useState<false | 'close' | 'back'>(false)
+  // Переход в другой раздел, придержанный до ответа в окне «Есть несохранённые изменения».
+  const pendingGo = useRef<(() => void) | null>(null)
   const exists = snap.templates.some((x) => x.id === t.id)
   const dirty = JSON.stringify(t) !== saved || !exists
   // «Назад» (Esc, боковая кнопка мыши, Ctrl+[) в редакторе — как «← К алертам»: с вопросом про несохранённое.
   useEffect(() => {
     const back = (e: Event): void => { e.preventDefault(); if (dirty) setLeaving('close'); else onClose() }
+    const leave = (e: Event): void => {
+      if (!dirty) return
+      e.preventDefault()
+      pendingGo.current = (e as CustomEvent<() => void>).detail
+      setLeaving('close')
+    }
     window.addEventListener('cb:back', back)
-    return () => window.removeEventListener('cb:back', back)
+    window.addEventListener('cb:leave', leave)
+    return () => { window.removeEventListener('cb:back', back); window.removeEventListener('cb:leave', leave) }
   }, [dirty, onClose])
+  useEffect(() => {
+    if (!leaving) return
+    playBuiltin('warn', 0.6)
+    const key = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); stay() } }
+    window.addEventListener('keydown', key, true)
+    return () => window.removeEventListener('keydown', key, true)
+  }, [leaving])
+  const stay = (): void => { pendingGo.current = null; setLeaving(false) }
+  // Выйти из редактора и, если уход начался с бокового меню, перейти туда, куда просили (редактор уже не держит).
+  const exit = (): void => {
+    const next = pendingGo.current
+    pendingGo.current = null
+    onClose()
+    if (next) setTimeout(next, 0)
+  }
   const total = totalMs(t, kind)
   const layer = t.layers.find((l) => l.id === sel) ?? null
   const volume = snap.settings.alerts.volume / 100
@@ -226,15 +252,20 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
         </div>
       </div>
       {leaving && (
-        <div className="note warnbox btnrow" style={{ marginBottom: 10 }}>
-          {leaving === 'back' ? 'Изменения в этом шаблоне пропадут.' : 'Есть несохранённые изменения.'}
-          {leaving === 'back'
-            ? <button className="btn sm primary" onClick={onBack}>Вернуться к выбору</button>
-            : <>
-              <button className="btn sm primary" onClick={() => { window.hub.templatePut(t).then(onClose).catch((e) => setMsg(errText(e))) }}>Сохранить и выйти</button>
-              <button className="btn sm" onClick={onClose}>Выйти без сохранения</button>
-            </>}
-          <button className="btn sm" onClick={() => setLeaving(false)}>Остаться</button>
+        <div className="modal-back" onMouseDown={(e) => { if (e.target === e.currentTarget) stay() }}>
+          <div className="modal narrow" role="alertdialog" aria-modal="true" aria-labelledby="ed-leave-title">
+            <h2 id="ed-leave-title">{leaving === 'back' ? 'Выйти к выбору шаблона?' : 'Есть несохранённые изменения'}</h2>
+            <p className="muted">{leaving === 'back' ? 'Изменения в этом шаблоне пропадут.' : 'Сохранить шаблон перед выходом?'}</p>
+            <div className="modal-actions">
+              <button className="btn" autoFocus onClick={stay}>Остаться</button>
+              {leaving === 'back'
+                ? <button className="btn primary" onClick={onBack}>Вернуться к выбору</button>
+                : <>
+                  <button className="btn" onClick={exit}>Выйти без сохранения</button>
+                  <button className="btn primary" onClick={() => { window.hub.templatePut(t).then(exit).catch((e) => { setLeaving(false); setMsg(errText(e)) }) }}>Сохранить и выйти</button>
+                </>}
+            </div>
+          </div>
         </div>
       )}
       {msg && <p className="small muted" style={{ margin: '0 0 8px' }}>{msg}</p>}

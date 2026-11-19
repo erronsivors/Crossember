@@ -62,16 +62,34 @@
     right: { opacity: 0, transform: 'translateX(-140px)' },
     zoom: { opacity: 0, transform: 'scale(.55)' },
     pop: { opacity: 0, transform: 'scale(.8)' },
-    spin: { opacity: 0, transform: 'rotate(-180deg) scale(.4)' }
+    spin: { opacity: 0, transform: 'rotate(-180deg) scale(.4)' },
+    rise: { opacity: 0, transform: 'translateY(40px) scale(.92)' },
+    drop: { opacity: 0, transform: 'translateY(-260px)' },
+    flip: { opacity: 0, transform: 'perspective(900px) rotateX(90deg)' },
+    swirl: { opacity: 0, transform: 'rotate(540deg) scale(0)' },
+    blur: { opacity: 0, transform: 'scale(1.12)', filter: 'blur(28px)' },
+    wipe: { opacity: 1, clipPath: 'inset(0 100% 0 0)' }
   };
   const IDENT = { opacity: 1, transform: 'none' };
 
   function presetFrames(name, out) {
     const p = PRESET[name];
     if (!p) return null;
+    // У всех кадров одинаковый набор свойств — так надёжнее в старом Chromium внутри OBS.
     const from = { opacity: p.opacity, transform: p.transform || 'none' };
-    if (name === 'pop' && !out) return [from, { opacity: 1, transform: 'scale(1.06)', offset: 0.7 }, IDENT];
-    return out ? [IDENT, from] : [from, IDENT];
+    const to = { ...IDENT };
+    if (p.filter) { from.filter = p.filter; to.filter = 'blur(0px)'; }
+    if (p.clipPath) { from.clipPath = p.clipPath; to.clipPath = 'inset(0 0 0 0)'; }
+    if (name === 'pop' && !out) return [from, { opacity: 1, transform: 'scale(1.06)', offset: 0.7 }, to];
+    // Падение: прилетает сверху с отскоком; уходит — падает вниз.
+    if (name === 'drop') {
+      return out
+        ? [to, { opacity: 0, transform: 'translateY(260px) rotate(6deg)' }]
+        : [from, { opacity: 1, transform: 'translateY(0)', offset: 0.6 }, { opacity: 1, transform: 'translateY(-28px)', offset: 0.78 }, to];
+    }
+    // Шторка уходит в ту же сторону, откуда открылась.
+    if (name === 'wipe' && out) return [to, { opacity: 1, clipPath: 'inset(0 0 0 100%)' }];
+    return out ? [to, from] : [from, to];
   }
 
   /**
@@ -313,7 +331,7 @@
       // Появление и исчезновение.
       const inF = presetFrames(l.animIn, false);
       const inMs = Math.min(num(l.animInMs, 450), dur);
-      if (inF && inMs > 0) anims.push(inner.animate(inF, { duration: inMs, delay: start, fill: 'backwards', easing: l.animIn === 'pop' ? 'ease-out' : 'cubic-bezier(.2,.8,.3,1)' }));
+      if (inF && inMs > 0) anims.push(inner.animate(inF, { duration: inMs, delay: start, fill: 'backwards', easing: l.animIn === 'pop' || l.animIn === 'drop' ? 'ease-out' : 'cubic-bezier(.2,.8,.3,1)' }));
       const outF = presetFrames(l.animOut, true);
       const outMs = Math.min(num(l.animOutMs, 450), dur);
       if (outF && outMs > 0) anims.push(inner.animate(outF, { duration: outMs, delay: start + dur - outMs, fill: 'forwards', easing: 'ease-in' }));

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, powerMonitor, session, shell, clipboard, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, screen, desktopCapturer, dialog, globalShortcut, ipcMain, Menu, nativeImage, powerMonitor, session, shell, clipboard, Tray, type IpcMainInvokeEvent } from 'electron'
 import type { VizRun } from './core/viz'
 import { basename, join } from 'node:path'
 import { existsSync, rmSync, writeFileSync } from 'node:fs'
@@ -265,6 +265,62 @@ const SAMPLES: Record<string, Omit<HubEvent, 'id' | 'ts'>> = {
 /** Тестовое событие без отправки в ленту (для проверки правила или шаблона). */
 const sampleEvent = (kind: unknown): HubEvent => ({ ...(SAMPLES[String(kind)] ?? SAMPLES.donation), id: `test-${Date.now()}`, ts: Date.now() })
 
+// Трей: крестик прячет окно в значок у часов (если включено), автозапуск с Windows — сразу в трей.
+let tray: Tray | null = null
+let quitting = false
+const startHidden = process.argv.includes('--hidden')
+let loginItem: boolean | null = null
+
+function showWindow(): void {
+  if (!win) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+function syncStartup(): void {
+  const s = settings.get().startup
+  if (s.tray || s.autostart) {
+    if (!tray) {
+      tray = new Tray(nativeImage.createFromPath(join(resourcesDir, 'app', 'icon.png')).resize({ width: 16, height: 16, quality: 'best' }))
+      tray.setToolTip('Crossember')
+      tray.setContextMenu(Menu.buildFromTemplate([
+        { label: 'Открыть Crossember', click: showWindow },
+        { type: 'separator' },
+        { label: 'Выход', click: () => app.quit() }
+      ]))
+      tray.on('click', showWindow)
+    }
+  } else if (tray) {
+    tray.destroy()
+    tray = null
+    if (win && !win.isVisible()) showWindow()
+  }
+  // В версии для разработки в автозапуск попал бы electron.exe — не трогаем.
+  if (app.isPackaged && loginItem !== s.autostart) {
+    loginItem = s.autostart
+    app.setLoginItemSettings({ openAtLogin: s.autostart, args: ['--hidden'] })
+  }
+}
+
+// Масштаб интерфейса. Windows сам увеличивает окно по своему «Масштабу»; но на 4K с масштабом 100 % всё мелкое,
+// поэтому «Авто» берёт размер экрана в точках Windows. Крупнее, чем влезает 1280 точек ширины окна, не делаем.
+let zoom = 1
+let titleColors = { color: '#1a1210', symbolColor: '#e8dcd4' }
+function applyZoom(): void {
+  if (!win || win.isDestroyed()) return
+  const b = win.getBounds()
+  const want = settings.get().ui.zoom
+  const w = screen.getDisplayMatching(b).workAreaSize.width
+  const target = want ? want / 100 : w >= 3400 ? 1.5 : w >= 2400 ? 1.25 : 1
+  const z = Math.round(Math.max(1, Math.min(target, b.width / 1280)) * 100) / 100
+  if (z === zoom && win.webContents.getZoomFactor() === z) return
+  zoom = z
+  win.webContents.setZoomFactor(z)
+  // Системные кнопки окна не масштабируются вместе со страницей — подгоняем высоту полосы под нашу панель (--tb: 34px).
+  win.setTitleBarOverlay({ ...titleColors, height: Math.round(34 * z) })
+}
+
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1440,
@@ -289,7 +345,17 @@ function createWindow(): void {
       spellcheck: false
     }
   })
-  win.once('ready-to-show', () => win?.show())
+  win.once('ready-to-show', () => { if (!(startHidden && tray)) win?.show() })
+  win.webContents.on('did-finish-load', () => { zoom = 0; applyZoom() })
+  let zoomTimer: NodeJS.Timeout | undefined
+  const zoomLater = (): void => { clearTimeout(zoomTimer); zoomTimer = setTimeout(applyZoom, 300) }
+  win.on('resize', zoomLater)
+  win.on('moved', zoomLater)
+  win.on('close', (e) => {
+    if (quitting || !tray || !settings.get().startup.tray) return
+    e.preventDefault()
+    win?.hide()
+  })
   // Интерфейс упал — в журнал, плашка и перезагрузка (не больше трёх раз подряд).
   let reloads = 0
   win.webContents.on('render-process-gone', (_e, d) => {
@@ -313,12 +379,7 @@ function createWindow(): void {
   else void win.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
-app.on('second-instance', () => {
-  if (win) {
-    if (win.isMinimized()) win.restore()
-    win.focus()
-  }
-})
+app.on('second-instance', () => showWindow())
 
 app.whenReady().then(async () => {
   // Запрет всех разрешений (камера, микрофон, уведомления…). CSP интерфейса вшит в index.html при сборке.
@@ -391,7 +452,7 @@ app.whenReady().then(async () => {
   silero = new Silero(app.getPath('userData'), resourcesDir, hub)
   // Модель Silero грузится ~10 с — заранее, если голос по умолчанию из Silero.
   setTimeout(() => { if (settings.get().tts.voice.startsWith('silero:')) silero.warm() }, 5000)
-  tts = new WindowsTts(app.getPath('userData'), hub, () => { const t = settings.get().tts; return { chatterboxPort: t.chatterboxPort, chatterboxEmotion: t.chatterboxEmotion / 100 } }, silero)
+  tts = new WindowsTts(app.getPath('userData'), hub, silero)
   media = new MediaLibrary(app.getPath('userData'), store)
   templates = new TemplateStore(store)
   templates.onChange = pushUpdate
@@ -719,7 +780,7 @@ app.whenReady().then(async () => {
     const hex = (v: unknown): string | null => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v : null)
     const c = hex(color)
     const s = hex(symbol)
-    if (c && s) win?.setTitleBarOverlay({ color: c, symbolColor: s, height: 34 })
+    if (c && s) { titleColors = { color: c, symbolColor: s }; win?.setTitleBarOverlay({ ...titleColors, height: Math.round(34 * zoom) }) }
   })
   handle('hub:quit', () => app.quit())
   // Руководство — отдельное окно с тем же интерфейсом (страница #guide), без доступа к функциям программы.
@@ -747,6 +808,8 @@ app.whenReady().then(async () => {
   let prev: AppSettings = settings.get()
   settings.onChange = (s) => {
     server.pushConfig()
+    syncStartup()
+    if (s.ui.zoom !== prev.ui.zoom) applyZoom()
     if (s.setupMode !== prev.setupMode || JSON.stringify(s.lan) !== JSON.stringify(prev.lan)) void server.applyLan().then(pushUpdate)
     floatChat.apply()
     syncKeys()
@@ -1101,6 +1164,7 @@ app.whenReady().then(async () => {
   handle('hub:ttsVoices', () => tts.voices())
   handle('hub:sileroStatus', () => silero.get())
   handle('hub:sileroInstall', () => { void silero.install(); return silero.get() })
+  handle('hub:sileroInstallExtra', () => { void silero.installExtra(); return silero.get() })
   handle('hub:sileroRemove', () => silero.remove())
   handle('hub:ttsTest', async (text, voice) => {
     const s = settings.get().tts
@@ -1179,7 +1243,9 @@ app.whenReady().then(async () => {
     if (m && !m.test) await chats.get(m.platform)?.ban?.(m, sec)
   })
 
+  syncStartup()
   createWindow()
+  screen.on('display-metrics-changed', () => applyZoom())
 
   try {
     await server.start()
@@ -1233,6 +1299,7 @@ let voteKey = ''
 app.on('ready', () => powerMonitor.on('shutdown', () => logger?.close()))
 
 app.on('before-quit', () => {
+  quitting = true
   logger?.info('app', 'Выход')
   updater?.dispose()
   logger?.close()

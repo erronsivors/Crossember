@@ -294,7 +294,7 @@ export class AlertEngine extends EventEmitter {
         const text = cleanForSpeech(numbersToWords(fill(l.text, { ...e, user: cleanForSpeech(e.user, { stripLinks: false, badWords: s.badWords, maxChars: 40 }) }, msg, amountSpoken(e))),
           { stripLinks: false, badWords: '', maxChars: 800 })
         if (!text) throw new Error('нечего читать')
-        const r = await this.tts.synth(text, l.voice || s.voice, l.rate || s.rate, 20_000)
+        const r = await this.tts.synth(text, l.voice || s.voice, l.rate || s.rate)
         l.src = `/t/${r.file}`
         entry.item.durationMs = Math.max(entry.item.durationMs, l.start + r.durationMs + 500)
       } catch (err) {

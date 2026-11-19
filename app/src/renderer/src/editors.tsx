@@ -60,7 +60,7 @@ export async function previewTts(snap: HubSnapshot, text: string, voice = ''): P
 // ---------- голоса ----------
 let voicesCache: TtsVoice[] | null = null
 const voiceListeners = new Set<(v: TtsVoice[]) => void>()
-/** Перечитать голоса (например, после запуска Chatterbox). */
+/** Перечитать голоса (например, после установки Silero). */
 export async function reloadVoices(): Promise<TtsVoice[]> {
   const v = await window.hub.ttsVoices()
   voicesCache = v
@@ -81,14 +81,12 @@ export function useVoices(): { voices: TtsVoice[]; error: string | null } {
 const ENGINE_GROUP: { id: TtsVoice['engine']; label: string }[] = [
   { id: 'windows', label: 'Windows' },
   { id: 'onecore', label: 'Windows OneCore' },
-  { id: 'silero', label: 'Silero (нейросеть)' },
-  { id: 'chatterbox', label: 'Chatterbox — клон по образцу' },
-  { id: 'chatterbox-builtin', label: 'Chatterbox — встроенные (с акцентом)' }
+  { id: 'silero', label: 'Silero (нейросеть)' }
 ]
 
-/** Подпись голоса, которого сейчас нет в списке (например, Chatterbox выключен). */
+/** Подпись голоса, которого сейчас нет в списке (например, Silero не установлен). */
 function voiceFallback(v: string): string {
-  if (v.startsWith('cb:')) return `${v.replace(/^cb:(ref|voice):/, '').replace(/\.(wav|mp3)$/i, '')} · Chatterbox (не запущен)`
+  if (v.startsWith('cb:')) return 'Chatterbox убран — будет голос по умолчанию'
   if (v.startsWith('onecore:')) return `${v.slice(8)} · OneCore (нет в системе)`
   if (v.startsWith('silero:')) return `${v.slice(7)} · Silero (не установлен)`
   return v
