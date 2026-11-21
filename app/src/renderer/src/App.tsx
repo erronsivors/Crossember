@@ -81,8 +81,11 @@ export function App() {
     setNav((n) => (n.i + d < 0 || n.i + d >= n.list.length ? n : { ...n, i: n.i + d }))
   }
   const stepRef = useRef(step)
+  const goRef = useRef(go)
+  goRef.current = go
   stepRef.current = step
   useEffect(() => { void window.hub.view(page).catch(() => undefined) }, [page])
+  useEffect(() => window.hub.onGo((p) => { if (p === 'feedback') goRef.current('feedback') }), [])
   useEffect(() => {
     const field = (el: Element | null): boolean => !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || (el as HTMLElement).isContentEditable)
     const key = (e: KeyboardEvent): void => {
@@ -211,7 +214,7 @@ export function App() {
           {snap.feedback.crash && page !== 'feedback' && (
             <div className="crash-bar">
               <span className="grow">
-                <b>{snap.feedback.crash.previous ? 'Прошлый запуск Crossember закрылся неожиданно.' : 'В Crossember произошла ошибка.'}</b>{' '}
+                <b>{snap.feedback.crash.kind === 'db' ? 'Файл данных Crossember был повреждён и восстановлен.' : snap.feedback.crash.previous ? 'Прошлый запуск Crossember закрылся неожиданно.' : 'В Crossember произошла ошибка.'}</b>{' '}
                 <span className="muted">Если что-то работает не так — сообщите автору, логи соберутся сами.</span>
               </span>
               <button className="btn sm primary" onClick={() => go('feedback')}>Сообщить об ошибке</button>

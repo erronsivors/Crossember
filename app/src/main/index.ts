@@ -222,10 +222,12 @@ function snapshot(): HubSnapshot {
 let pushTimer: NodeJS.Timeout | null = null
 /** Отправить интерфейсу свежий снимок (не чаще 10 раз в секунду). */
 function pushUpdate(): void {
-  if (pushTimer) return
+  // При выходе модули ещё досылают изменения, а база и окно уже закрываются — снимок не собираем.
+  if (pushTimer || quitting) return
   pushTimer = setTimeout(() => {
     pushTimer = null
-    win?.webContents.send('hub:update', snapshot())
+    if (quitting || !win || win.isDestroyed()) return
+    win.webContents.send('hub:update', snapshot())
   }, 100)
 }
 
@@ -364,6 +366,8 @@ function createWindow(): void {
     if (reloads++ < 3) win?.webContents.reload()
   })
   win.on('session-end', () => logger?.close())
+  // Закрытое окно — null: таймеры модулей проверяют win?.… и не трогают уничтоженный объект.
+  win.on('closed', () => { win = null })
   win.webContents.on('unresponsive', () => logger?.warn('interface', 'Интерфейс не отвечает'))
 
   // Никаких переходов и новых окон внутри приложения; https-ссылки — во внешний браузер.
@@ -402,10 +406,6 @@ app.whenReady().then(async () => {
   const secrets = new Secrets(store)
   hub = new Hub()
   hub.register('hub', 'Сервер Crossember')
-  if (store.rescued) {
-    const r = store.rescued
-    hub.log('hub', 'error', `База данных была повреждена и собрана заново: настроек ${r.settings}, входов ${r.secrets}, событий ${r.events}; не прочитались: ${r.lost.join(', ') || 'нет'}. Старые файлы — ${r.folder}`)
-  }
   hub.on('log', (id: string, level: 'info' | 'warn' | 'error', text: string) => logger?.write(level, id, text))
   obs = new ObsConnector(hub, store, secrets)
   const images = new ImageCache(join(app.getPath('userData'), 'cache', 'img'))
@@ -1249,24 +1249,36 @@ app.whenReady().then(async () => {
 
   syncStartup()
   createWindow()
+  // Копия базы раз в сутки — и для программы, которую не закрывают по нескольку дней.
+  setInterval(() => store.backupDaily(), 3 * 60 * 60 * 1000)
   if (store.rescued) {
     const r = store.rescued
     const lostLogins = r.lost.filter((k) => !k.includes('.v1') && k !== 'settings')
+    logger?.problem('db', `Файл данных был повреждён и восстановлен${r.backup ? ` из копии от ${r.backup}` : ' без копии'}: настроек ${r.settings}, входов ${r.secrets}, событий ${r.events}; не прочитались: ${r.lost.join(', ') || 'нет'}`, 'db')
     win?.webContents.once('did-finish-load', () => {
       const opts = {
         type: 'warning' as const,
         title: 'Crossember',
-        message: 'Файл данных Crossember был повреждён — программа собрала его заново',
+        message: r.backup
+          ? `Файл данных Crossember был повреждён — программа восстановила его из копии от ${r.backup.split('-').reverse().join('.')}`
+          : 'Файл данных Crossember был повреждён — программа собрала его заново',
+        buttons: ['Сообщить об ошибке', 'Закрыть'],
+        defaultId: 0,
+        cancelId: 1,
         detail: [
-          `Спасено: настроек ${r.settings}, входов в площадки ${r.secrets}, событий ${r.events}.`,
+          r.backup ? 'Настройки, правила и шаблоны — как в копии, свежие события перенесены.' : '',
+          `Сейчас в базе: настроек ${r.settings}, входов в площадки ${r.secrets}, событий ${r.events}.`,
           r.lost.length ? `Не удалось прочитать: ${r.lost.join(', ')}.` : '',
           lostLogins.length ? 'Если какая-то площадка отключилась, войдите в неё заново в «Подключениях».' : '',
           r.lost.includes('server.overlayKey') ? 'Ключ оверлеев выпущен заново — скопируйте ссылки в OBS ещё раз («Оверлеи»).' : '',
           'Проверьте правила и шаблоны алертов. Повреждённый файл сохранён в папке:',
-          r.folder
+          r.folder,
+          'Чтобы разобраться в причине, отправьте автору отчёт: логи соберутся сами, письмо откроется готовым.'
         ].filter(Boolean).join('\n')
       }
-      void (win?.isVisible() ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts))
+      void (win?.isVisible() ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts)).then((res) => {
+        if (res.response === 0) { showWindow(); win?.webContents.send('hub:go', 'feedback') }
+      })
     })
   }
   screen.on('display-metrics-changed', () => applyZoom())
@@ -1356,5 +1368,6 @@ app.on('before-quit', () => {
   silero?.dispose()
   void obs?.stop()
   void server?.stop()
-  store?.close()
 })
+// База закрывается последней: в before-quit модули ещё досылают последние записи.
+app.on('will-quit', () => store?.close())

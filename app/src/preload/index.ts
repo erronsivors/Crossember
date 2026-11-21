@@ -274,6 +274,12 @@ const api = {
   updateDownload: () => call('hub:updateDownload'),
   updateLater: () => call('hub:updateLater'),
   updateInstall: () => call('hub:updateInstall'),
+  /** Главный процесс просит открыть раздел (например, «Обратная связь» после восстановления базы). */
+  onGo: (cb: (page: string) => void): (() => void) => {
+    const fn = (_e: IpcRendererEvent, p: unknown): void => { if (typeof p === 'string') cb(p) }
+    ipcRenderer.on('hub:go', fn)
+    return () => ipcRenderer.removeListener('hub:go', fn)
+  },
   onUpdate: (cb: (s: HubSnapshot) => void): (() => void) => {
     const fn = (_e: IpcRendererEvent, s: HubSnapshot): void => cb(s)
     ipcRenderer.on('hub:update', fn)

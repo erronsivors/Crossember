@@ -38,6 +38,8 @@ export interface CrashInfo {
   text: string
   /** true — прошлый запуск закрылся неожиданно (замечено при этом старте). */
   previous: boolean
+  /** db — файл данных был повреждён и восстановлен (своя надпись в плашке). */
+  kind?: 'db'
 }
 
 export class Logger {
@@ -93,6 +95,13 @@ export class Logger {
     const e = err instanceof Error ? err : new Error(String(err))
     this.write('fatal', source, `${e.message}${e.stack ? ' | ' + e.stack.split('\n').slice(1, 8).map((s) => s.trim()).join(' | ') : ''}`)
     this.crashInfo = { at: Date.now(), text: mask(e.message).slice(0, 200) || 'Неизвестная ошибка', previous: false }
+    this.onCrash()
+  }
+
+  /** Проблема без исключения (например, повреждённая база): в журнал и плашка «Сообщить об ошибке». */
+  problem(source: string, text: string, kind?: CrashInfo['kind']): void {
+    this.write('error', source, text)
+    this.crashInfo = { at: Date.now(), text: mask(text).slice(0, 300), previous: false, kind }
     this.onCrash()
   }
 
