@@ -79,7 +79,7 @@ export function StreamInfoCard({ snap, go }: { snap: HubSnapshot; go: (p: Page) 
           const on = st.targets.includes(p)
           const r = on ? st.results[p] : undefined
           const a = st.access[p]
-          const note = a === 'relogin' ? 'нужен повторный вход' : a === 'login' ? 'не выполнен вход' : a === 'unavailable' ? 'вход не настроен' : a === 'nochannel' ? 'не выполнен вход' : a === 'manual' ? 'вручную' : ''
+          const note = a === 'relogin' ? 'нужен повторный вход' : a === 'login' ? 'не выполнен вход' : a === 'unavailable' ? 'вход не настроен' : a === 'nochannel' ? 'нужен повторный вход' : ''
           return (
             <button key={p} className={`sinfo-t ${on ? 'on' : ''} ${r ? 's-' + r.state : ''}`} onClick={() => toggle(p)} title={r?.text ?? ''}>
               <PlatIcon p={p} />
@@ -106,9 +106,9 @@ export function StreamInfoCard({ snap, go }: { snap: HubSnapshot; go: (p: Page) 
             : <button className="btn sm" onClick={() => { setErr(null); window.hub.kickLogin().catch((e) => setErr(errText(e))) }}>Войти в Kick</button>}
         </div>
       )}
-      {(['vk', 'goodgame'] as const).some((p) => st.targets.includes(p) && st.access[p] === 'manual') && (
+      {(['vk', 'goodgame'] as const).some((p) => st.targets.includes(p) && st.access[p] !== 'ok') && (
         <div className="note btnrow" style={{ marginTop: 12 }}>
-          <span style={{ flex: 1, minWidth: 220 }}>{(['vk', 'goodgame'] as const).filter((p) => st.targets.includes(p) && st.access[p] === 'manual').map((p) => NAMES[p]).join(' и ')} сейчас меняется вручную: Crossember копирует название и открывает канал. Войдите в «Подключениях» — и название с категорией будут меняться сами.</span>
+          <span style={{ flex: 1, minWidth: 220 }}>Для изменения названия на {(['vk', 'goodgame'] as const).filter((p) => st.targets.includes(p) && st.access[p] !== 'ok').map((p) => NAMES[p]).join(' и ')} восстановите вход в «Подключениях».</span>
           <button className="btn sm" onClick={() => go('connections')}>Подключения →</button>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { clipboard, shell } from 'electron'
+import { shell } from 'electron'
 import type { Store } from './db'
 import type { Settings } from './settings'
 import type { TwitchConnector } from './twitch'
@@ -11,7 +11,7 @@ import type { GgAuth } from './ggauth'
 /**
  * Название и категория эфира — сразу на всех площадках.
  * Twitch, YouTube, Kick, VK Видео Live, GoodGame — через API площадок (у Kick, VK и GoodGame — после входа).
- * Без входа VK и GoodGame — вручную: Crossember копирует название и открывает страницу канала в браузере.
+ * Без настроенного входа площадка сообщает об ошибке, без копирования названия в буфер обмена.
  */
 
 export const INFO_PLATFORMS = ['twitch', 'youtube', 'kick', 'vk', 'goodgame'] as const
@@ -80,8 +80,8 @@ export class StreamInfo extends EventEmitter {
       twitch: this.twitch.infoAccess(),
       youtube: this.youtube.state().account ? 'ok' : 'login',
       kick: !this.kick.state().available ? 'unavailable' : !this.kick.loggedIn() ? 'login' : this.kick.canEdit() ? 'ok' : 'relogin',
-      vk: !s.vk.channel ? 'nochannel' : !this.vk.state().available || !this.vk.loggedIn() ? 'manual' : this.vk.canEdit() ? 'ok' : 'relogin',
-      goodgame: !s.goodgame.channel ? 'nochannel' : !this.gg.state().available || !this.gg.loggedIn() ? 'manual' : 'ok'
+      vk: !this.vk.state().available ? 'unavailable' : !this.vk.loggedIn() ? 'login' : !s.vk.channel ? 'nochannel' : this.vk.canEdit() ? 'ok' : 'relogin',
+      goodgame: !this.gg.state().available ? 'unavailable' : !this.gg.loggedIn() ? 'login' : !s.goodgame.channel ? 'nochannel' : 'ok'
     }
   }
 
@@ -135,6 +135,12 @@ export class StreamInfo extends EventEmitter {
     const title = this.title
     const game = this.game
     try {
+      if (p === 'vk' || p === 'goodgame') {
+        const name = p === 'vk' ? 'VK Видео Live' : 'GoodGame'
+        if (access === 'unavailable') throw new Error(`${name}: настройте приложение в «Подключениях» → «Продвинутая настройка», затем войдите в аккаунт`)
+        if (access === 'login') throw new Error(`${name}: войдите в аккаунт в «Подключениях»`)
+        if (access === 'nochannel' || access === 'relogin') throw new Error(`${name}: войдите заново в «Подключениях», чтобы восстановить доступ к настройкам эфира`)
+      }
       if (p === 'twitch') {
         if (access === 'login') throw new Error('Не выполнен вход в Twitch')
         const g = await this.twitch.setChannelInfo(title, game)
@@ -151,12 +157,9 @@ export class StreamInfo extends EventEmitter {
       } else if (p === 'goodgame' && access === 'ok') {
         const g = await this.gg.setChannelInfo(title, game)
         this.set(p, 'ok', g ? `Применено · ${g}` : 'Применено')
-      } else if (p === 'vk' && access !== 'manual' && access !== 'nochannel') {
+      } else if (p === 'vk') {
         const g = await this.vk.setChannelInfo(title, game)
         this.set(p, 'ok', g ? `Применено · ${g}` : 'Применено')
-      } else {
-        if (access === 'nochannel') throw new Error('Не выполнен вход (Подключения)')
-        this.set(p, 'manual', 'Название скопировано — вставьте его в настройках эфира на открывшейся странице (Ctrl+V)')
       }
     } catch (e) {
       this.set(p, 'error', (e as Error).message)
@@ -173,16 +176,7 @@ export class StreamInfo extends EventEmitter {
     for (const p of list) this.results[p] = { state: 'working', text: 'Отправляю…', ts: Date.now() }
     this.emit('change')
     try {
-      const access = this.access()
-      const isManual = (p: InfoPlatform): boolean => (p === 'vk' || p === 'goodgame') && (access[p] === 'manual' || access[p] === 'nochannel')
-      await Promise.all(list.filter((p) => !isManual(p)).map((p) => this.one(p)))
-      // VK и GoodGame без входа — название в буфер обмена и страница канала в браузере.
-      const manual = list.filter(isManual)
-      if (manual.length) {
-        clipboard.writeText(this.title)
-        for (const p of manual) await this.one(p)
-        for (const p of manual) if (this.results[p]?.state === 'manual') await this.openManual(p)
-      }
+      await Promise.all(list.map((p) => this.one(p)))
       this.recent = [{ title: this.title, game: this.game }, ...this.recent.filter((r) => r.title !== this.title || r.game !== this.game)].slice(0, 8)
       this.save()
     } finally {

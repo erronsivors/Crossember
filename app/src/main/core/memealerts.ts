@@ -1,6 +1,8 @@
 import { BrowserWindow, session } from 'electron'
 import type { Hub } from './hub'
 import type { Secrets } from './secrets'
+import { isAuthUrl } from './sitewindow'
+import { UA } from './donations/common'
 
 /**
  * Memealerts: открытого API нет. Работаем через внутреннее API сайта (как сторонние инструменты на GitHub):
@@ -93,31 +95,58 @@ export class Memealerts {
     if (this.win) { this.win.focus(); return }
     const ses = session.fromPartition(`memealerts-login-${Date.now()}`)
     ses.setPermissionRequestHandler((_wc, _p, cb) => cb(false))
+    ses.setPermissionCheckHandler(() => false)
+    ses.setUserAgent(UA)
+    ses.on('will-download', (e) => e.preventDefault())
     const win = new BrowserWindow({
       width: 520, height: 760, title: 'Вход в Memealerts — Crossember', autoHideMenuBar: true,
       webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false }
     })
     this.win = win
     this.onChange()
-    win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-    win.webContents.on('will-navigate', (e, url) => {
-      if (!/^https:\/\/([\w-]+\.)*(memealerts\.com|twitch\.tv|vk\.com|vk\.ru|id\.vk\.com|google\.com|yandex\.ru|ya\.ru|telegram\.org)(\/|$)/.test(url)) e.preventDefault()
-    })
-    const check = async (): Promise<void> => {
-      if (!this.win || this.win.isDestroyed()) return
-      const url = this.win.webContents.getURL()
-      if (!/^https:\/\/memealerts\.com\//.test(url)) return
-      const tok = await this.win.webContents.executeJavaScript("localStorage.getItem('accessToken')", true).catch(() => null)
-      if (typeof tok !== 'string' || !tok) return
+    const windows = new Set<BrowserWindow>()
+    const allowed = (url: string): boolean => {
       try {
-        await this.setToken(tok)
-        this.closeWin()
+        const u = new URL(url)
+        return u.protocol === 'https:' && (u.hostname === 'memealerts.com' || u.hostname.endsWith('.memealerts.com') || isAuthUrl(url))
+      } catch { return false }
+    }
+    const guard = (w: BrowserWindow): void => {
+      windows.add(w)
+      w.on('closed', () => windows.delete(w))
+      w.webContents.setWindowOpenHandler(({ url }) => allowed(url)
+        ? { action: 'allow', overrideBrowserWindowOptions: { width: 520, height: 760, autoHideMenuBar: true, webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false } } }
+        : { action: 'deny' })
+      w.webContents.on('did-create-window', (child) => guard(child))
+      w.webContents.on('will-navigate', (e, url) => { if (!allowed(url)) e.preventDefault() })
+      w.webContents.on('will-redirect', (e, url) => { if (!allowed(url)) e.preventDefault() })
+    }
+    guard(win)
+    let checking = false
+    const check = async (): Promise<void> => {
+      if (checking || this.win !== win || win.isDestroyed()) return
+      checking = true
+      try {
+        // OAuth может вернуться в дочернее окно, а не в исходную страницу.
+        for (const page of windows) {
+          if (page.isDestroyed()) continue
+          const u = new URL(page.webContents.getURL())
+          if (u.protocol !== 'https:' || u.hostname !== 'memealerts.com') continue
+          const tok = await page.webContents.executeJavaScript("localStorage.getItem('accessToken')", true).catch(() => null)
+          if (this.win !== win || win.isDestroyed()) return
+          if (typeof tok !== 'string' || !tok) continue
+          await this.setToken(tok)
+          if (this.win === win) this.closeWin()
+          return
+        }
       } catch { /* ещё не вошёл до конца */ }
+      finally { checking = false }
     }
     const iv = setInterval(() => void check(), 2000)
     win.on('closed', () => {
       clearInterval(iv)
-      this.win = null
+      if (this.win === win) this.win = null
+      for (const child of windows) if (child !== win && !child.isDestroyed()) child.close()
       void ses.clearStorageData().catch(() => undefined)
       this.onChange()
     })

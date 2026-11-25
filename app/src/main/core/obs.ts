@@ -27,6 +27,9 @@ export class ObsConnector {
   private retryTimer: NodeJS.Timeout | null = null
   private retryDelay = 2000
   private stopped = false
+  private reconnecting = false
+  private connectTask: Promise<void> | null = null
+  private generation = 0
   /** Отложенные возвраты «как было»: ключ — что меняли (сцена, источник, фильтр, текст). */
   private reverts = new Map<string, { timer: NodeJS.Timeout; restore: () => Promise<unknown>; origin?: string }>()
   /** Возвраты, чьё время пришло, пока OBS был отключён: выполним сразу после переподключения. */
@@ -73,20 +76,28 @@ export class ObsConnector {
   }
 
   async reconnect(): Promise<void> {
+    if (this.reconnecting) return
+    this.reconnecting = true
+    this.stopped = false
+    this.generation++
     this.retryDelay = 2000
     if (this.retryTimer) clearTimeout(this.retryTimer)
     this.retryTimer = null
     try {
-      await this.obs.disconnect()
-    } catch {
-      /* уже отключено */
+      await this.obs.disconnect().catch(() => undefined)
+      await this.connectTask
+      this.patch({ connected: false })
+    } finally {
+      this.reconnecting = false
     }
-    await this.connect()
+    if (!this.stopped) await this.connect()
   }
 
   async stop(): Promise<void> {
     this.stopped = true
+    this.generation++
     if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.retryTimer = null
     for (const r of this.reverts.values()) clearTimeout(r.timer)
     this.reverts.clear()
     this.missed.clear()
@@ -211,7 +222,7 @@ export class ObsConnector {
   }
 
   private scheduleRetry(reason: string): void {
-    if (this.stopped || this.retryTimer) return
+    if (this.stopped || this.reconnecting || this.retryTimer) return
     this.hub.setStatus('obs', reason.startsWith('Неверный') ? 'error' : 'connecting', reason)
     this.retryTimer = setTimeout(() => {
       this.retryTimer = null
@@ -221,11 +232,26 @@ export class ObsConnector {
   }
 
   private async connect(): Promise<void> {
+    if (this.stopped || this.reconnecting || this.state.connected) return
+    if (this.connectTask) return this.connectTask
+    const task = this.connectOnce()
+    this.connectTask = task
+    try { await task }
+    finally { if (this.connectTask === task) this.connectTask = null }
+  }
+
+  private async connectOnce(): Promise<void> {
+    const gen = this.generation
     const { url } = this.config()
     this.hub.setStatus('obs', 'connecting', `Подключение к ${url}…`)
     try {
       const pass = this.secrets.get(PASSWORD_KEY) ?? undefined
       const { obsWebSocketVersion } = await this.obs.connect(url, pass)
+      if (this.stopped || gen !== this.generation) return
+      // disconnect() при ручном переподключении тоже порождает ConnectionClosed.
+      // Старый таймер не должен ещё раз рвать уже установленное соединение.
+      if (this.retryTimer) clearTimeout(this.retryTimer)
+      this.retryTimer = null
       this.retryDelay = 2000
       const [scene, stream, record, video] = await Promise.all([
         this.obs.call('GetCurrentProgramScene'),
@@ -233,6 +259,7 @@ export class ObsConnector {
         this.obs.call('GetRecordStatus'),
         this.obs.call('GetVideoSettings')
       ])
+      if (this.stopped || gen !== this.generation) return
       this.patch({
         connected: true,
         scene: scene.currentProgramSceneName,
@@ -246,7 +273,7 @@ export class ObsConnector {
       this.runMissed()
     } catch (e) {
       // ConnectionClosed сам запланирует повтор; здесь — на случай ошибки до открытия сокета.
-      this.scheduleRetry(`Не удалось подключиться: ${(e as Error).message}`)
+      if (gen === this.generation) this.scheduleRetry(`Не удалось подключиться: ${(e as Error).message}`)
     }
   }
 }

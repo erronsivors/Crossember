@@ -61,7 +61,7 @@ export function Connections({ snap, initial }: { snap: HubSnapshot; initial?: Pl
 
         {sel === 'memealerts' ? <div style={{ alignSelf: 'start' }}><MemeCard snap={snap} /></div> : <div className="card" style={{ alignSelf: 'start' }}>
           <h3><PlatIcon p={cur.id} /> {cur.name} {HINT[cur.id] && <Hint id={HINT[cur.id]!} />} <span className={`r dot ${cur.state}`} /></h3>
-          <p className="muted" style={{ marginTop: 0 }}>{STATE_LABEL[cur.state]} · {cur.detail}</p>
+          <p className="muted" style={{ marginTop: 0 }}>{cur.id === 'goodgame' || cur.id === 'vk' ? STATE_LABEL[cur.state] : `${STATE_LABEL[cur.state]} · ${cur.detail}`}</p>
           {cur.id === 'obs' && <ObsForm snap={snap} />}
           {cur.id === 'twitch' && <TwitchPanel snap={snap} />}
           {cur.id === 'youtube' && <YoutubePanel snap={snap} />}
@@ -279,6 +279,7 @@ function ChannelPanel({ id, snap }: { id: 'goodgame' | 'kick' | 'vk'; snap: HubS
   const account = auth?.account ?? null
   // Без приложения для входа (нет общего в сборке и не задано своё) остаётся чтение по нику.
   const byLogin = !!auth?.available
+  if (id === 'goodgame') return <AppLogin p="goodgame" a={snap.ggAuth} />
   return (
     <div>
       {byLogin && saved && (
@@ -301,7 +302,6 @@ function ChannelPanel({ id, snap }: { id: 'goodgame' | 'kick' | 'vk'; snap: HubS
       {saved && <button className="btn sm" onClick={() => void window.hub.reconnect(id)}>Переподключить</button>}
       {id === 'kick' && <AppLogin p="kick" a={snap.kickAuth} />}
       {id === 'vk' && <AppLogin p="vk" a={snap.vkAuth} />}
-      {id === 'goodgame' && <AppLogin p="goodgame" a={snap.ggAuth} />}
     </div>
   )
 }
@@ -339,11 +339,12 @@ function AppLogin({ p, a }: { p: AppPlatform; a: HubSnapshot['kickAuth'] }) {
     setErr(null)
     window.hub.oauthApp(p, id, secret).then(() => { setSecret(''); setOpen(false) }).catch((e) => setErr(errText(e)))
   }
-  // Общего приложения в сборке нет и своё не задано — показываем настройку сразу, без «Для опытных».
-  const setup = open || !a.available
+  // Реквизиты приложения не загромождают карточку, но остаются доступны для восстановления входа.
+  const setup = open
   return (
     <div className="field" style={{ marginTop: 18 }}>
       <label>{p === 'kick' ? 'Чат и название эфира' : 'Вход в аккаунт — чат, сообщения и название эфира'}</label>
+      {!a.available && <p className="small muted">Вход пока не настроен. Если он работал раньше, после восстановления данных могли потеряться настройки приложения. Откройте «Продвинутая настройка» и укажите прежнее приложение с сайта площадки, затем войдите заново.</p>}
       {a.available && (a.account
         ? <div className="btnrow"><span className="small">Вход выполнен: <b>{a.account}</b></span><button className="btn sm" onClick={() => void act.logout()}>Выйти</button></div>
         : a.pending
@@ -380,7 +381,7 @@ function AppLogin({ p, a }: { p: AppPlatform; a: HubSnapshot['kickAuth'] }) {
           <span className="small muted" style={{ display: 'block', marginTop: 6 }}>Секрет хранится зашифрованным только на этом ПК. После смены приложения нужно войти заново.</span>
         </div>
       )}
-      {a.available && <div style={{ marginTop: 8 }}><button className="btn sm" onClick={() => setOpen(!open)}>{open ? 'Скрыть' : a.source === 'custom' ? 'Своё приложение' : 'Для опытных: своё приложение'}</button></div>}
+      <div style={{ marginTop: 8 }}><button className="btn sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? 'Скрыть продвинутую настройку' : 'Продвинутая настройка'}</button></div>
       {err && <span className="small" style={{ color: '#ff7a84' }}>{err}</span>}
     </div>
   )
