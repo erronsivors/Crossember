@@ -279,7 +279,12 @@ function ChannelPanel({ id, snap }: { id: 'goodgame' | 'kick' | 'vk'; snap: HubS
   const account = auth?.account ?? null
   // Без приложения для входа (нет общего в сборке и не задано своё) остаётся чтение по нику.
   const byLogin = !!auth?.available
-  if (id === 'goodgame') return <AppLogin p="goodgame" a={snap.ggAuth} />
+  if (id === 'goodgame' || id === 'vk') return (
+    <div>
+      <AppLogin p={id} a={id === 'vk' ? snap.vkAuth : snap.ggAuth} />
+      {p?.configured && <p className="small muted">{p.live ? 'В эфире' : 'Не в эфире'}{id === 'vk' && snap.vkAuth.canChat && ' · отправка сообщений доступна во время эфира'}</p>}
+    </div>
+  )
   return (
     <div>
       {byLogin && saved && (
@@ -301,7 +306,6 @@ function ChannelPanel({ id, snap }: { id: 'goodgame' | 'kick' | 'vk'; snap: HubS
       {p?.configured && <p className="small muted">{p.live ? 'В эфире · зрителей: ' + (p.viewers ?? 0) : 'Не в эфире'} · {SEND_NOTE[id](snap)}</p>}
       {saved && <button className="btn sm" onClick={() => void window.hub.reconnect(id)}>Переподключить</button>}
       {id === 'kick' && <AppLogin p="kick" a={snap.kickAuth} />}
-      {id === 'vk' && <AppLogin p="vk" a={snap.vkAuth} />}
     </div>
   )
 }

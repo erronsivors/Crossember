@@ -46,6 +46,8 @@ export class TwitchConnector implements ChatConnector {
   readonly auth: TwitchAuth
   private emotes: EmoteCache
   private ws: WebSocket | null = null
+  private pendingSockets = new Map<WebSocket, ReturnType<typeof setTimeout>>()
+  private keepaliveSeconds = 30
   private keepaliveTimer: NodeJS.Timeout | null = null
   private retryTimer: NodeJS.Timeout | null = null
   private viewersTimer: NodeJS.Timeout | null = null
@@ -135,23 +137,30 @@ export class TwitchConnector implements ChatConnector {
     if (!me) return this.hub.setStatus('twitch', 'off', this.clientId() ? 'Не подключено — нажмите «Войти»' : 'Нужен Client ID приложения Twitch')
     this.stop('connecting', 'Подключение…', false)
     const gen = ++this.generation
+    let stage = 'проверка входа'
     try {
       const token = await this.auth.token('broadcaster')
       const acc = await this.auth.validate(token)
       if (!acc) await this.auth.token('broadcaster', true)
-      await this.loadUser(me.id)
-      await this.loadBadges(me.id)
+      if (gen !== this.generation) return
+      // Имя и значки не должны задерживать подключение чата при медленном API.
+      void this.loadUser(me.id).catch(() => {
+        if (gen === this.generation) this.hub.log('twitch', 'warn', 'Не удалось обновить имя канала; подключение чата продолжается')
+      })
+      void this.loadBadges(me.id).catch(() => undefined)
       void this.warmTwitchEmotes(me.id)
       if (this.settings.get().twitch.thirdPartyEmotes && /^\d+$/.test(me.id)) {
         void this.emotes.loadThirdParty(me.id, (m) => this.hub.log('twitch', 'warn', m)).then(() => this.onChange())
       } else this.emotes.clearThirdParty()
       if (gen !== this.generation) return
+      stage = 'подключение чата'
       this.connect(EVENTSUB_URL, gen)
       this.pollViewers()
       this.viewersTimer = setInterval(() => this.pollViewers(), 60_000)
       this.validateTimer = setInterval(() => void this.validateHourly(), 60 * 60_000)
     } catch (e) {
-      this.hub.setStatus('twitch', 'error', (e as Error).message)
+      if (gen !== this.generation) return
+      this.hub.setStatus('twitch', 'error', `Twitch: ${stage} — ${(e as Error).message}`)
       this.scheduleRetry(gen)
     }
   }
@@ -163,6 +172,11 @@ export class TwitchConnector implements ChatConnector {
     this.keepaliveTimer = this.retryTimer = this.viewersTimer = this.validateTimer = null
     const ws = this.ws
     this.ws = null
+    for (const [pending, timer] of this.pendingSockets) {
+      clearTimeout(timer)
+      pending.close()
+    }
+    this.pendingSockets.clear()
     ws?.close()
     this.hub.setStatus('twitch', state, detail)
   }
@@ -250,6 +264,13 @@ export class TwitchConnector implements ChatConnector {
 
   private connect(url: string, gen: number, old?: WebSocket): void {
     const ws = new WebSocket(url)
+    const welcomeTimer = setTimeout(() => {
+      if (gen !== this.generation || !this.pendingSockets.has(ws)) return
+      this.hub.log('twitch', 'warn', 'Twitch не подтвердил подключение чата за 30 секунд — повторяю')
+      ws.close()
+    }, 30_000)
+    this.pendingSockets.set(ws, welcomeTimer)
+    if (!old) this.ws = ws
     ws.onmessage = (m) => {
       if (gen !== this.generation) return
       let msg: Json
@@ -261,6 +282,9 @@ export class TwitchConnector implements ChatConnector {
       void this.onSocketMessage(ws, msg, gen, old).catch((e) => this.hub.log('twitch', 'error', (e as Error).message))
     }
     ws.onclose = () => {
+      const timer = this.pendingSockets.get(ws)
+      if (timer) clearTimeout(timer)
+      this.pendingSockets.delete(ws)
       if (gen !== this.generation || this.ws !== ws) return
       this.ws = null
       this.hub.setStatus('twitch', 'connecting', 'Соединение с Twitch потеряно — переподключение…')
@@ -282,10 +306,18 @@ export class TwitchConnector implements ChatConnector {
     const meta = (msg.metadata ?? {}) as Json
     const payload = (msg.payload ?? {}) as Json
     const type = s(meta.message_type)
-    if (type !== 'session_reconnect') this.armKeepalive(30, gen)
+    if (type !== 'session_reconnect') this.armKeepalive(this.keepaliveSeconds, gen)
 
     if (type === 'session_welcome') {
       const session = payload.session as Json
+      const timer = this.pendingSockets.get(ws)
+      if (timer) clearTimeout(timer)
+      this.pendingSockets.delete(ws)
+      if (this.retryTimer) clearTimeout(this.retryTimer)
+      this.retryTimer = null
+      const seconds = Number(session.keepalive_timeout_seconds)
+      if (Number.isFinite(seconds) && seconds > 0) this.keepaliveSeconds = seconds
+      this.armKeepalive(this.keepaliveSeconds, gen)
       this.ws = ws
       old?.close()
       if (old) return // после reconnect подписки переносятся автоматически
@@ -322,8 +354,8 @@ export class TwitchConnector implements ChatConnector {
     const failed = results.filter((r) => !r.ok)
     const chat = results.find((r) => r.type === 'channel.chat.message')
     // Чат не подписался из-за сети (а не отказа Twitch) — это не «подключено»: переподключаемся заново.
-    if (chat && !chat.ok && chat.status === null) {
-      this.hub.setStatus('twitch', 'connecting', 'Не удалось подписаться на чат Twitch (нет связи) — переподключение…')
+    if (chat && !chat.ok && (chat.status === null || chat.status === 429 || chat.status >= 500)) {
+      this.hub.setStatus('twitch', 'connecting', 'Не удалось подписаться на чат Twitch (временная ошибка связи или сервиса) — переподключение…')
       this.ws?.close()
       return
     }

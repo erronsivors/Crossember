@@ -1,7 +1,7 @@
 {
   "name": "crossember",
   "productName": "Crossember",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "description": "Crossember — мульти-хаб стримера. Made by erron for friends",
   "main": "out/main/index.js",

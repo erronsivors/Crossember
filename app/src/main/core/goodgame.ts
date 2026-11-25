@@ -44,6 +44,7 @@ export class GoodGameConnector implements ChatConnector {
   onChange: () => void = () => undefined
 
   private authed = false
+  private joined = false
 
   constructor(private hub: Hub, private settings: Settings, private img: ImageCache, private cacheDir: string, private auth: GgAuth) {
     hub.register('goodgame', 'GoodGame')
@@ -87,7 +88,7 @@ export class GoodGameConnector implements ChatConnector {
     try {
       await this.loadStream(nick, gen)
       if (!this.channelId) throw new Error('Канал не найден — проверьте ник')
-      void this.loadSmiles(this.channelId)
+      void this.loadSmiles(this.channelId, gen)
       if (gen !== this.generation) return
       this.connect(gen)
       this.viewersTimer = setInterval(() => void this.loadStream(nick, gen).catch(() => undefined), 60_000)
@@ -105,6 +106,7 @@ export class GoodGameConnector implements ChatConnector {
     const ws = this.ws
     this.ws = null
     this.authed = false
+    this.joined = false
     this.channelId = null
     ws?.close()
     this.live = false
@@ -143,8 +145,8 @@ export class GoodGameConnector implements ChatConnector {
     this.onChange()
   }
 
-  /** Смайлы: глобальные + канала. Большой файл (~2,5 МБ) кэшируется на диск на сутки. */
-  private async loadSmiles(channelId: string): Promise<void> {
+  /** Общие и все канальные смайлы: зрители могут писать платными смайлами чужих каналов. */
+  private async loadSmiles(channelId: string, gen: number): Promise<void> {
     const file = join(this.cacheDir, 'goodgame-smiles.json')
     let raw: string | null = null
     try {
@@ -163,16 +165,26 @@ export class GoodGameConnector implements ChatConnector {
       const j = JSON.parse(raw) as { Smiles?: Json[]; Channel_Smiles?: Record<string, Json[]> }
       const map = new Map<string, string>()
       const warm: string[] = []
-      for (const sm of [...(j.Smiles ?? []), ...(j.Channel_Smiles?.[channelId] ?? [])]) {
-        const name = s(sm.name)
-        if (!/^[\w-]{1,64}$/.test(name)) continue
-        const url = s(sm.animated === true || sm.animated === '1' ? sm.img_gif || sm.img_big : sm.img_big || sm.img)
+      const channels = j.Channel_Smiles ?? {}
+      const shared = Array.isArray(j.Smiles) ? j.Smiles : []
+      const current = Array.isArray(channels[channelId]) ? channels[channelId] : []
+      const preload = new Set([...shared, ...current])
+      const others = Object.entries(channels).filter(([id]) => id !== channelId).flatMap(([, smiles]) => Array.isArray(smiles) ? smiles : [])
+      // Текущий канал последним — его вариант имеет приоритет при совпадении кода.
+      for (const sm of [...shared, ...others, ...current]) {
+        if (!sm || typeof sm !== 'object') continue
+        const url = s(sm.animated === true || sm.animated === '1' || sm.animated === 1 ? sm.img_gif || sm.img_big || sm.img : sm.img_big || sm.img)
         const path = this.img.local(url)
         if (path) {
-          map.set(name, path)
-          warm.push(path)
+          for (const rawName of [sm.name, sm.tag]) {
+            const name = s(rawName).replace(/^:|:$/g, '')
+            if (/^[\w-]{1,64}$/.test(name)) map.set(name, path)
+          }
+          // Остальные каналы скачиваются по мере появления сообщений, а не всем каталогом.
+          if (preload.has(sm)) warm.push(path)
         }
       }
+      if (gen !== this.generation) return
       this.smiles = map
       this.img.warm(warm.slice(0, 600))
     } catch (e) {
@@ -224,15 +236,18 @@ export class GoodGameConnector implements ChatConnector {
     switch (type) {
       case 'welcome':
         this.authed = false
+        this.joined = false
         void this.joinRoom(ws, this.generation)
         break
       case 'success_auth':
         this.authed = Number(d.user_id) > 0
+        if (this.joined) this.updateChatStatus()
         this.onChange()
         break
       case 'success_join':
         this.retryDelay = 2000
-        this.hub.setStatus('goodgame', 'ok', `Подключено · ${this.nick()}${this.authed ? '' : ' · только чтение'}`)
+        this.joined = true
+        this.updateChatStatus()
         break
       case 'message': {
         const text = unescapeHtml(s(d.text))
@@ -261,5 +276,10 @@ export class GoodGameConnector implements ChatConnector {
         this.hub.log('goodgame', 'warn', `GoodGame: ${s(d.errorMsg) || s(d.message) || 'ошибка'}`)
         break
     }
+  }
+
+  /** Подтверждения входа и присоединения могут прийти в любом порядке. */
+  private updateChatStatus(): void {
+    this.hub.setStatus('goodgame', 'ok', `Подключено · ${this.nick()}${this.authed ? '' : ' · отправка в чат недоступна'}`)
   }
 }
