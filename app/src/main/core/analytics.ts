@@ -170,7 +170,7 @@ export class Analytics extends EventEmitter {
   private flushTimer: NodeJS.Timeout | null = null
   private tickTimer: NodeJS.Timeout | null = null
 
-  constructor(private store: Store, private settings: Settings, private live: () => LiveInfo, opts: { timers?: boolean; now?: number } = {}) {
+  constructor(private store: Store, private settings: Settings, private live: () => LiveInfo, private opts: { timers?: boolean; now?: number; excluded?: (platform: ChatPlatform, user: string) => boolean } = {}) {
     super()
     store.sql.exec(`
       CREATE TABLE IF NOT EXISTS viewers (
@@ -275,7 +275,7 @@ export class Analytics extends EventEmitter {
     const cfg = this.cfg()
     if (!cfg.chat) return
     const key = viewerKey(e.user)
-    if (!key || cfg.ignore.has(key)) return
+    if (!key || cfg.ignore.has(key) || this.opts.excluded?.(e.platform, e.user)) return
     if (this.live().own.some((o) => viewerKey(o) === key)) return
     const id = `${e.platform}\n${key}`
     const ts = e.ts || Date.now()
@@ -363,7 +363,7 @@ export class Analytics extends EventEmitter {
 
   private accounts(): (ViewerAccount & { person: string | null })[] {
     const rows = this.store.sql.prepare('SELECT * FROM viewers').all() as unknown as ViewerRow[]
-    return rows.filter((r) => isChat(r.platform)).map((r) => ({
+    return rows.filter((r) => isChat(r.platform) && !this.opts.excluded?.(r.platform, r.user)).map((r) => ({
       platform: r.platform as ChatPlatform, key: r.key, user: r.user, messages: Number(r.messages), streams: Number(r.streams),
       firstTs: Number(r.first_ts), lastTs: Number(r.last_ts), person: r.person
     }))

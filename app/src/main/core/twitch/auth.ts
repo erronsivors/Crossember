@@ -106,10 +106,12 @@ export class TwitchAuth {
 
   /** Начать вход по коду устройства: пользователь открывает ссылку и подтверждает код. */
   async startDevice(role: Role): Promise<DeviceStart> {
+    const epoch = ++this.epoch[role]
     const clientId = this.clientId()
     if (!clientId) throw new Error('Не задан Client ID приложения Twitch')
     const scopes = SCOPES[role].join(' ')
     const { status, json } = await form(`${ID}/device`, { client_id: clientId, scopes })
+    if (epoch !== this.epoch[role]) throw new Error('Вход Twitch отменён')
     if (status !== 200) throw new Error(`Twitch отказал в начале входа: ${String(json.message ?? status)}`)
     const deviceCode = String(json.device_code)
     const interval = Math.max(1, Number(json.interval) || 5) * 1000
@@ -126,9 +128,11 @@ export class TwitchAuth {
           device_code: deviceCode,
           grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
         })
+        if (cancelled || epoch !== this.epoch[role]) throw new Error('Вход Twitch отменён')
         if (r.status === 200) {
           const access = String(r.json.access_token)
           const account = await this.validate(access)
+          if (cancelled || epoch !== this.epoch[role]) throw new Error('Вход Twitch отменён')
           if (!account) throw new Error('Twitch выдал токен, но проверка не прошла')
           this.save(role, {
             access,
@@ -153,6 +157,7 @@ export class TwitchAuth {
       wait,
       cancel: () => {
         cancelled = true
+        if (epoch === this.epoch[role]) this.epoch[role]++
       }
     }
   }

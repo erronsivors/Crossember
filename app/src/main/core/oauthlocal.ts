@@ -313,7 +313,7 @@ export class OAuthLocal {
    */
   cancelLogin(only?: Server[]): void {
     if (only && only !== this.servers) { for (const srv of only) srv.close(); return }
-    if (!only && this.pending) this.generation++
+    if (!only) this.generation++
     if (this.loginTimer) clearTimeout(this.loginTimer)
     this.loginTimer = null
     for (const srv of this.servers) srv.close()
@@ -434,12 +434,16 @@ export class OAuthLocal {
 
   /** Запрос к API площадки от имени пользователя; при 401 — один повтор с обновлённым токеном. */
   protected async call(url: string, init: { method: string; body?: unknown }): Promise<{ status: number; json: Json }> {
-    const go = async (token: string): Promise<Response> => fetch(url, {
+    const gen = this.generation
+    const go = async (token: string): Promise<Response> => {
+      if (gen !== this.generation || !this.tokens) throw new Error(`Вход в ${this.cfg.label} сменился — повторите`)
+      return fetch(url, {
       method: init.method,
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(init.body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
       body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
       signal: AbortSignal.timeout(15_000)
-    })
+      })
+    }
     let res = await go(await this.accessToken())
     if (res.status === 401) res = await go(await this.accessToken(true))
     const json = res.status === 204 ? {} : ((await res.json().catch(() => ({}))) as Json)

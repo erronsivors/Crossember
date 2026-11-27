@@ -36,6 +36,11 @@ export interface ChatConnector {
 /** Реестр площадок с чатом. */
 export class ChatRegistry {
   private map = new Map<Platform, ChatConnector>()
+  /** A selected independent identity handles sending without replacing the primary reader. */
+  alternateSend?: (platform: Platform, text: string, replyTo?: string) => Promise<boolean>
+  alternateReady?: (platform: Platform) => boolean
+  alternateSelected?: (platform: Platform) => boolean
+  defaultAs: () => 'broadcaster' | 'bot' = () => 'broadcaster'
 
   add(c: ChatConnector): void {
     this.map.set(c.id, c)
@@ -50,18 +55,22 @@ export class ChatRegistry {
   }
 
   states(): ChatPlatformState[] {
-    return this.all().map((c) => c.chatState())
+    return this.all().map((c) => { const s = c.chatState(); return { ...s, canSend: s.canSend || (s.configured && !!this.alternateReady?.(c.id)) } })
   }
 
   /** Отправить сообщение в выбранные площадки. Ошибки собираются, чтобы одна площадка не мешала другим. */
-  async send(text: string, targets: Platform[], as: 'broadcaster' | 'bot', reply?: { platform: Platform; id: string }): Promise<void> {
+  async send(text: string, targets: Platform[], as: 'broadcaster' | 'bot' | 'auto', reply?: { platform: Platform; id: string }): Promise<void> {
     const errors: string[] = []
     await Promise.all(
       targets.map(async (id) => {
         const c = this.map.get(id)
-        if (!c?.send || !c.chatState().canSend) return
+        if (!c?.send) return
         try {
-          await c.send(text, { as, replyTo: reply?.platform === id ? reply.id : undefined })
+          const role = as === 'auto' ? (this.alternateSelected?.(id) ? 'bot' : this.defaultAs()) : as
+          const replyTo = reply?.platform === id ? reply.id : undefined
+          if (role === 'bot' && await this.alternateSend?.(id, text, replyTo)) return
+          if (!c.chatState().canSend) throw new Error('Отправка выбранным аккаунтом пока недоступна')
+          await c.send(text, { as: role, replyTo })
         } catch (e) {
           errors.push(`${c.chatState().name}: ${(e as Error).message}`)
         }

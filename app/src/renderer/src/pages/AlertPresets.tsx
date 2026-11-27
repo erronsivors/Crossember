@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { HubSnapshot } from '../../../main/core/types'
 import type { AlertTemplate } from '../../../main/core/templates'
+import { alertCanvas } from '../../../main/core/alertcanvas'
 import { kit, serverUrl, type KitHandle } from '../editors'
 import { PRESETS, cornerTemplate, packTemplate } from '../presets'
 import { CORNER_POSITIONS, CORNER_POSITION_NAME, PACK_CATEGORIES, PACK_MODES, PACK_SETS, type CornerFile, type CornerPosition, type PackMode, type PackSet } from '../../../main/core/alertpack'
@@ -13,6 +14,7 @@ function Thumb({ t, snap, live }: { t: AlertTemplate; snap: HubSnapshot; live: b
   const box = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const [k, setK] = useState(0.15)
+  const canvas = alertCanvas(t.canvas)
   const item = useMemo(() => ({ ...(previewItem(t, 'donation', 0) as object), test: false }), [t])
   const theme = snap.settings.overlays.alert.theme
   // Адрес сервера — строкой: снимок состояния обновляется часто, миниатюра не должна из-за этого перезапускаться.
@@ -20,11 +22,12 @@ function Thumb({ t, snap, live }: { t: AlertTemplate; snap: HubSnapshot; live: b
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    const ro = new ResizeObserver(() => setK(el.clientWidth / 1920))
+    const fit = (): void => setK(Math.min(el.clientWidth / canvas.w, el.clientHeight / canvas.h))
+    const ro = new ResizeObserver(fit)
     ro.observe(el)
-    setK(el.clientWidth / 1920)
+    fit()
     return () => ro.disconnect()
-  }, [])
+  }, [canvas.w, canvas.h])
   useEffect(() => {
     if (!stage.current) return
     const url = (s: string): string => serverUrl(snap, s)
@@ -41,7 +44,7 @@ function Thumb({ t, snap, live }: { t: AlertTemplate; snap: HubSnapshot; live: b
   }, [item, live, theme, base])
   return (
     <div ref={box} className="preset-thumb">
-      <div ref={stage} style={{ transform: `scale(${k})`, transformOrigin: '0 0' }} />
+      <div ref={stage} style={{ position: 'absolute', left: `calc(50% - ${canvas.w * k / 2}px)`, top: `calc(50% - ${canvas.h * k / 2}px)`, transform: `scale(${k})`, transformOrigin: '0 0' }} />
     </div>
   )
 }
@@ -76,16 +79,18 @@ function Preview({ t, snap, kind, sound, run }: { t: AlertTemplate; snap: HubSna
   const box = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const [k, setK] = useState(0.3)
+  const canvas = alertCanvas(t.canvas)
   const theme = snap.settings.overlays.alert.theme
   const base = snap.server ? `${snap.server.baseUrl}|${snap.server.overlayKey}` : ''
   useLayoutEffect(() => {
     const el = box.current
     if (!el) return
-    const ro = new ResizeObserver(() => setK(el.clientWidth / 1920))
+    const fit = (): void => setK(Math.min(el.clientWidth / canvas.w, el.clientHeight / canvas.h))
+    const ro = new ResizeObserver(fit)
     ro.observe(el)
-    setK(el.clientWidth / 1920)
+    fit()
     return () => ro.disconnect()
-  }, [])
+  }, [canvas.w, canvas.h])
   useEffect(() => {
     if (!stage.current) return
     const el = stage.current
@@ -104,7 +109,7 @@ function Preview({ t, snap, kind, sound, run }: { t: AlertTemplate; snap: HubSna
   }, [t, kind, sound, run, theme, base])
   return (
     <div ref={box} className="pick-stage">
-      <div ref={stage} style={{ transform: `scale(${k})`, transformOrigin: '0 0' }} />
+      <div ref={stage} style={{ position: 'absolute', left: `calc(50% - ${canvas.w * k / 2}px)`, top: `calc(50% - ${canvas.h * k / 2}px)`, transform: `scale(${k})`, transformOrigin: '0 0' }} />
     </div>
   )
 }

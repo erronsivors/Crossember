@@ -54,6 +54,7 @@ function mention(text) {
 
 // Фильтры — как chatHidden/maskLinks в core/chatstyle.ts (держать одинаковыми).
 const norm = (s) => String(s || '').toLowerCase().replace(/ё/g, 'е');
+const profileNorm = (s) => norm(String(s || '').normalize('NFKC').trim().replace(/^@+/, ''));
 const wordList = (s) => norm(s).split(/[\s,;]+/).map((w) => w.replace(/^@/, '')).filter(Boolean);
 const LINK_SRC = String.raw`(?:https?:\/\/|www\.)\S+|[\p{L}\p{N}-]+\.(?:ru|com|net|org|tv|gg|io|me|рф|su|xyz|info|ly|be|link|app|dev)(?:\/\S*)?`;
 const hasLink = (t) => new RegExp(LINK_SRC, 'iu').test(t);
@@ -62,6 +63,7 @@ const maskLinks = (t) => String(t).replace(new RegExp(LINK_SRC, 'giu'), '[ссы
 function hidden(m) {
   const f = opts.look.filter;
   if (wordList(f.bots).includes(norm(m.user))) return true;
+  if (f.botProfiles && Array.isArray(f.botProfiles[m.platform]) && f.botProfiles[m.platform].some((name) => profileNorm(name) === profileNorm(m.user))) return true;
   const text = m.text || '';
   if (f.commands && /^\s*!/.test(text)) return true;
   if (f.links === 'hide' && hasLink(text)) return true;

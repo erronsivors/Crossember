@@ -130,6 +130,8 @@ export interface AppSettings extends ExtSettings {
   tts: TtsSettings
   lan: {
     enabled: boolean
+    /** Оверлеи только для чтения доступны OBS на другом ПК. */
+    overlays: boolean
     host: string
     port: number
     /** На втором устройстве можно не только читать чат, но и нажимать кнопки дока. */
@@ -322,7 +324,7 @@ export const DEFAULTS: AppSettings = {
   boosty: { poll: false },
   alerts: ALERT_DEFAULTS,
   tts: { engine: 'windows', voice: '', rate: 0, volume: 100, maxChars: 200, stripLinks: true, badWords: '' },
-  lan: { enabled: false, host: '', port: 47833, control: false },
+  lan: { enabled: false, overlays: false, host: '', port: 47833, control: false },
   dock: { blocks: DOCK_PRESETS.operator.slice() },
   overlays: {
     alert: { theme: 'general' },
@@ -508,6 +510,7 @@ export function sanitize(input: unknown, base: AppSettings = DEFAULTS): AppSetti
     })(),
     lan: {
       enabled: bool(lan.enabled, base.lan.enabled),
+      overlays: bool(lan.overlays, base.lan.overlays ?? false),
       host: host === '' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host) ? host : base.lan.host,
       port: int(lan.port, base.lan.port, 1024, 65535),
       control: bool(lan.control, base.lan.control ?? false)

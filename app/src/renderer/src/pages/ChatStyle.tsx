@@ -4,7 +4,7 @@ import type { ChatOverlaySettings, Theme } from '../../../main/core/settings'
 import {
   ALIGNS, ALIGN_LABEL, ANIM_IN, ANIM_IN_LABEL, ANIM_OUT, ANIM_OUT_LABEL, BG_LABEL, BG_STYLES, CHAT_EVENTS, CHAT_EVENT_LABEL, CHAT_FONTS, CHAT_ROLES,
   CHAT_SOURCES, COLOR_KEYS, COLOR_LABEL, DEFAULT_BOTS, DEFAULT_COLORS, DEFAULT_ROLE_COLORS, FONT_LABEL, HIGHLIGHTS, HIGHLIGHT_LABEL, LAYOUTS,
-  LAYOUT_LABEL, LINK_LABEL, LINK_MODES, ROLE_LABEL, chatCss, chatHidden, emoteOnly, eventView, isLight, isMention, maskLinks, sampleChat,
+  LAYOUT_LABEL, LINK_LABEL, LINK_MODES, ROLE_LABEL, botChatProfiles, chatCss, chatHidden, emoteOnly, eventView, isLight, isMention, maskLinks, sampleChat,
   type ChatEventView, type ChatLook, type TextStyle
 } from '../../../main/core/chatstyle'
 import { CHAT_PRESETS, applyPreset } from '../../../main/core/chatpresets'
@@ -213,7 +213,7 @@ export function ChatStyle({ snap, go }: { snap: HubSnapshot; go: (p: Page) => vo
         </div>
 
         <div className="cs-preview-col">
-          <ChatPreview cfg={cfg} mode={t.mode} own={own} opacity={target === 'float' ? cfg.bgOpacity ?? 55 : look.opacity} />
+          <ChatPreview cfg={{ ...cfg, look: { ...look, filter: { ...look.filter, botProfiles: botChatProfiles(snap.botAccounts?.profiles ?? []) } } }} mode={t.mode} own={own} opacity={target === 'float' ? cfg.bgOpacity ?? 55 : look.opacity} />
         </div>
       </div>
     </>

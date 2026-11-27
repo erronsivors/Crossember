@@ -3,9 +3,10 @@ import type { Store } from './db'
 import { BUILTIN_SOUNDS, type Theme } from './settings'
 import { artPath } from './art'
 import { packPath } from './alertpack'
+import { alertCanvas, type AlertCanvas } from './alertcanvas'
 
 /**
- * Шаблоны алертов для конструктора: холст 1920×1080 + слои на таймлайне.
+ * Шаблоны алертов для конструктора: свой холст + слои на таймлайне.
  * Один и тот же формат читают ядро (сборка алерта), оверлей и редактор (движок alertkit.js).
  * Всё, что приходит из интерфейса или с диска, проходит через sanitizeTemplate().
  */
@@ -124,6 +125,8 @@ export interface Layer {
 export interface AlertTemplate {
   id: string
   name: string
+  /** Старые шаблоны без canvas используют 1920×1080. */
+  canvas?: AlertCanvas
   /** Тема оформления карточки: как у оверлея или своя. */
   theme: 'auto' | Theme
   /** Длина алерта, мс. */
@@ -291,6 +294,7 @@ export function sanitizeTemplate(v: unknown): AlertTemplate {
   return {
     id: id(o.id),
     name: str(o.name, 'Новый алерт', 60).trim() || 'Новый алерт',
+    canvas: alertCanvas(obj(o.canvas)),
     theme: oneOf(o.theme, ['auto', 'general', 'campfire'] as const, 'auto'),
     durationMs: num(o.durationMs, 6000, 1000, 120_000),
     extendByMessage: bool(o.extendByMessage, true),

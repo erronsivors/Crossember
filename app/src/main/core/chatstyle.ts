@@ -2,6 +2,7 @@
 // Без node-импортов: этот модуль использует и ядро (оверлей в OBS), и интерфейс (живой предпросмотр) —
 // так OBS и предпросмотр всегда выглядят одинаково.
 import type { HubEvent, Platform } from './types'
+import type { BotPlatform, BotProfileView } from './botaccounttypes'
 
 export const CHAT_FONTS = ['manrope', 'unbounded', 'arial', 'segoe', 'verdana', 'tahoma', 'georgia', 'impact', 'consolas', 'comic'] as const
 export type ChatFont = (typeof CHAT_FONTS)[number]
@@ -63,6 +64,8 @@ export const DEFAULT_BOTS = 'nightbot, streamelements, streamlabs, moobot, fossa
 export interface ChatFilter {
   /** Ники через запятую или пробел — их сообщения не показываются. */
   bots: string
+  /** Список общих профилей, добавляемый ядром: совпадение только внутри площадки. */
+  botProfiles?: Partial<Record<BotPlatform, string[]>>
   /** Скрывать команды (сообщения, которые начинаются с «!»). */
   commands: boolean
   links: (typeof LINK_MODES)[number]
@@ -267,22 +270,37 @@ export function isMention(text: string, own: string[]): boolean {
 // ---------- Фильтры (та же логика повторена в overlays/chat.js: оверлей — обычный JS без сборки) ----------
 
 const norm = (s: string): string => s.toLowerCase().replace(/ё/g, 'е')
+const profileNorm = (s: string): string => norm(s.normalize('NFKC').trim().replace(/^@+/, ''))
 export const wordList = (s: string): string[] => norm(s).split(/[\s,;]+/).map((w) => w.replace(/^@/, '')).filter(Boolean)
 const LINK_SRC = String.raw`(?:https?:\/\/|www\.)\S+|[\p{L}\p{N}-]+\.(?:ru|com|net|org|tv|gg|io|me|рф|su|xyz|info|ly|be|link|app|dev)(?:\/\S*)?`
 export const hasLink = (t: string): boolean => new RegExp(LINK_SRC, 'iu').test(t)
 export const maskLinks = (t: string): string => t.replace(new RegExp(LINK_SRC, 'giu'), '[ссылка]')
 
 /** Скрыть сообщение чата по фильтрам (боты, команды, ссылки, слова). События не фильтруются. */
-export function chatHidden(look: ChatLook, e: Pick<HubEvent, 'type' | 'user' | 'text'>): boolean {
+export function chatHidden(look: ChatLook, e: Pick<HubEvent, 'type' | 'user' | 'text'> & Partial<Pick<HubEvent, 'platform'>>): boolean {
   if (e.type !== 'message') return false
   const f = look.filter
   if (wordList(f.bots).includes(norm(e.user))) return true
+  if (e.platform && f.botProfiles?.[e.platform as BotPlatform]?.some((name) => profileNorm(name) === profileNorm(e.user))) return true
   const text = e.text ?? ''
   if (f.commands && /^\s*!/.test(text)) return true
   if (f.links === 'hide' && hasLink(text)) return true
   const words = wordList(f.words)
   if (words.length) { const t = norm(text); if (words.some((w) => t.includes(w))) return true }
   return false
+}
+
+/** Имена для платформенных фильтров; данные входа в оверлей не передаются. */
+export function botChatProfiles(profiles: readonly BotProfileView[]): Partial<Record<BotPlatform, string[]>> {
+  const out: Partial<Record<BotPlatform, string[]>> = {}
+  for (const p of profiles) {
+    if (!p.hideChat) continue
+    const list = out[p.platform] ??= []
+    for (const name of [p.name, p.auth.account]) {
+      if (name && !list.includes(name)) list.push(name)
+    }
+  }
+  return out
 }
 
 /** Сообщение только из смайлов (пробелы между ними не в счёт). */

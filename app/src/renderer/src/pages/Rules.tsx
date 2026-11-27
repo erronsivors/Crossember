@@ -1,6 +1,6 @@
 import { useState, type ReactNode, type KeyboardEvent } from 'react'
 import type { HubSnapshot, Platform } from '../../../main/core/types'
-import type { Rule, RuleAction, TriggerType, TtsWhen } from '../../../main/core/rules'
+import type { Rule, RuleAction, RuleTriggerPair, TriggerType, TtsWhen } from '../../../main/core/rules'
 import type { ObsAction } from '../../../main/core/templates'
 import type { Counter, CounterOp } from '../../../main/core/counters'
 import { Hint, Toggle, errText } from '../components'
@@ -46,6 +46,45 @@ const TTS_WHEN: { id: TtsWhen; label: string; short: string; hint: string }[] = 
 ]
 const RESULT: Record<string, string> = { done: 'выполнено', dry: 'проверка', cooldown: 'кулдаун', error: 'ошибка', test: 'тест' }
 export const AMOUNT_TYPES: TriggerType[] = ['donation', 'bits', 'raid', 'gift', 'sub']
+
+/** Старое правило сохраняет все сочетания событий и площадок при открытии редактора. */
+export function rulePairs(r: Rule): RuleTriggerPair[] {
+  return r.pairs ?? r.types.flatMap<RuleTriggerPair>((type) => isService(type) || !r.platforms.length
+    ? [{ type, platform: null }]
+    : r.platforms.map((platform) => ({ type, platform })))
+}
+
+function withPairs(r: Rule, pairs: RuleTriggerPair[]): Rule {
+  return { ...r, pairs, types: [...new Set(pairs.map((p) => p.type))], platforms: [] }
+}
+
+export function pairLabel(p: RuleTriggerPair): string {
+  const what = TRIGGERS.find((x) => x.id === p.type)?.label ?? p.type
+  return isService(p.type) ? what : `${what} · ${PLATFORMS.find((x) => x.id === p.platform)?.label ?? 'Все площадки'}`
+}
+
+/** Одна строка — одна пара; достаточно совпадения с любой строкой. */
+export function TriggerPairs({ rule, onChange, alertsOnly = false }: { rule: Rule; onChange: (r: Rule) => void; alertsOnly?: boolean }) {
+  const pairs = rulePairs(rule)
+  // В старом правиле могут быть события чата и служебные поводы: сохраняем их доступными.
+  const options = TRIGGERS.filter((x) => !alertsOnly || ['donation', 'sub', 'gift', 'follow', 'raid', 'bits', 'reward'].includes(x.id) || pairs.some((p) => p.type === x.id))
+  const update = (i: number, pair: RuleTriggerPair): void => onChange(withPairs(rule, pairs.map((p, j) => j === i ? pair : p)))
+  return <>
+    <p className="small muted">Каждая строка — событие и его площадка. Подходит любая строка; условия ниже общие.</p>
+    {pairs.map((p, i) => <div className="btnrow" key={i} style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+      <select aria-label={`Событие ${i + 1}`} className="input" style={{ flex: 1, minWidth: 130 }} value={p.type} onChange={(e) => { const type = e.target.value as TriggerType; update(i, { type, platform: isService(type) ? null : p.platform }) }}>
+        {options.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+      </select>
+      {!isService(p.type) && <select aria-label={`Площадка ${i + 1}`} className="input" style={{ flex: 1, minWidth: 130 }} value={p.platform ?? ''} onChange={(e) => update(i, { ...p, platform: e.target.value ? e.target.value as Platform : null })}>
+        <option value="">Все площадки</option>
+        {PLATFORMS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+      </select>}
+      <button className="btn sm danger" title="Убрать пару" onClick={() => onChange(withPairs(rule, pairs.filter((_, j) => j !== i)))}>✕</button>
+    </div>)}
+    {!pairs.length && <p className="small muted">Нет событий — правило не запускается.</p>}
+    <button className="btn sm" disabled={pairs.length >= 256} onClick={() => onChange(withPairs(rule, [...pairs, { type: 'donation', platform: null }]))}>+ Добавить пару</button>
+  </>
+}
 
 export const newRule = (): Rule => ({
   id: crypto.randomUUID(), name: '', enabled: true, types: ['donation'], platforms: [],
@@ -209,7 +248,7 @@ function RuleRow({ r, snap, first, last, wrap, onEdit }: { r: Rule; snap: HubSna
   else if (f.maxAmount) conds.push(`до ${num(f.maxAmount)}${unit(r)}`)
   if (f.textContains) conds.push(`текст: ${f.textContains}`)
   if (f.users) conds.push(`ники: ${f.users}`)
-  if (r.platforms.length) conds.push(r.platforms.map((p) => PLATFORMS.find((x) => x.id === p)?.label).join(', '))
+  if (!r.pairs && r.platforms.length) conds.push(r.platforms.map((p) => PLATFORMS.find((x) => x.id === p)?.label).join(', '))
   return (
     <div className={`rule ${r.enabled ? '' : 'off'}`}>
       <div className="rule-move">
@@ -221,7 +260,7 @@ function RuleRow({ r, snap, first, last, wrap, onEdit }: { r: Rule; snap: HubSna
         <div className="rule-name">{r.name}</div>
         <div className="rule-flow">
           <span className="lbl">Когда</span>
-          {r.types.length ? r.types.map((t) => { const x = TRIGGERS.find((y) => y.id === t)!; return <span key={t} className="pill"><i>{x.ico}</i>{triggerLabel(r, t)}</span> }) : <span className="pill dim">ничего не выбрано</span>}
+          {r.pairs ? r.pairs.map((p, i) => <span key={i} className="pill">{isService(p.type) ? triggerLabel(r, p.type) : pairLabel(p)}</span>) : r.types.length ? r.types.map((t) => { const x = TRIGGERS.find((y) => y.id === t)!; return <span key={t} className="pill"><i>{x.ico}</i>{triggerLabel(r, t)}</span> }) : <span className="pill dim">ничего не выбрано</span>}
           {conds.map((c) => <span key={c} className="pill dim">{c}</span>)}
           <span className="arrow">→</span>
           {r.actions.length ? r.actions.map((a, i) => { const p = actionPill(a, snap); return <span key={i} className={`pill act a-${a.type}`}><i>{p.ico}</i>{p.text}</span> }) : <span className="pill dim">нет действий</span>}
@@ -262,7 +301,6 @@ function RuleEditor({ rule, snap, onClose }: { rule: Rule; snap: HubSnapshot; on
   const [confirmDel, setConfirmDel] = useState(false)
   const [showText, setShowText] = useState(!!rule.filter.textContains)
   const [showUsers, setShowUsers] = useState(!!rule.filter.users)
-  const [showPlat, setShowPlat] = useState(rule.platforms.length > 0)
   const exists = snap.rules.rules.some((x) => x.id === rule.id)
   const dirty = JSON.stringify(r) !== JSON.stringify(rule)
   const set = (p: Partial<Rule>): void => setR({ ...r, ...p })
@@ -271,8 +309,6 @@ function RuleEditor({ rule, snap, onClose }: { rule: Rule; snap: HubSnapshot; on
   const hasAmount = r.types.some((t) => AMOUNT_TYPES.includes(t))
   const hasViewer = r.types.some((t) => !isService(t))
   const keyErr = exists && dirty === false ? snap.rules.hotkeyErrors[r.id] : undefined
-  const toggleType = (t: TriggerType): void => set({ types: r.types.includes(t) ? r.types.filter((x) => x !== t) : [...r.types, t] })
-  const togglePlat = (p: Platform): void => set({ platforms: r.platforms.includes(p) ? r.platforms.filter((x) => x !== p) : [...r.platforms, p] })
 
   const save = (): void => {
     setErr(null)
@@ -287,13 +323,7 @@ function RuleEditor({ rule, snap, onClose }: { rule: Rule; snap: HubSnapshot; on
       </div>
 
       <Step n={1} title="Когда это происходит">
-        <div className="chips big">
-          {TRIGGERS.filter((x) => !x.service).map((x) => <button key={x.id} className={r.types.includes(x.id) ? 'on' : ''} onClick={() => toggleType(x.id)}><i>{x.ico}</i>{x.label}</button>)}
-        </div>
-        <div className="chips-label">Эфир, управление и сбор средств</div>
-        <div className="chips big">
-          {TRIGGERS.filter((x) => x.service).map((x) => <button key={x.id} className={r.types.includes(x.id) ? 'on' : ''} onClick={() => toggleType(x.id)}><i>{x.ico}</i>{x.label}</button>)}
-        </div>
+        <TriggerPairs rule={r} onChange={setR} />
         {r.types.includes('timer') && (
           <div className="inline-cond">
             <span>Каждые</span><NumIn width={90} min={1} max={720} value={r.intervalMin} onChange={(n) => set({ intervalMin: n })} /><span>мин</span>
@@ -321,12 +351,6 @@ function RuleEditor({ rule, snap, onClose }: { rule: Rule; snap: HubSnapshot; on
         {(r.types.includes('stream_start') || r.types.includes('stream_end')) && (
           <p className="small muted" style={{ margin: '0 0 10px' }}>Начало и конец эфира Crossember узнаёт от OBS — он должен быть подключён (раздел «Подключения»).</p>
         )}
-        {hasViewer && (!showPlat
-          ? <button className="linkbtn" onClick={() => setShowPlat(true)}>Со всех площадок · выбрать конкретные</button>
-          : <div className="chips">
-              <button className={r.platforms.length === 0 ? 'on' : ''} onClick={() => set({ platforms: [] })}>Все площадки</button>
-              {PLATFORMS.map((p) => <button key={p.id} className={r.platforms.includes(p.id) ? 'on' : ''} onClick={() => togglePlat(p.id)}>{p.label}</button>)}
-            </div>)}
       </Step>
 
       {hasViewer && <Step n={2} title="Если" hint="ruleFilter" aside={!hasAmount && !showText && !showUsers ? 'необязательно' : undefined}>

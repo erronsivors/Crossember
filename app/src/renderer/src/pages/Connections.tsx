@@ -4,6 +4,8 @@ import { Hint, Toggle, errText } from '../components'
 import { PlatIcon, fmtTime, useNow } from '../ui'
 import { DonationPanel, isDonationService } from './DonationPanels'
 import { MemeCard } from './Rewards'
+import { BOT_PLATFORMS, type BotPlatform } from '../../../main/core/botaccounttypes'
+import { BotProfilesPanel } from '../BotProfiles'
 
 const STATE_LABEL: Record<ConnStatus['state'], string> = { off: 'Не подключено', connecting: 'Подключение…', ok: 'Подключено', error: 'Ошибка' }
 const HINT: Partial<Record<Platform, string>> = {
@@ -67,6 +69,7 @@ export function Connections({ snap, initial }: { snap: HubSnapshot; initial?: Pl
           {cur.id === 'youtube' && <YoutubePanel snap={snap} />}
           {(cur.id === 'goodgame' || cur.id === 'kick' || cur.id === 'vk') && <ChannelPanel key={cur.id} id={cur.id} snap={snap} />}
           {isDonationService(cur.id) && <DonationPanel key={cur.id} id={cur.id} snap={snap} />}
+          {(BOT_PLATFORMS as readonly string[]).includes(cur.id) && <BotProfilesPanel key={`bots-${cur.id}`} snap={snap} platform={cur.id as BotPlatform} />}
           <h3 style={{ marginTop: 20 }}>Журнал</h3>
           <div className="log">
             {cur.log.length ? cur.log.map((l, i) => (

@@ -18,6 +18,9 @@ import { TwitchConnector } from './core/twitch'
 import { ImageCache } from './core/imgcache'
 import { FloatChat, FLOAT_HOTKEY } from './core/floatchat'
 import { ChatRegistry } from './core/connector'
+import { BotAccounts } from './core/botaccounts'
+import { createTwitchBot, createKickBot, createVkBot } from './core/botproviders-tkv'
+import { createYoutubeBot, createGoodgameBot } from './core/botproviders-yg'
 import { GoodGameConnector } from './core/goodgame'
 import { KickConnector } from './core/kick'
 import { VkConnector } from './core/vk'
@@ -136,6 +139,7 @@ let giveaway: Giveaway
 let vote: Vote
 let points: Points
 let bot: Bot
+let botAccounts: BotAccounts
 let bets: Bets
 let rewards: Rewards
 let spotify: Spotify
@@ -173,6 +177,7 @@ function ownAccounts(): string[] {
 
 function snapshot(): HubSnapshot {
   return {
+    botAccounts: botAccounts?.state() ?? { profiles: [], senders: {} },
     connections: hub.connections(),
     obs: obs.state,
     events: hub.recent(),
@@ -444,6 +449,21 @@ app.whenReady().then(async () => {
   chats.add(goodgame)
   chats.add(kick)
   chats.add(vk)
+  botAccounts = new BotAccounts(store, (profile, onChange) => {
+    const deps = { hub, secrets, settings, resourcesDir, twitch, youtube, goodgame }
+    switch (profile.platform) {
+      case 'twitch': return createTwitchBot(profile, onChange, deps)
+      case 'youtube': return createYoutubeBot(profile, onChange, deps)
+      case 'goodgame': return createGoodgameBot(profile, onChange, deps)
+      case 'kick': return createKickBot(profile, onChange, deps)
+      case 'vk': return createVkBot(profile, onChange, deps)
+    }
+  })
+  botAccounts.onChange = () => { server?.pushConfig(); pushUpdate() }
+  chats.alternateSend = (platform, text, replyTo) => botAccounts.send(platform, text, replyTo)
+  chats.alternateReady = (platform) => botAccounts.canSend(platform)
+  chats.alternateSelected = (platform) => botAccounts.selected(platform)
+  chats.defaultAs = () => settings.get().twitch.autoSendAs
   goodgame.onChange = pushUpdate
   kick.onChange = pushUpdate
   vk.onChange = pushUpdate
@@ -483,7 +503,7 @@ app.whenReady().then(async () => {
     const text = tpl.replace(/\{(приз|слово|победители)\}/g, (_, k: string) => vars[k] ?? '').replace(/\s+/g, ' ').trim().slice(0, 450)
     const targets = chats.states().filter((p) => p.canSend).map((p) => p.id)
     if (!targets.length) return
-    chats.send(text, targets, 'broadcaster').catch((e: Error) => hub.log('hub', 'warn', `Розыгрыш: не удалось написать в чат — ${e.message}`))
+    chats.send(text, targets, 'auto').catch((e: Error) => hub.log('hub', 'warn', `Розыгрыш: не удалось написать в чат — ${e.message}`))
   }
   giveaway.on('opened', (prize: string) => {
     const cfg = settings.get().giveaway
@@ -513,17 +533,17 @@ app.whenReady().then(async () => {
       .replace(/\s+/g, ' ').trim().slice(0, 450)
     const targets = chats.states().filter((x) => x.canSend).map((x) => x.id)
     if (!text || !targets.length) return
-    chats.send(text, targets, 'broadcaster').catch((e: Error) => hub.log('hub', 'warn', `Голосование: не удалось написать в чат — ${e.message}`))
+    chats.send(text, targets, 'auto').catch((e: Error) => hub.log('hub', 'warn', `Голосование: не удалось написать в чат — ${e.message}`))
   }
   // Родное голосование Twitch Twitch объявляет сам — пишем только о своём.
   vote.on('started', (p: PollView) => { if (p.source === 'own') voteSay(settings.get().vote.startText, p) })
   vote.on('finished', (p: PollView) => voteSay(settings.get().vote.winText, p))
   // ---------- Очки зрителей, бот, ставки, награды, музыка, сабатон, Memealerts ----------
   const liveNow = (): boolean => obs.state.streaming || chats.states().some((p) => p.live)
-  const autoAs = (): 'broadcaster' | 'bot' => settings.get().twitch.autoSendAs
+  const autoAs = (): 'auto' => 'auto'
   /** Ответ бота на той площадке, откуда пришла команда. */
   const replyTo = (p: Platform, text: string): void => {
-    if (!text || !chats.get(p)?.chatState().canSend) return
+    if (!text || !chats.states().some((c) => c.id === p && c.canSend)) return
     chats.send(text.slice(0, 450), [p], autoAs()).catch((e: Error) => hub.log('hub', 'warn', `Бот: не удалось ответить — ${e.message}`))
   }
   /** Сообщение во все чаты, где можно писать. */
@@ -532,7 +552,7 @@ app.whenReady().then(async () => {
     if (!text || !targets.length) return
     chats.send(text.slice(0, 450), targets, autoAs()).catch((e: Error) => hub.log('hub', 'warn', `Не удалось написать в чат — ${e.message}`))
   }
-  points = new Points(store, settings, hub, liveNow, ownAccounts)
+  points = new Points(store, settings, hub, liveNow, ownAccounts, (p, user) => botAccounts.excluded(p, user, 'excludePoints'))
   points.on('change', pushUpdate)
   points.lurkers = () => twitch.chatters()
   vote.spendPoints = (e, raw, step, reason) => {
@@ -667,7 +687,7 @@ app.whenReady().then(async () => {
       viewers,
       own: ownAccounts()
     }
-  })
+  }, { excluded: (p, user) => botAccounts.excluded(p, user, 'excludeAnalytics') })
   sounds = new SoundLibrary(app.getPath('userData'), store)
   hub.seed(store.recentEvents(100))
   hub.known = (id) => store.hasEvent(id)
@@ -725,7 +745,7 @@ app.whenReady().then(async () => {
       'subathon.add': (sec) => { subathon.add(Number(sec)) },
       counter: (id, op) => counters.apply(str(id, 100), op === 'sub' ? 'sub' : 'add', 1)
     },
-    sendMod: (text) => chats.send(text, chats.states().filter((p) => p.canSend).map((p) => p.id), twitch.state().bot ? 'bot' : 'broadcaster'),
+    sendMod: (text) => chats.send(text, chats.states().filter((p) => p.canSend).map((p) => p.id), 'auto'),
     moderate: async (id, op) => {
       const m = hub.findMessage(id)
       if (!m) return
@@ -734,7 +754,7 @@ app.whenReady().then(async () => {
       if (op === 'delete') await c?.deleteMessage?.(m)
       else await c?.ban?.(m, op === 'timeout' ? 600 : 0)
     }
-  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, keys, own: ownAccounts })
+  }, { alerts, stats, sounds, media, tts, counters, auction, wheel, goal, giveaway, vote, bets, music, subathon, rewards, points, keys, own: ownAccounts, botProfiles: () => botAccounts.hidden() })
   obs.onChange = pushUpdate
   // Перехват клавиш — только пока он разрешён и оверлей «Клавиатура» где-то открыт.
   // На игровом ПК (помощник) перехватом управляет стрим-ПК через keyHelper.
@@ -824,6 +844,8 @@ app.whenReady().then(async () => {
     if (s.goodgame.channel !== prev.goodgame.channel) void goodgame.restart()
     if (s.kick.channel !== prev.kick.channel) void kick.restart()
     if (s.youtube.customClientId !== prev.youtube.customClientId) void youtube.logout()
+    if (s.youtube.customClientId !== prev.youtube.customClientId) botAccounts.resetPlatform('youtube')
+    if (s.twitch.customClientId !== prev.twitch.customClientId) botAccounts.resetPlatform('twitch')
     if (s.vk.channel !== prev.vk.channel) void vk.restart()
     if (s.donationalerts.customClientId !== prev.donationalerts.customClientId) void da.logout()
     if (s.donatex.customClientId !== prev.donatex.customClientId && dx.state().method === 'oauth') void dx.logout()
@@ -912,13 +934,27 @@ app.whenReady().then(async () => {
   handle('hub:infoSuggest', (q) => streamInfo.suggest(str(q, 100)))
   handle('hub:infoFromTwitch', () => streamInfo.loadFromTwitch())
   handle('hub:infoOpen', (p) => { if ((INFO_PLATFORMS as readonly unknown[]).includes(p)) return streamInfo.openManual(p as InfoPlatform) })
-  handle('hub:kickLogin', () => kickAuth.login())
+  const cancelBotLogins = (): void => botAccounts.cancelAll()
+  handle('hub:botProfileAdd', (platform, name) => botAccounts.add(platform, name))
+  handle('hub:botProfileUpdate', (id, patch) => botAccounts.update(str(id, 80), patch))
+  handle('hub:botProfileRemove', (id) => botAccounts.remove(str(id, 80)))
+  handle('hub:botProfileLogin', async (id) => {
+    twitch.cancelLogin(); youtube.cancelLogin(); kickAuth.cancelLogin(); vkAuth.cancelLogin(); ggAuth.cancelLogin()
+    await botAccounts.login(str(id, 80))
+  })
+  handle('hub:botProfileCancel', (id) => botAccounts.cancel(str(id, 80)))
+  handle('hub:botProfileLogout', (id) => botAccounts.logout(str(id, 80)))
+  handle('hub:botProfileSender', (platform, id) => {
+    botAccounts.sender(platform, id)
+    if (platform === 'twitch' && id === null) settings.patch({ twitch: { autoSendAs: 'broadcaster' } })
+  })
+  handle('hub:kickLogin', () => { cancelBotLogins(); return kickAuth.login() })
   handle('hub:kickCancel', () => kickAuth.cancelLogin())
   handle('hub:kickLogout', () => kickAuth.logout())
-  handle('hub:vkLogin', () => vkAuth.login())
+  handle('hub:vkLogin', () => { cancelBotLogins(); return vkAuth.login() })
   handle('hub:vkCancel', () => vkAuth.cancelLogin())
   handle('hub:vkLogout', async () => { await vkAuth.logout(); settings.patch({ vk: { channel: '' } }) })
-  handle('hub:ggLogin', () => ggAuth.login())
+  handle('hub:ggLogin', () => { cancelBotLogins(); return ggAuth.login() })
   handle('hub:ggCancel', () => ggAuth.cancelLogin())
   handle('hub:ggLogout', async () => { await ggAuth.logout(); settings.patch({ goodgame: { channel: '' } }) })
   // Своё приложение Kick/VK: секрет уходит только в зашифрованное хранилище.
@@ -926,6 +962,7 @@ app.whenReady().then(async () => {
     const auth = p === 'kick' ? kickAuth : p === 'vk' ? vkAuth : p === 'goodgame' ? ggAuth : null
     if (!auth) return
     auth.setCustomClient(str(id, 200), typeof secret === 'string' && secret ? str(secret, 500) : null)
+    botAccounts.resetPlatform(p === 'kick' ? 'kick' : p === 'vk' ? 'vk' : 'goodgame')
   })
   // ---------- Профиль: сохранить в файл / загрузить ----------
   handle('hub:profileExport', async (withMedia) => {
@@ -1220,14 +1257,14 @@ app.whenReady().then(async () => {
     if (d) return d.restart()
     return chats.get(p as Platform)?.restart()
   })
-  handle('hub:twitchLogin', (r) => twitch.login(role(r)))
+  handle('hub:twitchLogin', (r) => { cancelBotLogins(); return twitch.login(role(r)) })
   handle('hub:twitchCancel', () => twitch.cancelLogin())
   handle('hub:twitchLogout', (r) => twitch.logout(role(r)))
   handle('hub:twitchRestart', () => twitch.restart())
-  handle('hub:youtubeLogin', () => youtube.login())
+  handle('hub:youtubeLogin', () => { cancelBotLogins(); return youtube.login() })
   handle('hub:youtubeCancel', () => youtube.cancelLogin())
   handle('hub:youtubeLogout', () => youtube.logout())
-  handle('hub:youtubeSecret', (v) => youtube.setCustomSecret(typeof v === 'string' ? str(v, 200) : null))
+  handle('hub:youtubeSecret', (v) => { youtube.setCustomSecret(typeof v === 'string' ? str(v, 200) : null); botAccounts.resetPlatform('youtube') })
   handle('hub:chatSend', (text, as, targets, reply) => {
     const list = Array.isArray(targets) ? (targets.filter((t) => typeof t === 'string') as Platform[]) : []
     const r = reply && typeof reply === 'object' ? (reply as { platform?: unknown; id?: unknown }) : null
@@ -1349,6 +1386,7 @@ app.on('before-quit', () => {
   vote?.stop()
   points?.stop()
   bot?.stop()
+  botAccounts?.dispose()
   bets?.stop()
   rewards?.stop()
   music?.stop()

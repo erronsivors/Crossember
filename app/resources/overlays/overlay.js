@@ -88,6 +88,8 @@ const CB = (() => {
       // Новая версия Crossember — перезагрузить страницу, чтобы OBS взял свежий код оверлея.
       if (d.kind === 'hello') {
         attempt = 0;
+        // На втором ПК часы могут отличаться: время запуска алерта задано часами Crossember.
+        api.clockOffset = typeof d.serverTime === 'number' ? d.serverTime - Date.now() : 0;
         if (d.build) {
           if (api.build && api.build !== d.build) { location.reload(); return; }
           api.build = d.build;

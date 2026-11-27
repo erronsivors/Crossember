@@ -242,6 +242,9 @@
     const total = num(item.durationMs, 6000);
     const theme = item.theme === 'general' || item.theme === 'campfire' ? item.theme : opts.theme === 'campfire' ? 'campfire' : 'general';
     stage.classList.add('ak-stage');
+    const side = (v, d) => Number.isFinite(v) ? Math.round(Math.min(3840, Math.max(240, v))) : d;
+    stage.style.width = side(item.canvas && item.canvas.w, W) + 'px';
+    stage.style.height = side(item.canvas && item.canvas.h, H) + 'px';
     stage.classList.remove('t-general', 't-campfire');
     stage.classList.add('t-' + theme);
     stage.replaceChildren();

@@ -15,9 +15,11 @@ const seen = [];
 /** Звук, пришедший позже этого, не играется (связь подвисла, алерт уже идёт в эфире). */
 const LATE_MS = 1500;
 
-// Холст алерта 1920×1080; если источник в OBS другого размера — масштабируем целиком.
+// Размер приходит с каждым алертом; старые алерты используют 1920×1080.
 function fit() {
-  const k = Math.min(window.innerWidth / AlertKit.W, window.innerHeight / AlertKit.H) || 1;
+  const w = parseFloat(stage.style.width) || AlertKit.W;
+  const h = parseFloat(stage.style.height) || AlertKit.H;
+  const k = Math.min(window.innerWidth / w, window.innerHeight / h) || 1;
   stage.style.transform = 'scale(' + k + ')';
 }
 window.addEventListener('resize', fit);
@@ -32,7 +34,8 @@ function show(a, at, silent) {
   if (seen.includes(a.id)) return;
   seen.push(a.id);
   if (seen.length > 50) seen.shift();
-  const elapsed = Math.max(0, Date.now() - (at || Date.now()));
+  const now = Date.now() + (CB.clockOffset || 0);
+  const elapsed = Math.max(0, now - (at || now));
   // Алерт почти закончился — не показывать обрывок.
   if (elapsed > a.durationMs - 800) return;
   if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -44,6 +47,7 @@ function show(a, at, silent) {
   const offset = late ? elapsed : 0;
   shownAt = Date.now() - offset;
   handle = AlertKit.mount(stage, a, { url, theme, canSound, offset, playBuiltin: (id, v) => CBSound.play(id, v) });
+  fit();
   if (!CB.visible) handle.pause();
 }
 

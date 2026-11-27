@@ -33,11 +33,11 @@ export type VkAuthState = OAuthAppState & { canChat: boolean }
 export class VkAuth extends OAuthLocal {
   private stream: { id: string; at: number; channel: string; gen: number } | null = null
 
-  constructor(hub: Hub, secrets: Secrets, resourcesDir: string, private nick: () => string) {
+  constructor(hub: Hub, secrets: Secrets, resourcesDir: string, private nick: () => string, sendOnly = false) {
     super(hub, secrets, resourcesDir, {
       platform: 'vk', label: 'VK Видео Live',
       authUrl: 'https://auth.live.vkvideo.ru/app/oauth2/authorize', tokenUrl: 'https://api.live.vkvideo.ru/oauth/server/token',
-      scopes: ['chat:message:send', 'channel:stream:settings'], scopeSep: ',',
+      scopes: sendOnly ? ['chat:message:send'] : ['chat:message:send', 'channel:stream:settings'], scopeSep: ',',
       port: VK_REDIRECT_PORT, pkce: false, clientAuth: 'basic', redirectOnRefresh: true, implicit: true,
       tokensKey: 'vk.tokens', customKey: 'vk.customClient',
       embedded: typeof __VK_SHARED__ === 'string' ? __VK_SHARED__ : '', embeddedKey: 'crossember-vk'
@@ -102,8 +102,7 @@ export class VkAuth extends OAuthLocal {
   }
 
   /** id идущей трансляции (без него VK не принимает сообщения); помним минуту. */
-  private async streamId(): Promise<string> {
-    const channel = this.channel()
+  private async streamId(channel = this.channel()): Promise<string> {
     const gen = this.generation
     if (this.stream && this.stream.channel === channel && this.stream.gen === gen && Date.now() - this.stream.at < 60_000) return this.stream.id
     const d = obj((await this.api('GET', `/v1/channel?${new URLSearchParams({ channel_url: channel })}`)).data)
@@ -113,6 +112,7 @@ export class VkAuth extends OAuthLocal {
       this.stream = null
       throw new Error('VK: эфир не идёт — писать в чат VK можно во время трансляции')
     }
+    if (gen !== this.generation) throw new Error('VK: вход отправителя изменился — повторите')
     this.stream = { id, at: Date.now(), channel, gen }
     return id
   }
@@ -120,9 +120,20 @@ export class VkAuth extends OAuthLocal {
   async sendChat(text: string): Promise<void> {
     this.checkChannel()
     if (!this.canChat()) throw new Error('Чтобы писать в чат VK, войдите в VK Видео Live в «Подключениях»')
+    await this.postChat(text, this.channel())
+  }
+
+  /** Явный канал стримера для отдельного профиля-отправителя. Настройки эфира по-прежнему защищены checkChannel(). */
+  async sendChatTo(text: string, channel: string): Promise<void> {
+    if (!this.loggedIn() || !this.hasScope('chat:message:send')) throw new Error('VK: войдите в профиль отправителя с правом отправки сообщений')
+    if (!CHANNEL_URL.test(channel)) throw new Error('VK: сначала укажите канал стримера в «Подключениях»')
+    await this.postChat(text, channel)
+  }
+
+  private async postChat(text: string, channel: string): Promise<void> {
     const content = text.trim().slice(0, 500)
     if (!content) return
-    const q = new URLSearchParams({ channel_url: this.channel(), stream_id: await this.streamId() })
+    const q = new URLSearchParams({ channel_url: channel, stream_id: await this.streamId(channel) })
     try {
       await this.api('POST', `/v1/chat/message/send?${q}`, { parts: [{ text: { content } }] })
     } catch (e) {

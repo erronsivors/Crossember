@@ -9,6 +9,7 @@ import { cleanForSpeech, type WindowsTts } from './tts'
 import { moneyWords, numberWords, numbersToWords, plural } from './ruwords'
 import { artPath } from './art'
 import { packPath } from './alertpack'
+import { alertCanvas, type AlertCanvas } from './alertcanvas'
 
 /** Кусок текста: обычный текст или сумма (выделяется цветом). */
 export type AlertTitlePart = { t: 'text' | 'amount'; v: string }
@@ -39,6 +40,7 @@ export interface AlertItem {
   /** Краткое описание для очереди в интерфейсе. */
   summary: string
   theme: 'auto' | Theme
+  canvas: AlertCanvas
   durationMs: number
   layers: AlertLayerOut[]
   test: boolean
@@ -237,6 +239,7 @@ export class AlertEngine extends EventEmitter {
       user: e.user,
       summary: `${t.name}: ${e.user}${amountText(e) ? ` — ${amountText(e)}` : ''}`,
       theme: t.theme,
+      canvas: alertCanvas(t.canvas),
       durationMs: t.durationMs + extra,
       layers,
       test: !!e.test,

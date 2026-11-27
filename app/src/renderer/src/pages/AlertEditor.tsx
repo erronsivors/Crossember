@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import type { HubSnapshot } from '../../../main/core/types'
 import type { AlertTemplate, AnimPreset, Ease, Keyframe, Layer, LayerType, ObsAction } from '../../../main/core/templates'
+import { alertCanvas, resizeAlertCanvas, CANVAS_MIN, CANVAS_MAX } from '../../../main/core/alertcanvas'
 import { TEXT_FX, TEXT_FX_LABEL } from '../../../main/core/textfx'
 import { Hint, Toggle, errText } from '../components'
 import { ObsActionEditor, SoundSelect, VoiceSelect, kit, previewSound, previewTts, serverUrl, type KitHandle } from '../editors'
 import { playBuiltin } from '../sounds'
-import type { Rule, TriggerType } from '../../../main/core/rules'
-import type { Platform } from '../../../main/core/types'
-import { AMOUNT_TYPES, PLATFORMS, TRIGGERS, newRule } from './Rules'
+import type { Rule } from '../../../main/core/rules'
+import { AMOUNT_TYPES, TriggerPairs, rulePairs, pairLabel, newRule } from './Rules'
 import { ART_GROUPS, ART_SETS, artPath } from '../../../main/core/art'
 import { PACK_CATEGORIES, PACK_LAYER_NAME, PACK_SETS, packPath } from '../../../main/core/alertpack'
 
@@ -80,7 +80,7 @@ export function previewItem(t: AlertTemplate, kind: string, volume: number, vars
   const s = SAMPLE[kind] ?? SAMPLE.donation
   const extra = t.extendByMessage && s.message ? Math.min(s.message.length * 40, 5000) : 0
   return {
-    id: 'preview', kind, theme: t.theme, durationMs: t.durationMs + extra, test: true,
+    id: 'preview', kind, theme: t.theme, canvas: alertCanvas(t.canvas), durationMs: t.durationMs + extra, test: true,
     layers: t.layers.filter((l) => !l.hidden).map((l) => ({
       ...l,
       parts: l.type === 'card' || l.type === 'text' ? parts(l.text, s, vars) : undefined,
@@ -218,7 +218,7 @@ export function AlertEditor({ initial, snap, onClose, onBack }: { initial: Alert
   }
 
   const addLayer = (type: LayerType): void => {
-    const l = makeLayer(type)
+    const l = resizeAlertCanvas({ ...t, canvas: undefined, layers: [makeLayer(type)] }, alertCanvas(t.canvas), true).layers[0]
     if (type === 'tts') l.start = 600
     change({ ...t, layers: [...t.layers, l] })
     setSel(l.id)
@@ -350,6 +350,7 @@ function Canvas({ t, kind, time, total, playing, sel, snap, theme, volume, onSel
   const stageRef = useRef<HTMLDivElement>(null)
   const handle = useRef<KitHandle | null>(null)
   const [k, setK] = useState(0.4)
+  const canvas = alertCanvas(t.canvas)
   const counters = snap.counters
   const item = useMemo(() => previewItem(t, kind, volume, Object.fromEntries(counters.map((c) => [c.key, String(c.value)]))), [t, kind, volume, counters])
   const url = (src: string): string => serverUrl(snap, src)
@@ -357,11 +358,11 @@ function Canvas({ t, kind, time, total, playing, sel, snap, theme, volume, onSel
   useLayoutEffect(() => {
     const el = wrapRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => setK(el.clientWidth / 1920))
+    const ro = new ResizeObserver(() => setK(el.clientWidth / canvas.w))
     ro.observe(el)
-    setK(el.clientWidth / 1920)
+    setK(el.clientWidth / canvas.w)
     return () => ro.disconnect()
-  }, [])
+  }, [canvas.w, canvas.h])
 
   // Кадр в момент time (перемотка) или живое проигрывание.
   useEffect(() => {
@@ -419,8 +420,8 @@ function Canvas({ t, kind, time, total, playing, sel, snap, theme, volume, onSel
   const visual = t.layers.filter((l) => !l.hidden && VISUAL.includes(l.type))
   return (
     <div className="ed-canvas" onPointerDown={() => onSel(null)}>
-      <div ref={wrapRef} className="ed-wrap" style={{ height: 1080 * k }}>
-        <div className="ed-scale" style={{ transform: `scale(${k})` }}>
+      <div ref={wrapRef} className="ed-wrap" style={{ height: canvas.h * k, maxWidth: `calc(max(240px, calc(100vh - var(--tb) - 380px)) * ${canvas.w / canvas.h})` }}>
+        <div className="ed-scale" style={{ width: canvas.w, height: canvas.h, transform: `scale(${k})` }}>
           <div ref={stageRef} className="ak-stage ed-stage" />
           {!playing && (
             <div className="ed-handles" onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
@@ -445,7 +446,7 @@ function Canvas({ t, kind, time, total, playing, sel, snap, theme, volume, onSel
         </div>
       </div>
       <p className="small muted" style={{ margin: '6px 0 0' }}>
-        Холст 1920×1080 — как источник «Браузер» в OBS. Тяните слой мышкой, уголок справа внизу — размер. Звук в предпросмотре — встроенный и свои файлы; озвучку слышно в «Тест в OBS».
+        Холст {canvas.w}×{canvas.h} — укажите эти размеры у источника «Браузер» в OBS. Изменить размер: «Весь алерт». Тяните слой мышкой, уголок справа внизу — размер. Озвучку слышно в «Тест в OBS».
       </p>
     </div>
   )
@@ -610,14 +611,9 @@ function T({ value, onChange, max = 300, area }: { value: string; onChange: (s: 
 }
 
 // ---------- когда запускается ----------
-/** События, которые можно показать алертом (служебные поводы и чат — в «Правилах»). */
-const ALERT_TRIGGERS = TRIGGERS.filter((x) => ['donation', 'sub', 'gift', 'follow', 'raid', 'bits', 'reward'].includes(x.id))
-
 function trigText(r: Rule): string {
-  const what = r.types.map((x) => TRIGGERS.find((y) => y.id === x)?.label ?? x).join(', ') || 'нет события'
-  const where = r.platforms.length ? r.platforms.map((p) => PLATFORMS.find((x) => x.id === p)?.label ?? p).join(', ') : 'все площадки'
   const sum = r.filter.minAmount > 0 ? ` · от ${r.filter.minAmount}` : ''
-  return `${what} · ${where}${sum}`
+  return `${rulePairs(r).map(pairLabel).join(' / ') || 'нет события'}${sum}`
 }
 
 /**
@@ -628,12 +624,18 @@ function Triggers({ t, snap, exists }: { t: AlertTemplate; snap: HubSnapshot; ex
   const list = snap.rules.rules.filter((r) => r.actions.some((a) => a.type === 'alert' && a.templateId === t.id))
   const [edit, setEdit] = useState<Rule | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const put = (r: Rule, first = false): void => { setErr(null); window.hub.rulePut(r, first).catch((e) => setErr(errText(e))) }
   const add = (): void => setEdit({ ...newRule(), name: t.name.slice(0, 60) || 'Алерт', stop: true, actions: [{ type: 'alert', templateId: t.id }] })
-  const save = (): void => {
-    if (!edit) return
-    put(edit, !list.some((r) => r.id === edit.id))
-    setEdit(null)
+  const save = async (): Promise<void> => {
+    if (!edit || saving) return
+    setErr(null)
+    setSaving(true)
+    try {
+      await window.hub.rulePut(edit, !list.some((r) => r.id === edit.id))
+      setEdit(null)
+    } catch (e) { setErr(errText(e)) }
+    finally { setSaving(false) }
   }
   const remove = (r: Rule): void => {
     setErr(null)
@@ -641,14 +643,10 @@ function Triggers({ t, snap, exists }: { t: AlertTemplate; snap: HubSnapshot; ex
     const rest = r.actions.filter((a) => !(a.type === 'alert' && a.templateId === t.id))
     ;(rest.length ? window.hub.rulePut({ ...r, actions: rest }) : window.hub.ruleRemove(r.id)).catch((e) => setErr(errText(e)))
   }
-  const togglePlat = (p: Platform): void => {
-    if (!edit) return
-    setEdit({ ...edit, platforms: edit.platforms.includes(p) ? edit.platforms.filter((x) => x !== p) : [...edit.platforms, p] })
-  }
   return (
     <div style={{ marginBottom: 18 }}>
       <div className="ed-sec">Когда запускается</div>
-      <p className="small muted" style={{ marginTop: -4 }}>Алерт показывается, если событие подошло под любой из триггеров. Площадки не отмечены — подходят все.</p>
+      <p className="small muted" style={{ marginTop: -4 }}>Алерт показывается, если событие подошло под любой из триггеров.</p>
       {!exists && <p className="small">Сначала сохраните шаблон — потом добавьте триггер.</p>}
       {list.map((r) => (
         <div key={r.id} className="ed-trig">
@@ -661,25 +659,15 @@ function Triggers({ t, snap, exists }: { t: AlertTemplate; snap: HubSnapshot; ex
       {exists && !edit && <button className="btn sm" style={{ width: '100%' }} onClick={add}>+ Добавить триггер</button>}
       {edit && (
         <div className="ed-trig-edit">
-          <Field label="Событие" span>
-            <select className="input" value={edit.types[0] ?? 'donation'} onChange={(e) => setEdit({ ...edit, types: [e.target.value as TriggerType] })}>
-              {ALERT_TRIGGERS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
-            </select>
-          </Field>
-          <div className="small" style={{ margin: '8px 0 4px' }}>Площадки</div>
-          <div className="ed-trig-plats">
-            {PLATFORMS.map((p) => (
-              <label key={p.id} className="small"><input type="checkbox" checked={edit.platforms.includes(p.id)} onChange={() => togglePlat(p.id)} /> {p.label}</label>
-            ))}
-          </div>
-          {AMOUNT_TYPES.includes(edit.types[0]) && (
+          <TriggerPairs rule={edit} onChange={setEdit} alertsOnly />
+          {edit.types.some((type) => AMOUNT_TYPES.includes(type)) && (
             <Field label="Сумма от (0 — любая)">
               <N value={edit.filter.minAmount} min={0} max={10000000} step={1} onChange={(n) => setEdit({ ...edit, filter: { ...edit.filter, minAmount: Math.round(n) } })} />
             </Field>
           )}
           <div className="btnrow" style={{ marginTop: 10 }}>
-            <button className="btn sm primary" onClick={save}>Готово</button>
-            <button className="btn sm" onClick={() => setEdit(null)}>Отмена</button>
+            <button className="btn sm primary" disabled={saving} onClick={() => void save()}>{saving ? 'Сохраняется…' : 'Готово'}</button>
+            <button className="btn sm" disabled={saving} onClick={() => setEdit(null)}>Отмена</button>
           </div>
         </div>
       )}
@@ -689,10 +677,35 @@ function Triggers({ t, snap, exists }: { t: AlertTemplate; snap: HubSnapshot; ex
 }
 
 function TemplateProps({ t, onChange }: { t: AlertTemplate; onChange: (p: Partial<AlertTemplate>) => void }) {
+  const canvas = alertCanvas(t.canvas)
+  const [width, setWidth] = useState(canvas.w)
+  const [height, setHeight] = useState(canvas.h)
+  const [fitLayers, setFitLayers] = useState(false)
+  const [custom, setCustom] = useState(false)
+  useEffect(() => { setWidth(canvas.w); setHeight(canvas.h) }, [canvas.w, canvas.h])
+  const presets = ['1920×1080', '1280×720', '2560×1440', '3840×2160', '1080×1920']
+  const size = `${width}×${height}`
   return (
     <>
       <div className="ed-sec">Весь алерт</div>
       <div className="ed-fields">
+        <Field label="Разрешение холста" span>
+          <select className="input" value={!custom && presets.includes(size) ? size : 'custom'} onChange={(e) => {
+            setCustom(e.target.value === 'custom')
+            if (e.target.value === 'custom') return
+            const [w, h] = e.target.value.split('×').map(Number); setWidth(w); setHeight(h)
+          }}>
+            {presets.map((p) => <option key={p} value={p}>{p}</option>)}
+            <option value="custom">Свой размер</option>
+          </select>
+        </Field>
+        <Field label="Ширина, px"><N value={width} min={CANVAS_MIN} max={CANVAS_MAX} onChange={(w) => { setWidth(w); setCustom(true) }} /></Field>
+        <Field label="Высота, px"><N value={height} min={CANVAS_MIN} max={CANVAS_MAX} onChange={(h) => { setHeight(h); setCustom(true) }} /></Field>
+        <Field label="При смене размера" span>
+          <Toggle on={fitLayers} onChange={setFitLayers} label="Подогнать слои с сохранением пропорций" />
+          <p className="small muted">{fitLayers ? 'Слои и траектории анимации впишутся в новый холст по центру.' : 'Координаты и размеры слоёв останутся прежними. На меньшем холсте часть слоёв может оказаться за краем.'}</p>
+          <button className="btn sm" disabled={width === canvas.w && height === canvas.h} onClick={() => onChange(resizeAlertCanvas(t, { w: width, h: height }, fitLayers))}>Применить размер</button>
+        </Field>
         <Field label="Оформление карточки" span>
           <select className="input" value={t.theme} onChange={(e) => onChange({ theme: e.target.value as AlertTemplate['theme'] })}>
             <option value="auto">Как у оверлея «Алерты»</option><option value="general">Общий</option><option value="campfire">У костра</option>
@@ -938,8 +951,8 @@ function LayerProps({ l, t, time, total, snap, kind, selKf, setSelKf, onChange }
           {animated && <Field label="Масштаб, %"><N value={Math.round(s.scale * 100)} min={0} max={2000} onChange={(n) => setPose({ scale: n / 100 })} /></Field>}
         </div>
         <div className="btnrow">
-          <button className="btn sm" onClick={() => onChange({ x: Math.round((1920 - l.w) / 2) })} disabled={animated}>По центру ↔</button>
-          <button className="btn sm" onClick={() => onChange({ y: Math.round((1080 - l.h) / 2) })} disabled={animated}>По центру ↕</button>
+          <button className="btn sm" onClick={() => onChange({ x: Math.round((alertCanvas(t.canvas).w - l.w) / 2) })} disabled={animated}>По центру ↔</button>
+          <button className="btn sm" onClick={() => onChange({ y: Math.round((alertCanvas(t.canvas).h - l.h) / 2) })} disabled={animated}>По центру ↕</button>
         </div>
 
         <div className="ed-sub">Появление и исчезновение</div>

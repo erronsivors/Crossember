@@ -23,6 +23,7 @@ import type { TwitchChatSettings, TwitchRewardInput } from '../main/core/twitch'
 import type { SpotifyTrack } from '../main/core/spotify'
 import type { MemeSupporter } from '../main/core/memealerts'
 import type { VizRun } from '../main/core/viz'
+import type { BotPlatform, BotProfile } from '../main/core/botaccounttypes'
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] }
 type Role = 'broadcaster' | 'bot'
@@ -31,6 +32,13 @@ const call = <T = void>(ch: string, ...args: unknown[]): Promise<T> => ipcRender
 // Интерфейс видит только эти функции — никакого прямого доступа к Node/Electron.
 const api = {
   snapshot: () => call<HubSnapshot>('hub:snapshot'),
+  botProfileAdd: (platform: BotPlatform, name: string) => call<string>('hub:botProfileAdd', platform, name),
+  botProfileUpdate: (id: string, patch: Partial<BotProfile>) => call('hub:botProfileUpdate', id, patch),
+  botProfileRemove: (id: string) => call('hub:botProfileRemove', id),
+  botProfileLogin: (id: string) => call('hub:botProfileLogin', id),
+  botProfileCancel: (id: string) => call('hub:botProfileCancel', id),
+  botProfileLogout: (id: string) => call('hub:botProfileLogout', id),
+  botProfileSender: (platform: BotPlatform, id: string | null) => call('hub:botProfileSender', platform, id),
   setSettings: (patch: DeepPartial<AppSettings>) => call<AppSettings>('hub:settings', patch),
   obsConfigure: (url: string, password?: string) => call('hub:obsConfigure', url, password),
   obsReconnect: () => call('hub:obsReconnect'),

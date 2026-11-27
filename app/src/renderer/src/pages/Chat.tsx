@@ -140,10 +140,10 @@ export function Chat({ snap }: { snap: HubSnapshot }) {
                 <span className="cplat" style={{ background: PLATFORM[p.id].color }} />{p.name}
               </label>
             ))}
-            {twitch.bot && targets.includes('twitch') && (
+            {((twitch.bot && targets.includes('twitch')) || snap.botAccounts.profiles.some((p) => p.selected && targets.includes(p.platform))) && (
               <select className="input" value={as} onChange={(e) => setAs(e.target.value as 'broadcaster' | 'bot')}>
-                <option value="broadcaster">от {twitch.broadcaster?.name ?? 'стримера'}</option>
-                <option value="bot">от бота {twitch.bot.name}</option>
+                <option value="broadcaster">От аккаунтов каналов</option>
+                <option value="bot">Боты где выбраны, иначе каналы</option>
               </select>
             )}
             <button className="btn primary sm" disabled={!canWrite} onClick={send}>Отправить</button>

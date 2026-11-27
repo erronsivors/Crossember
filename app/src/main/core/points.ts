@@ -90,7 +90,7 @@ export class Points extends EventEmitter {
   /** Список зрителей чата Twitch (задаёт index.ts); null — недоступно. */
   lurkers: (() => Promise<{ id: string; name: string }[] | null>) | null = null
 
-  constructor(private store: Store, private settings: Settings, hub: Hub, private isLive: () => boolean, private own: () => string[]) {
+  constructor(private store: Store, private settings: Settings, hub: Hub, private isLive: () => boolean, private own: () => string[], private excluded: (platform: Platform, user: string) => boolean = () => false) {
     super()
     this.d = load(store.get<unknown>('points.v1', null))
     for (const v of Object.values(this.d.viewers)) this.names.set(`${v.platform}:${lower(v.name)}`, v.key)
@@ -107,7 +107,7 @@ export class Points extends EventEmitter {
   }
 
   state(): PointsState {
-    const all = Object.values(this.d.viewers)
+    const all = Object.values(this.d.viewers).filter((v) => !this.excluded(v.platform, v.name))
     const cfg = this.cfg()
     return {
       count: all.length,
@@ -267,14 +267,14 @@ export class Points extends EventEmitter {
   }
 
   top(n: number): Viewer[] {
-    return Object.values(this.d.viewers).filter((v) => v.balance > 0 && !this.isOwn(v.name)).sort((a, b) => b.balance - a.balance).slice(0, n)
+    return Object.values(this.d.viewers).filter((v) => v.balance > 0 && !this.isOwn(v.name) && !this.excluded(v.platform, v.name)).sort((a, b) => b.balance - a.balance).slice(0, n)
   }
 
   /** Место зрителя в рейтинге (1 — первый). */
   rank(key: string): number {
     const v = this.d.viewers[key]
-    if (!v) return 0
-    return Object.values(this.d.viewers).filter((x) => x.balance > v.balance).length + 1
+    if (!v || this.excluded(v.platform, v.name)) return 0
+    return Object.values(this.d.viewers).filter((x) => !this.excluded(x.platform, x.name) && x.balance > v.balance).length + 1
   }
 
   resetAll(): void {
@@ -297,7 +297,7 @@ export class Points extends EventEmitter {
     if (e.test || e.type === 'system') return
     const cfg = this.cfg()
     if (e.type === 'message') {
-      if (!e.user || this.isOwn(e.user)) return
+      if (!e.user || this.isOwn(e.user) || this.excluded(e.platform, e.user)) return
       const v = this.ensure(e.platform, e.userId, e.user)
       // Впервые пишет в чат — повод «новый зритель» (молчащий зритель Twitch тоже, когда заговорит).
       if (!v.chatted) {
@@ -317,7 +317,7 @@ export class Points extends EventEmitter {
       } else this.changed()
       return
     }
-    if (!cfg.enabled || !e.user) return
+    if (!cfg.enabled || !e.user || this.excluded(e.platform, e.user)) return
     let n = 0
     let reason = ''
     switch (e.type) {
@@ -332,6 +332,7 @@ export class Points extends EventEmitter {
     if (n <= 0 || e.user === 'Аноним') return
     // Донат приходит с сайта донатов — ищем того же зрителя в чатах по нику.
     const v = e.type === 'donation' ? (this.byName(e.user) ?? this.ensure(e.platform, undefined, e.user)) : this.ensure(e.platform, e.userId, e.user)
+    if (this.excluded(v.platform, v.name)) return
     this.add(v.key, n, reason)
   }
 
@@ -345,6 +346,7 @@ export class Points extends EventEmitter {
     const active = new Set<string>()
     if (cfg.perMinute > 0) {
       for (const v of Object.values(this.d.viewers)) {
+        if (this.excluded(v.platform, v.name)) continue
         if (v.lastActive && now - v.lastActive <= cfg.activeMin * 60_000) {
           active.add(v.key)
           v.balance += cfg.perMinute
@@ -361,7 +363,7 @@ export class Points extends EventEmitter {
         if (!list) { this.lurkerInfo = { ts: now, count: 0, error: 'Нужно право на список зрителей — войдите в Twitch заново' }; return }
         let count = 0
         for (const u of list) {
-          if (!u.name || this.isOwn(u.name)) continue
+          if (!u.name || this.isOwn(u.name) || this.excluded('twitch', u.name)) continue
           const v = this.ensure('twitch', u.id, u.name)
           if (active.has(v.key)) continue
           v.balance += cfg.perMinute * LURKER_EVERY_MIN

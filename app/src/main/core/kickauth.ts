@@ -20,11 +20,11 @@ declare const __KICK_SHARED__: string
 export type KickAuthState = OAuthAppState & { canChat: boolean }
 
 export class KickAuth extends OAuthLocal {
-  constructor(hub: Hub, secrets: Secrets, resourcesDir: string) {
+  constructor(hub: Hub, secrets: Secrets, resourcesDir: string, sendOnly = false) {
     super(hub, secrets, resourcesDir, {
       platform: 'kick', label: 'Kick',
       authUrl: 'https://id.kick.com/oauth/authorize', tokenUrl: 'https://id.kick.com/oauth/token',
-      scopes: ['user:read', 'channel:read', 'channel:write', 'chat:write'], scopeSep: ' ',
+      scopes: sendOnly ? ['user:read', 'channel:read', 'chat:write'] : ['user:read', 'channel:read', 'channel:write', 'chat:write'], scopeSep: ' ',
       port: KICK_REDIRECT_PORT, pkce: true, clientAuth: 'body', redirectOnRefresh: false,
       tokensKey: 'kick.tokens', customKey: 'kick.customClient',
       embedded: typeof __KICK_SHARED__ === 'string' ? __KICK_SHARED__ : '', embeddedKey: 'crossember-kick'
@@ -101,11 +101,31 @@ export class KickAuth extends OAuthLocal {
     if (!this.tokens?.userId) throw new Error('Kick: не удалось узнать ваш канал — попробуйте ещё раз')
     // Kick пишет в канал вошедшего аккаунта: не отправляем, если в «Подключениях» указан другой канал.
     if (!this.sameChannel(nick)) throw new Error(`Вход в Kick выполнен как ${this.tokens.name}, а в «Подключениях» указан канал ${nick}`)
+    await this.postChat(text, replyTo, Number(this.tokens.userId))
+  }
+
+  /** Отдельный вошедший отправитель: target — канал стримера, а не собственный канал бота.
+   * https://docs.kick.com/apis/chat — type:user uses broadcaster_user_id; type:bot ignores it.
+   */
+  async sendChatTo(text: string, replyTo: string | undefined, target: string): Promise<void> {
+    if (!this.canChat()) throw new Error('Kick: войдите в профиль отправителя с правом отправки сообщений')
+    const slug = target.trim().replace(/^https?:\/\/(?:www\.)?kick\.com\//i, '').replace(/[/?#].*$/, '').toLowerCase().replace(/_/g, '-')
+    if (!/^[a-z0-9-]{1,25}$/.test(slug)) throw new Error('Kick: сначала укажите канал стримера в «Подключениях»')
+    const gen = this.generation
+    const j = await this.api('GET', `/v1/channels?${new URLSearchParams({ slug })}`)
+    const channel = arr(j.data).map(obj).find((x) => s(x.slug).toLowerCase() === slug)
+    const targetId = Number(channel?.broadcaster_user_id)
+    if (!Number.isSafeInteger(targetId) || targetId <= 0) throw new Error('Kick: канал стримера не найден')
+    if (gen !== this.generation || !this.loggedIn()) throw new Error('Kick: вход отправителя изменился — повторите')
+    await this.postChat(text, replyTo, targetId)
+  }
+
+  private async postChat(text: string, replyTo: string | undefined, targetId: number): Promise<void> {
     // Kick: не больше 500 символов и 2048 байт.
     let content = [...text.trim()].slice(0, 500).join('')
     while (Buffer.byteLength(content, 'utf8') > 2048) content = [...content].slice(0, -1).join('')
     if (!content) return
-    const body: Record<string, unknown> = { type: 'user', content, broadcaster_user_id: Number(this.tokens!.userId) }
+    const body: Record<string, unknown> = { type: 'user', content, broadcaster_user_id: targetId }
     const rid = replyTo?.replace(/^kick-/, '')
     if (rid && UUID.test(rid)) body.reply_to_message_id = rid
     const j = await this.api('POST', '/v1/chat', body)

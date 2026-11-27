@@ -85,11 +85,13 @@ export class YoutubeConnector implements ChatConnector {
   private generation = 0
   private unknown = new Set<string>()
   private shared: { id: string; secret: string } | null = null
+  private authEpoch = 0
+  private refreshing: Promise<string> | null = null
   live = false
   viewers: number | null = null
   onChange: () => void = () => undefined
 
-  constructor(private hub: Hub, private settings: Settings, private secrets: Secrets, private resourcesDir: string) {
+  constructor(private hub: Hub, private settings: Settings, private secrets: Secrets, private resourcesDir: string, private options: { authOnly?: boolean } = {}) {
     hub.register('youtube', 'YouTube')
     // Файл рядом (режим разработки) или вшитый при сборке (см. electron.vite.config.ts).
     for (const read of [() => readFileSync(join(resourcesDir, ...SHARED_FILE), 'utf8'), embeddedShared]) {
@@ -145,6 +147,7 @@ export class YoutubeConnector implements ChatConnector {
     const c = this.client_()
     if (!c.id) throw new Error('Вход в YouTube ещё не настроен в этой сборке — укажите свой Client ID («Для опытных»)')
     this.cancelLogin()
+    const epoch = this.authEpoch
     const verifier = b64url(randomBytes(48))
     const challenge = b64url(createHash('sha256').update(verifier).digest())
     const state = b64url(randomBytes(24))
@@ -155,9 +158,11 @@ export class YoutubeConnector implements ChatConnector {
       srv.once('error', reject)
       srv.listen(0, '127.0.0.1', () => resolve())
     })
+    if (epoch !== this.authEpoch || this.loginServer !== srv) { srv.close(); return }
     const port = (srv.address() as { port: number }).port
     const redirect = `http://127.0.0.1:${port}`
 
+    let used = false
     srv.on('request', (req, res) => {
       const url = new URL(req.url ?? '/', redirect)
       if (url.pathname !== '/') {
@@ -165,7 +170,7 @@ export class YoutubeConnector implements ChatConnector {
         return
       }
       const code = url.searchParams.get('code')
-      const okState = url.searchParams.get('state') === state
+      const okState = !used && epoch === this.authEpoch && url.searchParams.get('state') === state
       if (!okState || !code) {
         res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' }).end(DONE_PAGE(false))
         if (okState) {
@@ -174,13 +179,14 @@ export class YoutubeConnector implements ChatConnector {
         }
         return
       }
-      this.exchange(code, verifier, redirect, c)
+      used = true
+      this.exchange(code, verifier, redirect, c, epoch)
         .then(() => res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(DONE_PAGE(true)))
         .catch((e: Error) => {
           this.hub.log('youtube', 'error', `Вход не удался: ${e.message}`)
           res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' }).end(DONE_PAGE(false))
         })
-        .finally(() => this.cancelLogin())
+        .finally(() => { if (epoch === this.authEpoch) this.cancelLogin() })
     })
 
     const q = new URLSearchParams({
@@ -202,6 +208,8 @@ export class YoutubeConnector implements ChatConnector {
   }
 
   cancelLogin(): void {
+    this.authEpoch++
+    this.refreshing = null
     if (this.loginTimer) clearTimeout(this.loginTimer)
     this.loginTimer = null
     this.loginServer?.close()
@@ -213,29 +221,34 @@ export class YoutubeConnector implements ChatConnector {
     }
   }
 
-  private async exchange(code: string, verifier: string, redirect: string, c: { id: string; secret: string }): Promise<void> {
+  private async exchange(code: string, verifier: string, redirect: string, c: { id: string; secret: string }, epoch: number): Promise<void> {
     const body = new URLSearchParams({ code, client_id: c.id, code_verifier: verifier, grant_type: 'authorization_code', redirect_uri: redirect })
     if (c.secret) body.set('client_secret', c.secret)
     const res = await fetch(TOKEN_URL, { method: 'POST', body, signal: AbortSignal.timeout(20_000) })
     const j = (await res.json().catch(() => ({}))) as Json
+    if (epoch !== this.authEpoch) throw new Error('Вход в YouTube отменён')
     if (!res.ok || !j.access_token) throw new Error(s(j.error_description) || s(j.error) || `Google: ${res.status}`)
     if (!j.refresh_token) throw new Error('Google не выдал refresh-токен — попробуйте войти ещё раз')
     const t: Tokens = { access: s(j.access_token), refresh: s(j.refresh_token), expiresAt: Date.now() + (Number(j.expires_in) || 3600) * 1000, channelId: '', channelName: '' }
-    this.tokens = t
-    const ch = await this.api('GET', 'channels', { part: 'snippet', mine: 'true' })
+    const profile = await fetch(`${API}/channels?${new URLSearchParams({ part: 'snippet', mine: 'true' })}`, { headers: { Authorization: `Bearer ${t.access}` }, signal: AbortSignal.timeout(20_000) })
+    const ch = obj(await profile.json().catch(() => ({})))
+    if (epoch !== this.authEpoch) throw new Error('Вход в YouTube отменён')
+    if (!profile.ok) throw new Error('YouTube не дал получить имя аккаунта — попробуйте войти снова')
     const item = obj(arr(ch.items)[0])
     if (!item.id) {
-      this.tokens = null
       throw new Error('У этого аккаунта Google нет YouTube-канала')
     }
     t.channelId = s(item.id)
     t.channelName = s(obj(item.snippet).title).slice(0, 100)
+    this.tokens = t
     this.save()
     this.hub.log('youtube', 'info', `Вход выполнен: ${t.channelName}`)
-    void this.restart()
+    this.onChange()
+    if (!this.options.authOnly) void this.restart()
   }
 
   async logout(): Promise<void> {
+    this.cancelLogin()
     const t = this.tokens
     this.tokens = null
     this.secrets.set(TOKENS_KEY, null)
@@ -252,11 +265,21 @@ export class YoutubeConnector implements ChatConnector {
     const t = this.tokens
     if (!t) throw new Error('Не выполнен вход в YouTube')
     if (Date.now() < t.expiresAt - 60_000) return t.access
+    if (!this.refreshing) {
+      const pending = this.refreshToken(t, this.authEpoch)
+      this.refreshing = pending
+      void pending.finally(() => { if (this.refreshing === pending) this.refreshing = null }).catch(() => undefined)
+    }
+    return this.refreshing
+  }
+
+  private async refreshToken(t: Tokens, epoch: number): Promise<string> {
     const c = this.client_()
     const body = new URLSearchParams({ client_id: c.id, refresh_token: t.refresh, grant_type: 'refresh_token' })
     if (c.secret) body.set('client_secret', c.secret)
     const res = await fetch(TOKEN_URL, { method: 'POST', body, signal: AbortSignal.timeout(20_000) })
     const j = (await res.json().catch(() => ({}))) as Json
+    if (epoch !== this.authEpoch || this.tokens !== t) throw new Error('Вход в YouTube изменился — повторите действие')
     if (!res.ok || !j.access_token) {
       if (j.error === 'invalid_grant') {
         this.tokens = null
@@ -266,14 +289,17 @@ export class YoutubeConnector implements ChatConnector {
       throw new Error(s(j.error_description) || `Google: ${res.status}`)
     }
     t.access = s(j.access_token)
+    if (j.refresh_token) t.refresh = s(j.refresh_token)
     t.expiresAt = Date.now() + (Number(j.expires_in) || 3600) * 1000
     this.save()
     return t.access
   }
 
   /** Запрос к YouTube Data API v3. */
-  private async api(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, query: Record<string, string>, body?: unknown): Promise<Json> {
+  private async api(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, query: Record<string, string>, body?: unknown, current?: () => boolean): Promise<Json> {
+    const epoch = this.authEpoch
     const token = await this.accessToken()
+    if (epoch !== this.authEpoch || (current && !current())) throw new Error('Вход или канал YouTube изменился — повторите действие')
     const res = await fetch(`${API}/${path}?${new URLSearchParams(query)}`, {
       method,
       headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
@@ -294,6 +320,7 @@ export class YoutubeConnector implements ChatConnector {
   // ---------- жизненный цикл ----------
 
   async start(): Promise<void> {
+    if (this.options.authOnly) return
     if (!this.tokens) return this.hub.setStatus('youtube', 'off', this.client_().id ? 'Не подключён — нажмите «Войти»' : 'Вход YouTube ещё не настроен')
     this.stop('connecting', 'Поиск эфира…', false)
     const gen = ++this.generation
@@ -641,9 +668,17 @@ export class YoutubeConnector implements ChatConnector {
 
   async send(text: string): Promise<void> {
     if (!this.liveChatId) throw new Error('Нет активного эфира')
+    return this.sendTo(this.liveChatId, text)
+  }
+
+  /** Bot identities write to the primary connector's chat without starting a second reader. */
+  activeChatId(): string | null { return this.liveChatId }
+
+  async sendTo(liveChatId: string, text: string, current?: () => boolean): Promise<void> {
+    if (!liveChatId || liveChatId.length > 1000) throw new Error('YouTube: нет активного чата основного канала')
     const messageText = [...text.trim()].slice(0, 200).join('')
     if (!messageText) return
-    await this.api('POST', 'liveChat/messages', { part: 'snippet' }, { snippet: { liveChatId: this.liveChatId, type: 'textMessageEvent', textMessageDetails: { messageText } } })
+    await this.api('POST', 'liveChat/messages', { part: 'snippet' }, { snippet: { liveChatId, type: 'textMessageEvent', textMessageDetails: { messageText } } }, current)
   }
 
   async deleteMessage(m: HubEvent): Promise<void> {

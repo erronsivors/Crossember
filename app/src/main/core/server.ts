@@ -6,7 +6,8 @@ import { networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import type { Hub } from './hub'
 import type { Store } from './db'
-import type { Settings } from './settings'
+import type { Settings, ChatOverlaySettings } from './settings'
+import type { BotPlatform } from './botaccounttypes'
 import type { ImageCache } from './imgcache'
 import type { HubEvent, ServerInfo } from './types'
 import type { AlertEngine, AlertItem } from './alerts'
@@ -34,7 +35,7 @@ import { keysAllowed, keysView } from './keyslayout'
 
 /** Оверлеи для OBS. id = имя файла в resources/overlays, key = ключ настроек. */
 const OVERLAYS = [
-  { id: 'alert', key: 'alert', name: 'Алерты', size: '1920 × 1080' },
+  { id: 'alert', key: 'alert', name: 'Алерты', size: '1920 × 1080 или размер холста' },
   { id: 'chat', key: 'chat', name: 'Чат вертикальный', size: '500 × 900' },
   { id: 'chat-h', key: 'chatH', name: 'Чат горизонтальный', size: '1920 × 80' },
   { id: 'pinned', key: 'pinned', name: 'Закреплённое сообщение', size: '1200 × 300' },
@@ -147,6 +148,7 @@ export interface OverlayExtras {
   keys: KeyCapture
   /** Свои аккаунты (каналы, бот) — для выделения обращений к стримеру в чате. */
   own?: () => string[]
+  botProfiles?: () => Partial<Record<BotPlatform, string[]>>
 }
 
 export interface RemoteActions {
@@ -161,7 +163,8 @@ export interface RemoteActions {
 }
 
 /** local — оверлеи (только чтение), dock — док для OBS на этом ПК, lan — пульт второго устройства, mod — пульт модератора. */
-type Kind = 'local' | 'lan' | 'dock' | 'mod'
+type Kind = 'local' | 'lan-overlay' | 'lan' | 'dock' | 'mod'
+const isOverlay = (kind: Kind): boolean => kind === 'local' || kind === 'lan-overlay'
 
 /**
  * Сервер Crossember.
@@ -195,6 +198,7 @@ export class OverlayServer {
   private dockTimer: NodeJS.Timeout | null = null
   private lanError: string | null = null
   private lanUrl: string | null = null
+  private lanApply: Promise<void> = Promise.resolve()
   /** Отпечаток файлов оверлеев: изменился (новая версия Crossember) — открытые оверлеи перезагрузятся сами. */
   private overlayBuild = ''
   port: number
@@ -218,7 +222,7 @@ export class OverlayServer {
     hub.on('event', (e: HubEvent) => this.broadcast({ kind: 'event', event: e, view: eventView(e) }))
     hub.on('delete', (d: unknown) => this.broadcast({ kind: 'delete', ...(d as object) }))
     hub.on('pinned', (m: HubEvent | null) => this.broadcast({ kind: 'pinned', event: m }))
-    // Алерты идут только в оверлеи (local), пульту второго ПК они не нужны.
+    // Алерты идут только в оверлеи (локальные и сетевые), пульту второго ПК они не нужны.
     extras.alerts.on('play', (a: AlertItem) => this.broadcast({ kind: 'alert', alert: a, at: Date.now() }, 'local'))
     extras.alerts.on('end', (id: string) => this.broadcast({ kind: 'alert-end', id }, 'local'))
     extras.counters.on('change', (list: Counter[]) => this.broadcast({ kind: 'counters', counters: list }, 'local'))
@@ -264,7 +268,7 @@ export class OverlayServer {
     else this.remoteKey = k
     this.store.set(`server.${which}Key`, k)
     const kindOf: Kind = which === 'overlay' ? 'local' : which === 'dock' ? 'dock' : which === 'mod' ? 'mod' : 'lan'
-    for (const [s, kind] of this.sockets) if (kind === kindOf) s.close(4001, 'key rotated')
+    for (const [s, kind] of this.sockets) if (kind === kindOf || (which === 'overlay' && kind === 'lan-overlay')) s.close(4001, 'key rotated')
     if (which === 'remote' && this.lanUrl) this.lanUrl = this.lanUrl.replace(/k=.*$/, `k=${k}`)
     return k
   }
@@ -281,6 +285,13 @@ export class OverlayServer {
       },
       own: (this.extras.own?.() ?? []).slice(0, 10)
     }
+  }
+
+  private overlaySettings() {
+    const s = this.settings.get()
+    const botProfiles = this.extras.botProfiles?.() ?? {}
+    const withBots = (c: ChatOverlaySettings) => ({ ...c, look: { ...c.look, filter: { ...c.look.filter, botProfiles } } })
+    return { ...s.overlays, chat: withBots(s.overlays.chat), chatH: withBots(s.overlays.chatH), float: { ...s.float, look: withBots(s.float).look } }
   }
 
   /** «Тест в OBS»: короткий поток выдуманных сообщений и событий — только в чаты, мимо алертов, правил и базы. */
@@ -301,7 +312,7 @@ export class OverlayServer {
   /** Сообщить оверлеям о новых настройках (тема, размер шрифта…). */
   pushConfig(): void {
     const s = this.settings.get()
-    this.broadcast({ kind: 'config', overlays: { ...s.overlays, float: s.float }, chatStyle: this.chatStyle(), dockBlocks: s.dock.blocks, lanControl: s.lan.control, keysLayout: keysView(s.overlays.keys) })
+    this.broadcast({ kind: 'config', overlays: this.overlaySettings(), chatStyle: this.chatStyle(), dockBlocks: s.dock.blocks, lanControl: s.lan.control, keysLayout: keysView(s.overlays.keys) })
     this.pushStats()
     this.pushDock()
   }
@@ -331,7 +342,11 @@ export class OverlayServer {
       port: this.port,
       baseUrl,
       overlayKey: this.overlayKey,
-      overlays: OVERLAYS.filter((o) => !o.hidden).map((o) => ({ id: o.id, name: o.name, size: o.size, url: `${baseUrl}/o/${o.id}?k=${this.overlayKey}` })),
+      overlays: OVERLAYS.filter((o) => !o.hidden).map((o) => ({
+        id: o.id, name: o.name, size: o.size, url: `${baseUrl}/o/${o.id}?k=${this.overlayKey}`,
+        lanUrl: this.lan && this.settings.get().lan.overlays && this.lanUrl
+          ? this.lanUrl.replace(/\/remote\?k=.*$/, `/o/${o.id}?k=${this.overlayKey}`) : null
+      })),
       dockUrl: `${baseUrl}/dock?k=${this.dockKey}`,
       lan: { running: !!this.lan, url: this.lanUrl, error: this.lanError, addresses: lanAddresses() },
       modUrl: this.lan && this.lanUrl ? this.lanUrl.replace(/\/remote\?k=.*$/, `/mod?k=${this.modKey}`) : null,
@@ -344,7 +359,7 @@ export class OverlayServer {
 
   private broadcast(msg: unknown, only?: Kind): void {
     const data = JSON.stringify(msg)
-    for (const [s, kind] of this.sockets) if ((!only || kind === only) && s.readyState === s.OPEN) s.send(data)
+    for (const [s, kind] of this.sockets) if ((!only || kind === only || (only === 'local' && kind === 'lan-overlay')) && s.readyState === s.OPEN) s.send(data)
   }
 
   /**
@@ -370,23 +385,24 @@ export class OverlayServer {
 
   private hello(kind: Kind, ov = ''): string {
     const s = this.settings.get()
-    const isDock = kind !== 'local'
+    const isDock = !isOverlay(kind)
     const isMod = kind === 'mod'
     return JSON.stringify({
       kind: 'hello',
+      serverTime: Date.now(),
       build: this.overlayBuild,
       role: kind === 'lan' ? 'remote' : kind === 'dock' ? 'dock' : isMod ? 'mod' : 'overlay',
-      overlays: { ...s.overlays, float: s.float },
+      overlays: this.overlaySettings(),
       chat: this.hub.recentChat().slice(0, 50),
       events: isDock ? this.hub.recent().slice(0, 30) : CHAT_OVERLAYS.has(ov) ? this.hub.recent().slice(0, 30).map((e) => ({ ...e, view: eventView(e) })) : [],
       ...(CHAT_OVERLAYS.has(ov) ? { chatStyle: this.chatStyle() } : {}),
       pinned: this.hub.pinned,
       ...(isDock ? (isMod ? { dockBlocks: MOD_BLOCKS, lanControl: true } : { dockBlocks: s.dock.blocks, lanControl: s.lan.control }) : {}),
       ...(kind === 'dock' || isMod || (kind === 'lan' && s.lan.control) ? { dock: this.dockData() } : {}),
-      ...(kind === 'local' ? { stats: this.statsData(), counters: this.extras.counters.list(), auction: this.extras.auction.overlay(), wheel: this.extras.wheel.overlay(), goal: this.extras.goal.overlay(), giveaway: this.extras.giveaway.overlay(), vote: this.extras.vote.overlay(), bets: this.extras.bets.overlay(), music: this.extras.music.overlay(), subathon: this.extras.subathon.state() } : {}),
+      ...(isOverlay(kind) ? { stats: this.statsData(), counters: this.extras.counters.list(), auction: this.extras.auction.overlay(), wheel: this.extras.wheel.overlay(), goal: this.extras.goal.overlay(), giveaway: this.extras.giveaway.overlay(), vote: this.extras.vote.overlay(), bets: this.extras.bets.overlay(), music: this.extras.music.overlay(), subathon: this.extras.subathon.state() } : {}),
       // Снимок для оверлея алертов после (пере)подключения: что идёт сейчас и с какого момента.
       ...(ov === 'alert' ? { alert: this.extras.alerts.nowPlaying() } : {}),
-      ...(ov === 'keys' && kind === 'local' ? { pressed: [...this.keySrc.keys()], keysLayout: keysView(s.overlays.keys) } : {})
+      ...(ov === 'keys' && isOverlay(kind) ? { pressed: [...this.keySrc.keys()], keysLayout: keysView(s.overlays.keys) } : {})
     })
   }
 
@@ -396,6 +412,7 @@ export class OverlayServer {
     const allowedHosts = kind === 'local' ? [`127.0.0.1:${port}`, `localhost:${port}`] : [`${host}:${port}`]
     const origins = allowedHosts.map((h) => `http://${h}`)
     const key = (): string => (kind === 'local' ? this.overlayKey : this.remoteKey)
+    const overlayAccess = (k: unknown): boolean => (kind === 'local' || this.settings.get().lan.overlays) && sameKey(k, this.overlayKey)
     const modOn = (): boolean => this.settings.get().mod.enabled && this.settings.get().mod.web
     const asset = async (rel: string): Promise<string> => readFile(join(this.resourcesDir, 'overlays', rel), 'utf8')
 
@@ -410,12 +427,6 @@ export class OverlayServer {
       app.get<{ Querystring: { k?: string } }>('/dock', async (req, reply) => {
         if (!sameKey(req.query.k, this.dockKey)) return reply.code(403).type('text/plain; charset=utf-8').send('Нет доступа: неверный ключ дока. Скопируйте ссылку заново в Crossember → Оверлеи → Док для OBS.')
         return reply.header('Content-Security-Policy', PAGE_CSP).type('text/html; charset=utf-8').send(await asset('dock.html'))
-      })
-      app.get<{ Params: { id: string }; Querystring: { k?: string } }>('/o/:id', async (req, reply) => {
-        if (!sameKey(req.query.k, key())) return reply.code(403).type('text/plain; charset=utf-8').send('Нет доступа: неверный ключ оверлея')
-        const o = OVERLAYS.find((x) => x.id === req.params.id)
-        if (!o) return reply.code(404).send({ error: 'not found' })
-        return reply.header('Content-Security-Policy', PAGE_CSP).type('text/html; charset=utf-8').send(await asset(`${o.id}.html`))
       })
     } else {
       app.get<{ Querystring: { k?: string } }>('/remote', async (req, reply) => {
@@ -477,6 +488,13 @@ export class OverlayServer {
       })
     }
 
+    app.get<{ Params: { id: string }; Querystring: { k?: string } }>('/o/:id', async (req, reply) => {
+      if (!overlayAccess(req.query.k)) return reply.code(403).type('text/plain; charset=utf-8').send('Нет доступа: проверьте ключ и разрешение оверлеев на другом ПК')
+      const o = OVERLAYS.find((x) => x.id === req.params.id && (kind === 'local' || !x.hidden))
+      if (!o) return reply.code(404).send({ error: 'not found' })
+      return reply.header('Content-Security-Policy', PAGE_CSP).type('text/html; charset=utf-8').send(await asset(`${o.id}.html`))
+    })
+
     app.get<{ Params: { file: string } }>('/a/:file', async (req, reply) => {
       const type = ASSETS[req.params.file]
       if (!type) return reply.code(404).send({ error: 'not found' })
@@ -515,16 +533,16 @@ export class OverlayServer {
     })
 
     // Свои звуки алертов — только для оверлеев, с ключом.
-    if (kind === 'local') {
+    {
       app.get<{ Params: { file: string }; Querystring: { k?: string } }>('/s/:file', async (req, reply) => {
-        if (!sameKey(req.query.k, key())) return reply.code(403).send({ error: 'forbidden' })
+        if (!overlayAccess(req.query.k)) return reply.code(403).send({ error: 'forbidden' })
         const snd = await this.extras.sounds.get(req.params.file)
         if (!snd) return reply.code(404).send({ error: 'not found' })
         return reply.header('Cross-Origin-Resource-Policy', 'cross-origin').type(snd.type).send(snd.body)
       })
       // Картинки и видео конструктора (с ключом; видео браузер просит кусками — Range).
       app.get<{ Params: { file: string }; Querystring: { k?: string } }>('/m/:file', async (req, reply) => {
-        if (!sameKey(req.query.k, key())) return reply.code(403).send({ error: 'forbidden' })
+        if (!overlayAccess(req.query.k)) return reply.code(403).send({ error: 'forbidden' })
         const range = typeof req.headers.range === 'string' ? req.headers.range : undefined
         const m = await this.extras.media.get(req.params.file, range)
         if (!m) return reply.code(range ? 416 : 404).send({ error: 'not found' })
@@ -534,7 +552,7 @@ export class OverlayServer {
       })
       // Готовая озвучка.
       app.get<{ Params: { file: string }; Querystring: { k?: string } }>('/t/:file', async (req, reply) => {
-        if (!sameKey(req.query.k, key())) return reply.code(403).send({ error: 'forbidden' })
+        if (!overlayAccess(req.query.k)) return reply.code(403).send({ error: 'forbidden' })
         const body = await this.extras.tts.get(req.params.file)
         if (!body) return reply.code(404).send({ error: 'not found' })
         return reply.header('Cross-Origin-Resource-Policy', 'cross-origin').type('audio/wav').send(body)
@@ -552,7 +570,8 @@ export class OverlayServer {
       // На локальном сервере ключ дока превращает подключение в док (с кнопками), ключ оверлеев — в оверлей.
       const asDock = kind === 'local' && sameKey(req.query.k, this.dockKey)
       const asMod = kind === 'lan' && modOn() && sameKey(req.query.k, this.modKey)
-      if ((origin && !origins.includes(origin)) || (!asDock && !asMod && !sameKey(req.query.k, key()))) {
+      const asOverlay = overlayAccess(req.query.k)
+      if ((origin && !origins.includes(origin)) || (!asDock && !asMod && !asOverlay && !sameKey(req.query.k, key()))) {
         socket.close(4003, 'forbidden')
         return
       }
@@ -564,9 +583,14 @@ export class OverlayServer {
         this.controlSocket(socket, k)
         return
       }
-      this.sockets.set(socket, kind)
       const ov = typeof (req.query as { o?: unknown }).o === 'string' ? String((req.query as { o?: unknown }).o).slice(0, 20) : ''
-      if (kind === 'local' && ov) this.socketOverlay.set(socket, ov)
+      if (asOverlay && kind === 'lan' && !OVERLAYS.some((o) => o.id === ov && !o.hidden)) {
+        socket.close(4003, 'forbidden')
+        return
+      }
+      const clientKind: Kind = asOverlay ? (kind === 'local' ? 'local' : 'lan-overlay') : kind
+      this.sockets.set(socket, clientKind)
+      if (asOverlay && ov) this.socketOverlay.set(socket, ov)
       this.onClients()
       socket.on('close', () => {
         this.sockets.delete(socket)
@@ -574,8 +598,8 @@ export class OverlayServer {
         if (this.socketMeta.delete(socket)) this.electMain()
         this.onClients()
       })
-      socket.send(this.hello(kind, ov))
-      if (kind === 'local') {
+      socket.send(this.hello(clientKind, ov))
+      if (asOverlay) {
         // Оверлеи только слушают; единственное, что они сообщают, — где открыты и видны ли (для оверлея «Алерты»).
         if (ov !== 'alert') {
           socket.on('message', () => undefined)
@@ -593,6 +617,7 @@ export class OverlayServer {
           } catch {
             return
           }
+          if (!m || typeof m !== 'object' || Array.isArray(m)) return
           // main: null — роль этой копии ещё не сообщали.
           const meta = this.socketMeta.get(socket) ?? { obs: false, visible: true, since, main: null }
           if (m.kind === 'hi') meta.obs = m.obs === true
@@ -705,7 +730,7 @@ export class OverlayServer {
   /** Подключены ли док, пульт второго ПК или модератора (им может понадобиться «что играет»). */
   controlClients(): number {
     let n = 0
-    for (const k of this.sockets.values()) if (k !== 'local') n++
+    for (const k of this.sockets.values()) if (!isOverlay(k)) n++
     return n
   }
 
@@ -722,11 +747,17 @@ export class OverlayServer {
   }
 
   /** Включить/выключить/перезапустить сервер «Чат на другом устройстве» (любой режим). */
-  async applyLan(): Promise<void> {
+  applyLan(): Promise<void> {
+    const task = this.lanApply.then(() => this.rebuildLan())
+    this.lanApply = task.catch(() => undefined)
+    return task
+  }
+
+  private async rebuildLan(): Promise<void> {
     const s = this.settings.get()
     const want = s.lan.enabled && !!s.lan.host
     if (this.lan) {
-      for (const [sock, kind] of this.sockets) if (kind === 'lan' || kind === 'mod') sock.close()
+      for (const [sock, kind] of this.sockets) if (kind === 'lan' || kind === 'mod' || kind === 'lan-overlay') sock.close()
       await this.lan.close().catch(() => undefined)
       this.lan = null
       this.lanUrl = null
@@ -749,6 +780,7 @@ export class OverlayServer {
   }
 
   async stop(): Promise<void> {
+    await this.lanApply
     if (this.dockTimer) clearTimeout(this.dockTimer)
     for (const s of this.sockets.keys()) s.close()
     await this.lan?.close()

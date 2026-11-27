@@ -503,6 +503,31 @@ export class TwitchConnector implements ChatConnector {
     if (r && !r.is_sent) throw new Error(`Сообщение отклонено: ${r.drop_reason?.message ?? 'без причины'}`)
   }
 
+  /** Отдельный OAuth-профиль: отправляет только в канал основного стримера и не запускает второй EventSub. */
+  async sendWithAuth(auth: TwitchAuth, text: string, replyTo?: string): Promise<void> {
+    const me = this.auth.account('broadcaster')
+    const sender = auth.account('bot')
+    if (!me || !sender) throw new Error('Twitch: подключите канал стримера и профиль отправителя')
+    const message = text.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 500)
+    if (!message) return
+    const body: Json = { broadcaster_id: me.id, sender_id: sender.id, message }
+    if (replyTo && /^[\w-]{1,100}$/.test(replyTo)) body.reply_parent_message_id = replyTo
+    const send = async (force: boolean): Promise<Response> => {
+      const token = await auth.token('bot', force)
+      if (this.auth.account('broadcaster')?.id !== me.id || auth.account('bot')?.id !== sender.id) throw new Error('Twitch: канал или профиль отправителя изменился — повторите')
+      return fetch(`${HELIX}/chat/messages`, {
+        method: 'POST', headers: { 'Client-Id': this.clientId(), Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body), signal: AbortSignal.timeout(15_000)
+      })
+    }
+    let res = await send(false)
+    if (res.status === 401) res = await send(true)
+    const j = (await res.json().catch(() => ({}))) as { data?: { is_sent?: boolean; drop_reason?: { message?: string } }[] }
+    if (!res.ok) throw new Error(`Twitch не принял сообщение (${res.status})`)
+    const r = j.data?.[0]
+    if (!r?.is_sent) throw new Error(`Сообщение отклонено: ${r?.drop_reason?.message ?? 'без причины'}`)
+  }
+
   async deleteMessage(m: HubEvent): Promise<void> {
     if (m.platform === 'twitch') await this.deleteById(m.id)
   }

@@ -54,6 +54,9 @@ export class GoodGameConnector implements ChatConnector {
     return this.settings.get().goodgame.channel
   }
 
+  /** Destination resolved by the primary reader, never the auxiliary sender's own channel. */
+  activeChannelId(): string | null { return this.channelId }
+
   chatState(): ChatPlatformState {
     const nick = this.nick()
     return { id: 'goodgame', name: 'GoodGame', configured: !!nick, live: this.live, viewers: this.viewers, canSend: !!nick && this.authed && !!this.ws, canModerate: false, account: nick || null }

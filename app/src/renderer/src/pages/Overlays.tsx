@@ -12,7 +12,7 @@ import { KEY_DEFS, KEYS_PRESETS, type KeysOverlaySettings, type KeysPreset } fro
 type Key = keyof AppSettings['overlays']
 const KEY: Record<string, Key> = { alert: 'alert', chat: 'chat', 'chat-h': 'chatH', pinned: 'pinned', top: 'top', last: 'last', counter: 'counter', auction: 'auction', wheel: 'wheel', goal: 'goal', giveaway: 'giveaway', vote: 'vote', bets: 'bets', music: 'music', subathon: 'subathon', keys: 'keys', viz: 'viz' }
 const DESC: Record<string, string> = {
-  alert: 'Донаты, подписки, рейды, фолловы — по очереди, по центру экрана.',
+  alert: 'Донаты, подписки, рейды, фолловы — по очереди. Размер холста задаётся в редакторе шаблона; в источнике OBS укажите такой же размер. При другом размере холст вписывается целиком.',
   chat: 'Колонка чата: новые сообщения снизу.',
   'chat-h': 'Строка чата внизу экрана: новые сообщения слева.',
   pinned: 'Сообщение, которое вы закрепили в Мультичате (📌).',
@@ -47,6 +47,14 @@ export function Overlays({ snap, go }: { snap: HubSnapshot; go?: (p: Page) => vo
       {!snap.server ? <div className="note warnbox">Сервер оверлеев не запущен — смотрите «Подключения».</div> : (
         <>
         <DockCard snap={snap} url={snap.server.dockUrl} />
+        <div className="note" style={{ marginBottom: 16 }}>
+          <b>OBS на другом ПК</b>
+          {snap.settings.lan.enabled && snap.settings.lan.overlays && snap.server.lan.running
+            ? <p className="small">В карточках ниже скопируйте ссылку «Для другого ПК» и добавьте её в источник «Браузер» в OBS. Оба ПК должны быть в одной домашней сети. Звук алертов воспроизводит одна активная копия оверлея.</p>
+            : <p className="small">В «Настройках → Чат и OBS на другом устройстве» выберите адрес этого ПК, разрешите подключение из домашней сети и включите оверлеи. После этого здесь появятся ссылки для второго ПК.</p>}
+          {snap.server.lan.error && <p className="small warnbox">{snap.server.lan.error}</p>}
+          {go && <button className="btn sm" onClick={() => go('settings')}>Настроить домашнюю сеть</button>}
+        </div>
         <div className="grid g2">
           {snap.server.overlays.map((o) => <OverlayCard key={o.id} o={o} snap={snap} go={go} />)}
         </div>
@@ -131,6 +139,13 @@ function OverlayCard({ o, snap, go }: { o: OverlayInfo; snap: HubSnapshot; go?: 
         <code title="Ссылка содержит ключ доступа — не показывайте её в эфире">{o.url.replace(/k=.+$/, 'k=••••••')}</code>
         <button className="btn sm" onClick={() => { void window.hub.copy(o.url); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>{copied ? 'Скопировано ✓' : 'Скопировать'}</button>
       </div>
+      {o.lanUrl && <div style={{ marginTop: 10 }}>
+        <div className="small muted">Для OBS на другом ПК</div>
+        <div className="url">
+          <code title="Ссылка содержит ключ доступа — не показывайте её в эфире">{o.lanUrl.replace(/k=.+$/, 'k=••••••')}</code>
+          <button className="btn sm" onClick={() => { void window.hub.copy(o.lanUrl!); setCopied(true); setTimeout(() => setCopied(false), 1500) }}>Для другого ПК</button>
+        </div>
+      </div>}
       <div className="field" style={{ marginTop: 14 }}>
         <label>Тема <Hint id="theme" /></label>
         <ThemePicker value={cfg.theme} onChange={(t: Theme) => set({ theme: t })} />

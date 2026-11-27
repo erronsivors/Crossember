@@ -79,8 +79,8 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
 
         {(
           <div className="card">
-            <h3>Чат на другом устройстве <Hint id="lan" /></h3>
-            <p className="small muted" style={{ marginTop: -6 }}>Телефон, планшет или второй ПК в той же домашней сети: чат и события в обычном браузере.</p>
+            <h3>Чат и OBS на другом устройстве <Hint id="lan" /></h3>
+            <p className="small muted" style={{ marginTop: -6 }}>Телефон, планшет или второй ПК в той же домашней сети. Здесь выбирается адрес для чата, помощника и оверлеев OBS.</p>
             <div className="field">
               <label>Адрес этого ПК в домашней сети</label>
               <select className="input" value={s.lan.host} onChange={(e) => void window.hub.setSettings({ lan: { host: e.target.value } })}>
@@ -90,7 +90,9 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
               {lan && lan.addresses.length === 0 && <span className="small muted">Не найдено подключений к домашней сети.</span>}
             </div>
             <NumberField label="Порт" value={s.lan.port} min={1024} max={65535} onChange={(v) => void window.hub.setSettings({ lan: { port: v } })} />
-            <Toggle on={s.lan.enabled} onChange={(v) => void window.hub.setSettings({ lan: { enabled: v } })} label="Открыть чат для другого устройства" />
+            <Toggle on={s.lan.enabled} onChange={(v) => void window.hub.setSettings({ lan: { enabled: v } })} label="Разрешить подключение из домашней сети" />
+            <Toggle on={s.lan.overlays} onChange={(v) => void window.hub.setSettings({ lan: { overlays: v } })} label="Разрешить оверлеи для OBS на другом ПК" />
+            {s.lan.overlays && <p className="small muted">Ссылки появятся в «Оверлеи для OBS». Они показывают оверлеи и воспроизводят звук алертов; кнопки управления включаются отдельно ниже.</p>}
             <Toggle on={s.lan.control} onChange={(v) => void window.hub.setSettings({ lan: { control: v } })} label="Разрешить там кнопки дока (алерты, аукцион, сбор, розыгрыш…)" />
             {s.lan.control && <p className="small muted" style={{ margin: '2px 0 0' }}>На устройстве откроется тот же набор блоков, что выбран в «Оверлеи → Док для OBS». Выключено — только чат и события.</p>}
             {lan?.error && <div className="note warnbox" style={{ marginTop: 10 }}>{lan.error}</div>}
@@ -113,7 +115,7 @@ export function Settings({ snap }: { snap: HubSnapshot }) {
             <div><span>Адрес</span><b className="mono" style={{ fontSize: 15 }}>127.0.0.1</b></div>
             <div><span>Порт</span><b className="mono" style={{ fontSize: 15 }}>{snap.server?.port ?? '—'}</b></div>
           </div>
-          <p className="small muted">Слушает только этот компьютер — из сети и интернета недоступен.</p>
+          <p className="small muted">Этот адрес работает только на данном компьютере. Доступ для OBS на другом ПК включается отдельно в карточке домашней сети.</p>
           <h3 style={{ marginTop: 18 }}>Ключ оверлеев <Hint id="overlayKey" /></h3>
           <KeyRotate label="Перевыпустить ключ оверлеев" confirm={confirm === 'overlay'} onAsk={() => setConfirm('overlay')} onCancel={() => setConfirm(null)} onYes={() => { void window.hub.rotateKey('overlay'); setConfirm(null) }} />
         </div>

@@ -104,6 +104,8 @@ export interface OverlayInfo {
   id: string
   name: string
   url: string
+  /** Ссылка для OBS на другом ПК; null, если доступ выключен. */
+  lanUrl?: string | null
   size: string
 }
 
@@ -150,6 +152,7 @@ export interface YoutubeState {
 }
 
 export interface HubSnapshot {
+  botAccounts: import('./botaccounttypes').BotAccountsState
   connections: ConnStatus[]
   obs: ObsState
   events: HubEvent[]

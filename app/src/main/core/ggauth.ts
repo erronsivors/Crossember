@@ -76,6 +76,12 @@ export class GgAuth extends OAuthLocal {
   /** Данные для входа в чат (протокол chat2). null — писать нельзя, читаем анонимно. */
   async chatAuth(): Promise<{ userId: string; token: string } | null> {
     if (!this.loggedIn() || !this.sameChannel()) return null
+    return this.botChatAuth()
+  }
+
+  /** A separately authorized sender may join the primary channel; editing still uses sameChannel. */
+  async botChatAuth(): Promise<{ userId: string; token: string } | null> {
+    if (!this.loggedIn()) return null
     if (this.chat && this.chat.gen === this.generation) return this.chat
     const gen = this.generation
     const m = await this.me()

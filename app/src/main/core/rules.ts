@@ -56,6 +56,9 @@ export type RuleAction =
   | { type: 'obs'; obs: ObsAction }
   | { type: 'counter'; counterId: string; op: CounterOp; value: number }
 
+/** null — любая площадка; служебные поводы всегда без площадки. */
+export interface RuleTriggerPair { type: TriggerType; platform: Platform | null }
+
 export interface Rule {
   id: string
   name: string
@@ -64,6 +67,8 @@ export interface Rule {
   types: TriggerType[]
   /** Пусто — все площадки. */
   platforms: Platform[]
+  /** Если задано, события проверяются по парам. types — сводка для таймеров и горячих клавиш. */
+  pairs?: RuleTriggerPair[]
   filter: RuleFilter
   cooldownSec: number
   /** Кулдаун отдельно для каждого зрителя. */
@@ -142,12 +147,23 @@ export function sanitizeRule(v: unknown): Rule {
   const f = obj(o.filter)
   const types = Array.isArray(o.types) ? o.types.filter((t): t is TriggerType => (TRIGGER_TYPES as readonly string[]).includes(t as string)) : []
   const platforms = Array.isArray(o.platforms) ? o.platforms.filter((p): p is Platform => PLATFORMS.includes(p as Platform)) : []
+  const pairs: RuleTriggerPair[] | undefined = Array.isArray(o.pairs) ? [] : undefined
+  if (pairs) for (const value of (o.pairs as unknown[]).slice(0, 256)) {
+    const p = obj(value)
+    if (!(TRIGGER_TYPES as readonly unknown[]).includes(p.type)) continue
+    const type = p.type as TriggerType
+    const service = (SERVICE_TRIGGERS as readonly string[]).includes(type)
+    if (!service && p.platform !== null && !PLATFORMS.includes(p.platform as Platform)) continue
+    const platform = service ? null : p.platform as Platform | null
+    if (!pairs.some((x) => x.type === type && x.platform === platform)) pairs.push({ type, platform })
+  }
   return {
     id: id(o.id),
     name: str(o.name, 'Новое правило', 60).trim() || 'Новое правило',
     enabled: bool(o.enabled, true),
-    types: [...new Set(types)],
-    platforms: [...new Set(platforms)],
+    types: [...new Set(pairs ? pairs.map((p) => p.type) : types)],
+    platforms: pairs ? [] : [...new Set(platforms)],
+    ...(pairs ? { pairs } : {}),
     filter: {
       minAmount: num(f.minAmount, 0, 0, 10_000_000),
       maxAmount: num(f.maxAmount, 0, 0, 10_000_000),
@@ -175,9 +191,13 @@ export function eventValue(e: HubEvent): number {
 const list = (s: string): string[] => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)
 
 /** Подходит ли событие под правило (без учёта включателя и кулдауна). */
+export function matchesTrigger(r: Rule, type: string, platform: Platform): boolean {
+  if (r.pairs) return r.pairs.some((p) => p.type === type && (p.platform === null || p.platform === platform))
+  return (r.types as string[]).includes(type) && (!r.platforms.length || r.platforms.includes(platform))
+}
+
 export function matches(r: Rule, e: HubEvent): boolean {
-  if (!(r.types as string[]).includes(e.type)) return false
-  if (r.platforms.length && !r.platforms.includes(e.platform)) return false
+  if (!matchesTrigger(r, e.type, e.platform)) return false
   const f = r.filter
   if (f.tests === 'real' && e.test) return false
   if (f.tests === 'test' && !e.test) return false
@@ -534,7 +554,7 @@ export class RuleEngine extends EventEmitter {
   replay(e: HubEvent): boolean {
     const withAlert = this.rules.filter((r) => r.actions.some((a) => a.type === 'alert'))
     const r = withAlert.find((x) => x.enabled && matches(x, { ...e, test: e.test })) ??
-      withAlert.find((x) => (x.types as string[]).includes(e.type))
+      withAlert.find((x) => x.pairs ? matchesTrigger(x, e.type, e.platform) : (x.types as string[]).includes(e.type))
     if (!r) return false
     const plan = emptyPlan()
     for (const a of r.actions) if (a.type === 'alert') { const t = this.templates.get(a.templateId); if (t) plan.templates.push(t) }
